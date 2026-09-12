@@ -1,6 +1,8 @@
 # <div align="center"> Sistema de Ordens de Serviço da Altave </div>
 ### <div align="center"> Equipe Sprinting Cheetahs </div>
 
+<img src="assets/logo_sc.png" alt="Banner do projeto" style="width:100%;">
+
 <p align="center">
   <a href="#apresentacao">Apresentação</a> | 
   <a href="#desafio">Desafio</a> | 
