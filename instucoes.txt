@@ -1,0 +1,37 @@
+SISTEMA DE LOGIN / NÍVEIS DE ACESSO - REACT + TYPESCRIPT + EXPRESS
+
+ADAPTAÇÃO PARA O SISTEMA DE ORDEM DE SERVIÇO
+
+Perfis:
+- Superusuário: administra contas, perfis, senhas, ativação/desativação e exclusão de usuários.
+- Gestor: futuramente administrará O.S., prioridades, equipes, atribuições e auditoria.
+- Comercial: abre e acompanha O.S. de novo projeto.
+- Suporte: abre e acompanha O.S. de manutenção.
+- Produção: atende O.S. atribuídas à produção.
+- Software: atende O.S. atribuídas ao software.
+- Implantação: atende O.S. atribuídas à implantação e anexa laudos.
+
+IMPORTANTE
+A função não é mais escolhida na tela de login. O usuário informa apenas email e senha; o backend identifica o perfil pelo cadastro. Isso evita que alguém tente selecionar uma função de maior privilégio.
+
+USUÁRIOS DE TESTE
+Todos usam a senha 123456:
+admin@empresa.com        Superusuário
+gestor@empresa.com       Gestor
+comercial@empresa.com    Comercial
+suporte@empresa.com      Suporte
+producao@empresa.com     Produção
+software@empresa.com     Software
+implantacao@empresa.com  Implantação
+
+SEM BANCO DE DADOS
+Os usuários e sessões ficam em memória para testes. Ao reiniciar o backend, alterações de usuários e senhas são perdidas.
+
+INSTALAÇÃO
+1. Abra o terminal na pasta do projeto.
+2. npm run install:all
+3. npm run dev
+4. Acesse http://localhost:5173
+
+SEGURANÇA DO PROTÓTIPO
+Foi adicionada uma sessão/token em memória e autorização no backend. Ainda não é produção: senhas estão em texto puro. Em produção, usar banco de dados, hash com bcrypt/Argon2, HTTPS, gestão segura de sessão/JWT, rate limiting, validação e auditoria persistente.

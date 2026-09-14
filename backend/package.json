@@ -1,0 +1,1 @@
+{"name":"backend","private":true,"version":"1.0.0","type":"module","scripts":{"dev":"tsx watch src/server.ts","start":"tsx src/server.ts","build":"tsc"},"dependencies":{"cors":"^2.8.5","express":"^5.1.0"},"devDependencies":{"@types/cors":"^2.8.19","@types/express":"^5.0.3","@types/node":"^22.10.2","tsx":"^4.19.3","typescript":"^5.8.3"}}

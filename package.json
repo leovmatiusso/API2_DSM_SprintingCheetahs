@@ -1,0 +1,1 @@
+{"name":"sistema-login-react-express","private":true,"scripts":{"install:all":"npm install && npm install --prefix frontend && npm install --prefix backend","dev":"concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""},"devDependencies":{"concurrently":"^9.1.2"}}
