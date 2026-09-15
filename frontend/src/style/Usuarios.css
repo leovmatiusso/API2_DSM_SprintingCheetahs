@@ -1,0 +1,40 @@
+.user-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+}
+
+.user-form .nav-actions {
+  grid-column: 1 / -1;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+th {
+  background: #f9fafb;
+}
+
+@media (max-width: 700px) {
+  .user-form {
+    grid-template-columns: 1fr;
+  }
+
+  .user-form .nav-actions {
+    grid-column: auto;
+  }
+}

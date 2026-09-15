@@ -1,0 +1,36 @@
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.dashboard-actions small {
+  font-weight: 400;
+}
+
+.dashboard-section-title {
+  margin-top: 32px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.menu-card {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  background: #fff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  min-height: 120px;
+}
+
+.menu-card:hover {
+  border-color: #2563eb;
+  transform: translateY(-1px);
+}
