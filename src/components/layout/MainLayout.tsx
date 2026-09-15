@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
-import Sidebar from "../components/Sidebar/Sidebar";
+import Sidebar from "@/components/navigation/Sidebar/Sidebar";
 
-export default function AppLayout() {
+export default function MainLayout() {
   return (
     <div className="flex min-h-screen bg-background text-text transition-all duration-300">
 

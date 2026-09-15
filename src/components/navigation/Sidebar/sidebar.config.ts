@@ -5,7 +5,9 @@ import {
   BarChart3,
 } from "lucide-react";
 
-export const menuItems = [
+import type { SidebarItemConfig } from "./sidebar.types";
+
+export const menuItems: SidebarItemConfig[] = [
   {
     label: "Dashboard",
     icon: Home,

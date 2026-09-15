@@ -1,10 +1,8 @@
-import type { LucideIcon } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-interface SidebarItemProps {
-  label: string;
-  icon: LucideIcon;
-  path: string;
+import type { SidebarItemConfig } from "./sidebar.types";
+
+interface SidebarItemProps extends SidebarItemConfig {
   collapsed: boolean;
 }
 

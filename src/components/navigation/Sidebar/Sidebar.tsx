@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import SidebarItem from "./SidebarItem";
 import { menuItems } from "./sidebar.config";
-import ThemeToggle from "../ThemeToggle";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
