@@ -24,14 +24,43 @@ export default function Login() {
   }
 
   return (
-    <main className="center-page">
-      <form className="card login-card" onSubmit={handleSubmit}>
-        <h1>Ordem de Serviço</h1>
-        <p className="muted">Entre com seu email e senha.</p>
-        <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" autoComplete="username" required /></label>
-        <PasswordInput label="Senha" value={password} onChange={setPassword} placeholder="Digite sua senha" />
+  <main className="flex min-h-screen">
+    
+    {/* LADO DO LOGIN */}
+    <section className="w-1/2 flex items-center justify-center p-10">
+      <form className="login-card" onSubmit={handleSubmit}>
+        
+        <h1 className="text-4xl font-bold text-blue-600">Entrar</h1>
+
+        <p className="muted">
+          Acesse sua conta para continuar.
+        </p>
+
+        <label>
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="seu@email.com"
+            autoComplete="username"
+            required
+          />
+        </label>
+
+        <PasswordInput
+          label="Senha"
+          value={password}
+          onChange={setPassword}
+          placeholder="Digite sua senha"
+        />
+
         {error && <div className="error">{error}</div>}
-        <button type="submit" disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
+
+        <button type="submit" disabled={loading} className="login-button">
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+
         <div className="test-users">
           <strong>Contas para teste — senha: 123456</strong>
           <span>admin@empresa.com — Superusuário</span>
@@ -42,7 +71,19 @@ export default function Login() {
           <span>software@empresa.com — Software</span>
           <span>implantacao@empresa.com — Implantação</span>
         </div>
+
       </form>
-    </main>
-  );
+    </section>
+
+    {/* LADO DA IMAGEM */}
+    <section className="w-1/2">
+      <img
+        src="../../img/fundo_login.png"
+        alt="Imagem da empresa"
+        className="w-full h-full object-cover"
+      />
+    </section>
+
+  </main>
+);
 }

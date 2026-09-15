@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 * {
   box-sizing: border-box;
 }
@@ -117,17 +119,7 @@ input[readonly] {
 
 .password-wrapper {
   display: flex;
-}
-
-.password-wrapper input {
-  border-radius: 8px 0 0 8px;
-}
-
-.password-toggle {
-  flex: 0 0 auto;
-  border-radius: 0 8px 8px 0;
-  background: #6b7280;
-  padding: 0 12px;
+  align-items: center;
 }
 
 .error,

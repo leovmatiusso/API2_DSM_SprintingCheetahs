@@ -6,7 +6,7 @@
 }
 
 .login-card {
-  width: min(100%, 460px);
+  width: min(70%, 380px);
 }
 
 .login-card h1 {
@@ -20,4 +20,68 @@
   padding-top: 16px;
   border-top: 1px solid #e5e7eb;
   font-size: 12px;
+}
+
+/* Campos do login */
+
+.login-card input {
+  border: 1px solid #3b82f6;
+  border-radius: 25px;
+  outline: none;
+}
+
+.login-card input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+/* Campo de senha */
+
+.login-card .password-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.login-card .password-wrapper input {
+  padding-right: 50px;
+}
+
+.login-card .password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  background: transparent !important;
+  color: #3b82f6 !important;
+  border: none;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+}
+
+.login-card .password-toggle:hover {
+  background: transparent !important;
+  color: #2563eb !important;
+}
+
+.login-button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 25px;
+  background: linear-gradient(90deg, #0c508b, #4facfe);
+  color: white;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
 }

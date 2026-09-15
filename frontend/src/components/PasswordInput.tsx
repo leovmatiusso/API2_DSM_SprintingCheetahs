@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface Props {
   label: string;
@@ -22,8 +23,12 @@ export default function PasswordInput({ label, value, onChange, placeholder }: P
           placeholder={placeholder}
           required
         />
-        <button type="button" className="password-toggle" onClick={() => setVisible(!visible)}>
-          {visible ? "Esconder" : "Mostrar"}
+        <button
+          type="button"
+          className="password-toggle"
+          onClick={() => setVisible(!visible)}
+        >
+          {visible ? <EyeOff size={20} /> : <Eye size={20} />}
         </button>
       </div>
     </label>
