@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { getCurrentUser } from "./auth";
 import ProtectedRoute from "./components/ProtectedRoute";
+import MainLayout from "./components/layout/MainLayout";
 import Login from "./templates/Login";
 import Dashboard from "./templates/Dashboard";
 import MinhaConta from "./templates/MinhaConta";
@@ -15,9 +15,9 @@ export default function App() {
     <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
     <Route path="/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/minha-conta" element={<MinhaConta />} />
-    </Route>
+      <Route element={<MainLayout />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/minha-conta" element={<MinhaConta />} />
 
     {/* Administração existente do Superusuário — mantida funcional */}
     <Route element={<ProtectedRoute allowedRoles={["superusuario"]} />}>
@@ -63,6 +63,9 @@ export default function App() {
     {/* Implantação */}
     <Route element={<ProtectedRoute allowedRoles={["implantacao"]} />}>
       <Route path="/execucao/implantacao" element={<Modulo title="Execução — Implantação" description="Área de trabalho para instalação ou manutenção no local do cliente." items={["Registrar atendimento realizado", "Lançar peças/materiais e serviços", "Registrar testes e resultado", "Anexar laudo em PDF", "Concluir atendimento"]} />} />
+    </Route>
+
+      </Route>
     </Route>
 
     <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
