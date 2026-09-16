@@ -44,12 +44,40 @@ app.get("/api/health", (_req, res) => res.json({ message: "Backend funcionando!"
 
 // LOGIN: a função NÃO é escolhida pelo usuário. Ela vem do cadastro.
 app.post("/api/login", (req, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
-  if (!email || !password) return res.status(400).json({ message: "Email e senha são obrigatórios." });
+  const { email, password } = req.body as {
+    email?: string;
+    password?: string;
+  };
 
-  const user = users.find(item => item.email.toLowerCase() === email.trim().toLowerCase());
-  if (!user || !user.active || user.password !== password) {
-    return res.status(401).json({ message: "Email ou senha inválidos." });
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "Email e senha são obrigatórios."
+    });
+  }
+
+  const user = users.find(
+    item => item.email.toLowerCase() === email.trim().toLowerCase()
+  );
+
+  // Usuário não encontrado
+  if (!user) {
+    return res.status(401).json({
+      message: "Email ou senha inválidos."
+    });
+  }
+
+  // Usuário encontrado, mas desativado
+  if (!user.active) {
+    return res.status(403).json({
+      message: "Este usuário está desativado. Entre em contato com o administrador."
+    });
+  }
+
+  // Usuário encontrado e ativo, mas senha incorreta
+  if (user.password !== password) {
+    return res.status(401).json({
+      message: "Email ou senha inválidos."
+    });
   }
 
   const token = crypto.randomBytes(32).toString("hex");
