@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { changePassword, getAccount } from "../api";
 import { getCurrentUser } from "../auth";
 import PasswordInput from "../components/PasswordInput";
+import Button from "@/components/ui/Button";
 
 export default function MinhaConta() {
   const navigate = useNavigate(); const currentUser = getCurrentUser();
@@ -25,8 +26,16 @@ export default function MinhaConta() {
     catch (err) { setError(err instanceof Error ? err.message : "Erro ao atualizar."); } finally { setLoading(false); }
   }
 
-  return <main className="page"><header className="topbar"><strong>Minha conta</strong><button className="secondary" onClick={() => navigate("/dashboard")}>Voltar</button></header>
+  return <main className="page"><header className="topbar"><strong>Minha conta</strong>
+    <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+      Voltar
+    </Button>
+    </header>
     <section className="card content account-card"><h1>Minha conta</h1><label>Nome<input value={name} readOnly /></label><label>Email<input value={email} readOnly /></label><label>Perfil<input value={role} readOnly /></label>
-      <form onSubmit={handleSubmit}><PasswordInput label="Senha atual" value={currentPassword} onChange={setCurrentPassword} placeholder="Digite a senha atual" /><PasswordInput label="Nova senha" value={newPassword} onChange={setNewPassword} placeholder="Digite a nova senha" />{message && <div className="success">{message}</div>}{error && <div className="error">{error}</div>}<button type="submit" disabled={loading}>{loading ? "Atualizando..." : "Confirmar alteração"}</button></form>
+      <form onSubmit={handleSubmit}><PasswordInput label="Senha atual" value={currentPassword} onChange={setCurrentPassword} placeholder="Digite a senha atual" /><PasswordInput label="Nova senha" value={newPassword} onChange={setNewPassword} placeholder="Digite a nova senha" />{message && <div className="success">{message}</div>}{error && <div className="error">{error}</div>}
+      <Button variant="primary" type="submit" disabled={loading}>
+        {loading ? "Atualizando..." : "Confirmar alteração"}
+        </Button></form>
+
     </section></main>;
 }

@@ -8,6 +8,7 @@ import MinhaConta from "./templates/MinhaConta";
 import Usuarios from "./templates/Usuarios";
 import Modulo from "./templates/Modulo";
 import MinhasOS from "./templates/MinhasOS";
+import Cadastro from "./templates/Cadastro";
 
 export default function App() {
   const user = getCurrentUser();
@@ -33,6 +34,11 @@ export default function App() {
       <Route path="/equipes-gestao" element={<Modulo title="Gestão de equipes" description="Tela operacional para acompanhar equipes e distribuir trabalho." items={["Visualizar equipes", "Consultar usuários de cada equipe", "Acompanhar O.S. atribuídas", "Organizar responsáveis"]} />} />
       <Route path="/relatorios" element={<Modulo title="Relatórios" description="Área para indicadores e relatórios gerenciais das O.S." items={["O.S. por status", "O.S. por equipe", "O.S. atrasadas", "Materiais e serviços lançados", "Totais por período e setor"]} />} />
       <Route path="/auditoria-gestor" element={<Modulo title="Auditoria" description="Consulta dos registros de alterações relevantes feitas nas O.S. e na operação." items={["Quem alterou uma O.S.", "Alterações de prioridade", "Encaminhamentos entre equipes", "Alterações de status e lançamentos"]} />} />
+    </Route>
+
+    {/*Cadastro - gestor e superusuário*/}
+    <Route element={<ProtectedRoute allowedRoles={['superusuario', 'gestor']} />}> 
+      <Route path= "/cadastro" element= {<Cadastro />} />
     </Route>
 
     {/* Comercial */}

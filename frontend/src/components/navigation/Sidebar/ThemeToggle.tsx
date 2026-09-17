@@ -15,7 +15,7 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={() => setDarkMode((current) => !current)}
-      className="sidebar-icon-button"
+      className="inline-flex size-10 items-center justify-center p-0 rounded-lg bg-transparent text-text-muted"
       aria-label={darkMode ? "Ativar tema claro" : "Ativar tema escuro"}
       title={darkMode ? "Tema claro" : "Tema escuro"}
     >

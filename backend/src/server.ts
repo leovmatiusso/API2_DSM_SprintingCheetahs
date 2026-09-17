@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import crypto from "node:crypto";
 import { users, Role, User, publicUser } from "./users.js";
+import { pool } from "./db.js";
+import { OrdemServico } from "./ordemservico.js";
 
 const app = express();
 const PORT = 3001;
@@ -158,3 +160,48 @@ app.delete("/api/users/:id", requireRole("superusuario"), (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Backend Express rodando em http://localhost:${PORT}`));
+
+//Criacao da OS
+/*app.post("/api/os", requireAuth, async (req, res) => {{
+  const{
+    os_titulo,
+    os_descricao,
+    prioridade,
+    os_cliente,
+    data_limite,
+    id_time_responsavel,
+  } = req.body as Partial<OrdemServico>;
+  if (!os_titulo || !os_cliente || !os_descricao || !prioridade || !data_limite || !id_time_responsavel){
+    return res.status(400).json({message: "Titulo e cliente sao obrigatórios, por favor preencha!!!"});
+  }
+  
+  try {
+    const[result] = await pool.execute(
+            `INSERT INTO os
+        (os_titulo, os_descricao, os_status, prioridade, os_cliente, data_limite, id_criador, id_time_responsavel)
+       VALUES (?, ?, 'aberta', ?, ?, ?, ?, ?)`,
+      [
+        os_titulo,
+        os_descricao,
+        prioridade,
+        os_cliente,
+        data_limite,
+        (res.locals.user as any).id,
+        id_time_responsavel,
+      ]
+    );
+
+    const insertId = (result as any).insertId;
+
+    return res.status(201).json({
+      message: "Ordem de serviço aberta com sucesso!",
+      os: { os_id: insertId, os_status: "aberta" },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Erro ao abrir a ordem de serviço." });
+  }
+  }
+
+}
+);*/

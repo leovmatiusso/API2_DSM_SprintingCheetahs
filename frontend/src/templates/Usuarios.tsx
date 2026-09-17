@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createUser, deleteUser, getUsers, updateUser } from "../api";
 import type { Role, User } from "../types";
+import Button from "@/components/ui/Button";
 
 const roles: { value: Role; label: string }[] = [
   ["superusuario", "Superusuário"],
@@ -119,13 +120,9 @@ export default function Usuarios() {
     <main className="page">
       <header className="topbar">
         <strong>Gerenciamento de usuários</strong>
-
-        <button
-          className="secondary"
-          onClick={() => navigate("/dashboard")}
-        >
-          Voltar
-        </button>
+        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+              Voltar
+            </Button>
       </header>
 
       <section className="card content">
@@ -201,18 +198,18 @@ export default function Usuarios() {
           </label>
 
           <div className="nav-actions">
-            <button type="submit">
+            <Button variant="primary" type="submit">
               {editing ? "Salvar alterações" : "Criar usuário"}
-            </button>
+            </Button>
 
             {editing && (
-              <button
+              <Button
                 type="button"
-                className="secondary"
+                variant="secondary"
                 onClick={reset}
               >
                 Cancelar
-              </button>
+              </Button>
             )}
           </div>
         </form>
@@ -258,20 +255,15 @@ export default function Usuarios() {
                   <td>
                     <div className="nav-actions">
                       {/* Editar aparece para todos */}
-                      <button
-                        className="secondary"
-                        onClick={() => edit(user)}
-                      >
-                        Editar
-                      </button>
+                      <Button variant="secondary" onClick={() => edit(user)}>
+                            Editar
+                          </Button>
 
                       {/* Apenas usuários que NÃO são superusuários
                           podem ser ativados/desativados ou excluídos */}
                       {user.role !== "superusuario" && (
                         <>
-                          <button
-                            className="secondary"
-                            onClick={() =>
+                          <Button variant="secondary" onClick={() =>
                               updateUser(user.id, {
                                 active: !user.active,
                               })
@@ -282,20 +274,15 @@ export default function Usuarios() {
                                       ? e.message
                                       : "Erro ao atualizar."
                                   )
-                                )
-                            }
-                          >
+                                )}>
                             {user.active
                               ? "Desativar"
                               : "Ativar"}
-                          </button>
+                          </Button>
 
-                          <button
-                            className="danger"
-                            onClick={() => remove(user.id)}
-                          >
-                            Excluir
-                          </button>
+                          <Button variant="danger" onClick={() => remove(user.id)}>
+                              Excluir
+                          </Button>
                         </>
                       )}
                     </div>

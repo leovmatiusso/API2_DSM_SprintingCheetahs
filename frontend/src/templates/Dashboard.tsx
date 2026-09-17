@@ -2,6 +2,7 @@ import "../style/Dashboard.css";
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser, logout } from "../auth";
 import type { Role } from "../types";
+import Button from "@/components/ui/Button";
 
 const labels: Record<Role, string> = {
   superusuario: "Superusuário", gestor: "Gestor", comercial: "Comercial", suporte: "Suporte",
@@ -60,7 +61,14 @@ export default function Dashboard() {
   function sair() { logout(); navigate("/login", { replace: true }); }
   return <main className="page">
     <header className="topbar"><div><strong>Sistema de O.S.</strong><span className="role-badge">{labels[user.role]}</span></div>
-      <nav className="nav-actions"><button className="secondary" onClick={() => navigate("/minha-conta")}>Minha conta</button><button className="secondary" onClick={sair}>Sair</button></nav>
+      <nav className="nav-actions">
+        <Button variant="secondary" onClick={() => navigate("/minha-conta")}>
+              Minha conta
+            </Button>
+            <Button variant="secondary" onClick={sair}>
+              Sair
+            </Button>
+            </nav>
     </header>
     <section className="card content"><p className="eyebrow">Painel inicial</p><h1>Olá, {user.name}</h1><p>{descriptions[user.role]}</p>
       <h2 className="dashboard-section-title">Acessos disponíveis</h2>

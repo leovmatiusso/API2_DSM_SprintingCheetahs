@@ -17,6 +17,7 @@ create table usuarios (
     email varchar(100) unique not null,
     cargo varchar(100) not null,
     senha_hash varchar(255) not null,
+    ativo boolean default true,
     time_id int,
     data_criacao datetime default current_timestamp,
     constraint fk_usuario_time foreign key (time_id) references time(id_time) on delete set null
@@ -28,11 +29,11 @@ add constraint fk_time_responsavel foreign key (responsavel_id) references usuar
 create table os(
     os_id int primary key auto_increment,
     os_titulo varchar(100) not null,
-    os_descricao text,
+    os_descricao text not null,
     os_status enum('aberta', 'em andamento', 'concluida') default 'aberta',
     prioridade enum('baixa', 'media', 'alta', 'critica') default 'media',
     os_cliente varchar(100) not null,
-    data_limite date,
+    data_limite date not null,
     id_criador int not null,
     id_time_responsavel int, 
     data_criacao datetime default current_timestamp,

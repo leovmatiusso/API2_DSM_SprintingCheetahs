@@ -16,7 +16,15 @@ export default function SidebarItem({
       to={path}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        `sidebar-item ${isActive ? "sidebar-item--active" : ""} ${collapsed ? "sidebar-item--collapsed" : ""}`
+        `
+          flex items-center gap-3 rounded-lg ${collapsed ? "p-2.5" : "px-3 py-2.5"}
+          text-sm font-medium transition-all
+          ${
+            isActive
+              ? "bg-primary text-white"
+              : "text-text-muted hover:bg-background hover:text-text"
+          }
+        `
       }
     >
       <Icon size={19} aria-hidden="true" />

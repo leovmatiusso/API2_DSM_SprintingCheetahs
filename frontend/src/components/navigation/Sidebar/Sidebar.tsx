@@ -20,29 +20,29 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className={`app-sidebar ${collapsed ? "app-sidebar--collapsed" : ""}`}>
-      <div className="app-sidebar__brand">
+    <aside className={`relative bg-surface flex flex-col h-dvh shrink-0 gap-6 px-3 py-5 border-r border-text/15 transition-all duration-300 text-nowrap ${collapsed ? "w-16" : "w-64"}`}>
+      <div className="min-h-11 px-2.5 py-1 overflow-hidden whitespace-nowrap">
         {!collapsed && (
           <div>
-            <strong>Sistema O.S.</strong>
-            <span>Gestão operacional</span>
+            <strong className="text-subtitle block">Sistema O.S.</strong>
+            <span className="mt-3 text-text-muted text-small block">Gestão operacional</span>
           </div>
         )}
       </div>
 
-      <nav className="app-sidebar__nav" aria-label="Navegação principal">
+      <nav className="flex-1 grid content-start gap-1.5" aria-label="Navegação principal">
         {visibleItems.map((item) => (
           <SidebarItem key={item.path} {...item} collapsed={collapsed} />
         ))}
       </nav>
 
-      <div className="app-sidebar__footer">
+      <div className="flex items-center gap-1 p-1 border-t border-text/15">
         <ThemeToggle />
       </div>
 
       <button
         type="button"
-        className="app-sidebar__toggle"
+        className="cursor-pointer absolute top-6 right-0 inline-flex size-7 items-center justify-center p-0 translate-x-1/2 rounded-2xl bg-background border border-text/15 text-text-muted shadow-sm"
         onClick={() => setCollapsed((current) => !current)}
         aria-label={collapsed ? "Abrir menu" : "Fechar menu"}
         title={collapsed ? "Abrir menu" : "Fechar menu"}
