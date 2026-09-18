@@ -3,7 +3,7 @@ import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api";
 import { saveSession } from "../auth";
-import PasswordInput from "../components/PasswordInput";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -62,14 +62,14 @@ export default function Login() {
         </button>
 
         <div className="test-users">
-          <strong>Contas para teste — senha: 123456</strong>
-          <span>admin@empresa.com — Superusuário</span>
-          <span>gestor@empresa.com — Gestor</span>
-          <span>comercial@empresa.com — Comercial</span>
-          <span>suporte@empresa.com — Suporte</span>
-          <span>producao@empresa.com — Produção</span>
-          <span>software@empresa.com — Software</span>
-          <span>implantacao@empresa.com — Implantação</span>
+          <strong><span className="select-none">Contas para teste — senha: </span>123456</strong>
+          <span>admin@empresa.com<span className="select-none"> — Superusuário</span></span>
+          <span>gestor@empresa.com<span className="select-none"> — Gestor</span></span>
+          <span>comercial@empresa.com<span className="select-none"> — Comercial</span></span>
+          <span>suporte@empresa.com<span className="select-none"> — Suporte</span></span>
+          <span>producao@empresa.com<span className="select-none"> — Produção</span></span>
+          <span>software@empresa.com<span className="select-none"> — Software</span></span>
+          <span>implantacao@empresa.com<span className="select-none"> — Implantação</span></span>
         </div>
 
       </form>
