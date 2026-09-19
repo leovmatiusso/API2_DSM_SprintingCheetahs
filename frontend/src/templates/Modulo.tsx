@@ -30,7 +30,7 @@ export default function Modulo({ title, description, items = [], pageClassName =
       </nav>
     </header>
     <section className="card content">
-      <div className="module-heading"><div><p className="eyebrow">Navegação / protótipo</p><h1>{title}</h1></div><span className="status-pill">Somente navegação</span></div>
+      <div className="module-heading"><div><p className="eyebrow">Navegação / protótipo</p><h1>{title}</h1></div><span className="text-xs bg-secondary px-3 py-2 rounded-full whitespace-nowrap">Somente navegação</span></div>
       <p className="module-description">{description}</p>
       {items.length > 0 && <div className="future-list"><h2>O que será desenvolvido nesta tela</h2><ul>{items.map(item => <li key={item}>{item}</li>)}</ul></div>}
       <div className="info">Esta versão serve como base visual e de navegação. As operações reais serão implementadas nas próximas etapas.</div>

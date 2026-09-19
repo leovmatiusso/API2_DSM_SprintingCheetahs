@@ -1,5 +1,4 @@
-@import "tailwindcss";
-@import url('@/style/base.css');
+@reference "./Theme.css";
 
 .dashboard-actions {
   display: flex;
@@ -23,18 +22,5 @@
 }
 
 .menu-card {
-  display: grid;
-  gap: 8px;
-  text-align: left;
-  background: #fff;
-  color: #111827;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  min-height: 120px;
-  padding: 32px;
-}
-
-.menu-card:hover {
-  border-color: #2563eb;
-  transform: translateY(-1px);
+  @apply bg-transparent text-text border border-text/15 dark:hover:bg-bg-tertiary shadow-lg/5 rounded-xl gap-2 p-8 grid text-left cursor-pointer;
 }

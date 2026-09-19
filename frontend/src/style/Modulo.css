@@ -14,15 +14,6 @@
   align-items: flex-start;
 }
 
-.status-pill {
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  color: #4b5563;
-  white-space: nowrap;
-}
-
 .module-description {
   font-size: 17px;
   line-height: 1.5;

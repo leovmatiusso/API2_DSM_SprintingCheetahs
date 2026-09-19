@@ -3,7 +3,7 @@ import Sidebar from "../navigation/Sidebar/Sidebar";
 
 export default function MainLayout() {
   return (
-    <div className="flex min-h-screen bg-background text-text">
+    <div className="flex min-h-screen bg-bg-secondary text-text">
       <Sidebar />
       <main className="min-w-0 flex-1 p-0">
         <Outlet />

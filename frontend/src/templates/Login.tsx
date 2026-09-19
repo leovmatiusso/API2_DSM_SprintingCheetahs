@@ -39,6 +39,7 @@ export default function Login() {
         <label>
           Email
           <input
+            className="login"
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}

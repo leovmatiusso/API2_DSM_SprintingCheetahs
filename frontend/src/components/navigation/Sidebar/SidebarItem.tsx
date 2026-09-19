@@ -17,12 +17,12 @@ export default function SidebarItem({
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
         `
-          flex items-center gap-3 rounded-lg ${collapsed ? "p-2.5" : "px-3 py-2.5"}
+          flex items-center gap-3 rounded-r-lg ${collapsed ? "p-2.5 pl-6" : "pl-6 py-2.5"}
           text-sm font-medium transition-all
           ${
             isActive
-              ? "bg-primary text-white"
-              : "text-text-muted hover:bg-background hover:text-text"
+              ? `bg-primary/15 text-primary ${collapsed ? "" : "border-l-6"}`
+              : "text-text-muted hover:bg-bg-secondary"
           }
         `
       }

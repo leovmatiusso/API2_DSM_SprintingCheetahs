@@ -5,6 +5,7 @@ import {
   Home,
   Settings,
   Users,
+  UserRoundPlus,
 } from "lucide-react";
 import type { SidebarItemConfig } from "./sidebar.types";
 
@@ -64,5 +65,11 @@ export const menuItems: SidebarItemConfig[] = [
     icon: BarChart3,
     path: "/relatorios",
     roles: ["gestor"],
+  },
+  {
+    label: "Cadastrar ",
+    icon: UserRoundPlus,
+    path: "/cadastro",
+    roles: ["superusuario", "gestor"],
   },
 ];
