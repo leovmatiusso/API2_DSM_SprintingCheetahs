@@ -1,11 +1,35 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../navigation/Sidebar/Sidebar";
 
 export default function MainLayout() {
+  const [
+    sidebarCollapsed,
+    setSidebarCollapsed
+  ] = useState(false);
+
   return (
-    <div className="flex min-h-screen bg-bg-secondary text-text">
+    <div
+      className="
+        min-h-screen
+        bg-bg-secondary
+        text-text
+      "
+    >
       <Sidebar />
-      <main className="min-w-0 flex-1 p-0">
+
+      <main
+        className={`
+          min-h-screen
+          transition-all
+          duration-300
+          ${
+            sidebarCollapsed
+              ? "pl-16"
+              : "pl-64"
+          }
+        `}
+      >
         <Outlet />
       </main>
     </div>
