@@ -6,14 +6,27 @@ import { getCurrentUser } from "../auth";
 import PasswordInput from "@/components/PasswordInput";
 import Button from "@/components/ui/Button";
 
+const roleLabels: Record<string, string> = {
+  superusuario: "superusuario",
+  gestor: "gestor",
+  comercial: "comercial",
+  suporte: "suporte",
+  producao: "producao",
+  software: "software",
+  implantacao: "implantacao",
+};
+
 export default function MinhaConta() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
+
   const [email, setEmail] = useState(currentUser?.email ?? "");
   const [name, setName] = useState(currentUser?.name ?? "");
   const [role, setRole] = useState(currentUser?.role ?? "");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,26 +38,43 @@ export default function MinhaConta() {
         setName(data.user.name);
         setRole(data.user.role);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Erro."));
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Erro.")
+      );
   }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
     setMessage("");
     setError("");
-    if (newPassword.length < 6)
-      return setError("A nova senha deve possuir pelo menos 6 caracteres.");
-    if (currentPassword === newPassword)
-      return setError("A nova senha precisa ser diferente da atual.");
-    if (!window.confirm("Tem certeza que deseja atualizar sua senha?")) return;
+
+    if (newPassword.length < 6) {
+      setError("A nova senha deve possuir pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setError("A nova senha precisa ser diferente da atual.");
+      return;
+    }
+
+    if (!window.confirm("Tem certeza que deseja atualizar sua senha?")) {
+      return;
+    }
+
     setLoading(true);
+
     try {
       await changePassword(currentPassword, newPassword);
+
       setMessage("Senha atualizada com sucesso!");
       setCurrentPassword("");
       setNewPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar.");
+      setError(
+        err instanceof Error ? err.message : "Erro ao atualizar."
+      );
     } finally {
       setLoading(false);
     }
@@ -54,24 +84,45 @@ export default function MinhaConta() {
     <main className="page">
       <header className="topbar">
         <strong>Minha conta</strong>
-        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+
+        <Button
+          variant="secondary"
+          onClick={() => navigate("/dashboard")}
+        >
           Voltar
         </Button>
       </header>
+
       <section className="card content account-card">
         <h1>Minha conta</h1>
+
         <label>
           Nome
-          <input value={name} readOnly />
+          <input
+            value={name}
+            readOnly
+            className="account-readonly"
+          />
         </label>
+
         <label>
           Email
-          <input value={email} readOnly />
+          <input
+            value={email}
+            readOnly
+            className="account-readonly"
+          />
         </label>
+
         <label>
           Perfil
-          <input value={role} readOnly />
+          <input
+            value={roleLabels[role] ?? role}
+            readOnly
+            className="account-readonly"
+          />
         </label>
+
         <form onSubmit={handleSubmit}>
           <PasswordInput
             label="Senha atual"
@@ -80,6 +131,7 @@ export default function MinhaConta() {
             placeholder="Digite a senha atual"
             darkTheme={true}
           />
+
           <PasswordInput
             label="Nova senha"
             value={newPassword}
@@ -87,9 +139,24 @@ export default function MinhaConta() {
             placeholder="Digite a nova senha"
             darkTheme={true}
           />
-          {message && <div className="success">{message}</div>}
-          {error && <div className="error">{error}</div>}
-          <Button variant="primary" type="submit" disabled={loading}>
+
+          {message && (
+            <div className="success">
+              {message}
+            </div>
+          )}
+
+          {error && (
+            <div className="error">
+              {error}
+            </div>
+          )}
+
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={loading}
+          >
             {loading ? "Atualizando..." : "Confirmar alteração"}
           </Button>
         </form>
