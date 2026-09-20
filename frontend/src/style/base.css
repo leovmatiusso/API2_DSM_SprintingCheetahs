@@ -1,4 +1,4 @@
-@import './Theme.css';
+@import "./Theme.css";
 
 * {
   box-sizing: border-box;
@@ -8,6 +8,28 @@ html,
 body,
 #root {
   min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--color-bg-secondary);
+}
+
+body {
+  min-height: 100vh;
+
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
 }
 
 .card {
@@ -15,7 +37,10 @@ body,
 }
 
 .page {
-  @apply min-h-screen
+  min-height: 100vh;
+
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
 }
 
 .topbar {
@@ -55,8 +80,11 @@ label {
 input,
 select {
   @apply bg-bg border border-text/15 focus:outline-none focus:ring-2 focus:ring-primary;
+
   width: 100%;
+
   border-radius: 8px;
+
   padding: 12px;
 }
 
