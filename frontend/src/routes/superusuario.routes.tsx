@@ -6,9 +6,34 @@ import Usuarios from "@/templates/Usuarios";
 import Modulo from "@/templates/Modulo";
 
 export const superusuarioRoutes = (
-  <Route element={<ProtectedRoute allowedRoles={["superusuario"]} />}>
-      <Route path="/usuarios" element={<Usuarios />} />
+  <>
+    {/* Superusuário e Gestor podem visualizar usuários */}
+    <Route
+      element={
+        <ProtectedRoute
+          allowedRoles={[
+            "superusuario",
+            "gestor"
+          ]}
+        />
+      }
+    >
+      <Route
+        path="/usuarios"
+        element={<Usuarios />}
+      />
+    </Route>
 
+    {/* Somente Superusuário */}
+    <Route
+      element={
+        <ProtectedRoute
+          allowedRoles={[
+            "superusuario"
+          ]}
+        />
+      }
+    >
       <Route
         path="/auditoria"
         element={
@@ -19,7 +44,7 @@ export const superusuarioRoutes = (
               "Filtrar ações por usuário, data e tipo",
               "Consultar alterações de contas e permissões",
               "Visualizar registros relacionados às O.S.",
-              "Manter rastreabilidade das operações",
+              "Manter rastreabilidade das operações"
             ]}
           />
         }
@@ -35,10 +60,11 @@ export const superusuarioRoutes = (
               "Cadastrar equipes",
               "Adicionar ou remover usuários das equipes",
               "Definir responsáveis",
-              "Visualizar composição das equipes",
+              "Visualizar composição das equipes"
             ]}
           />
         }
       />
-  </Route>
+    </Route>
+  </>
 );
