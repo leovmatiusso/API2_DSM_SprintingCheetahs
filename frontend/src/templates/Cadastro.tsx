@@ -1,7 +1,16 @@
-import { useState, FormEvent } from "react";
+import {
+  useState,
+  FormEvent
+} from "react";
+
 import type { Role } from "../types";
-import { getCurrentUser, logout } from "../auth";
+import {
+  getCurrentUser,
+  logout
+} from "../auth";
+
 import { useNavigate } from "react-router-dom";
+
 import Button from "@/components/ui/Button";
 
 const labels: Record<Role, string> = {
@@ -11,12 +20,13 @@ const labels: Record<Role, string> = {
   suporte: "Suporte",
   producao: "Produção",
   software: "Software",
-  implantacao: "Implantação",
+  implantacao: "Implantação"
 };
 
-type TabType = "usuario" | "time";
+type TabType =
+  | "usuario"
+  | "time";
 
-//tipo de dado que os forms aceitam
 interface NovoUsuarioForm {
   primeiroNome: string;
   sobrenome: string;
@@ -33,69 +43,119 @@ interface NovoTimeForm {
   equipeRelacionada: string;
 }
 
-//Aba (cadastrar usuário | cadastrar time)
 export default function Cadastro() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
-  const [activeTab, setActiveTab] = useState<TabType>("usuario");
 
-  //função de logout
-  if (!user) return null;
+  const user = getCurrentUser();
+
+  const [
+    activeTab,
+    setActiveTab
+  ] = useState<TabType>("usuario");
+
+  if (!user) {
+    return null;
+  }
+
   function sair() {
     logout();
-    navigate("/login", { replace: true });
+
+    navigate("/login", {
+      replace: true
+    });
+  }
+
+  function visualizarUsuarios() {
+    navigate("/usuarios");
   }
 
   return (
     <>
       <header className="topbar">
         <div>
-          <strong>Sistema de O.S.</strong>
-          <span className="role-badge">{labels[user.role]}</span>
+          <strong>
+            Sistema de O.S.
+          </strong>
+
+          <span className="role-badge">
+            {labels[user.role]}
+          </span>
         </div>
+
         <nav className="nav-actions">
-          <Button variant="secondary" onClick={() => navigate("/minha-conta")}>
+
+          <Button
+            variant="secondary"
+            onClick={() =>
+              navigate("/minha-conta")
+            }
+          >
             Minha conta
           </Button>
-          <Button variant="secondary" onClick={sair}>
+
+          <Button
+            variant="secondary"
+            onClick={sair}
+          >
             Sair
           </Button>
+
         </nav>
       </header>
 
       <main className="p-10">
-        <div className="flex ">
+
+        <div className="flex">
+
           <TabButton
             label="Cadastrar usuário"
-            isActive={activeTab === "usuario"}
-            onClick={() => setActiveTab("usuario")}
+            isActive={
+              activeTab === "usuario"
+            }
+            onClick={() =>
+              setActiveTab("usuario")
+            }
           />
 
           <TabButton
             label="Cadastrar time"
-            isActive={activeTab === "time"}
-            onClick={() => setActiveTab("time")}
+            isActive={
+              activeTab === "time"
+            }
+            onClick={() =>
+              setActiveTab("time")
+            }
           />
+
         </div>
 
-        {/*Form*/}
         <div className="bg-bg rounded-br-2xl shadow-lg/5 rounded-tr-2xl p-18">
+
           {activeTab === "usuario" ? (
-            <CadastrarUsuarioForm />
+            <CadastrarUsuarioForm
+              onVisualizarUsuarios={
+                visualizarUsuarios
+              }
+            />
           ) : (
-            <CadastrarTimeForm />
+            <CadastrarTimeForm
+              onVisualizarUsuarios={
+                visualizarUsuarios
+              }
+            />
           )}
+
         </div>
+
       </main>
     </>
   );
 }
 
-//botão da tab/aba
 function TabButton({
   label,
   isActive,
-  onClick,
+  onClick
 }: {
   label: string;
   isActive: boolean;
@@ -105,194 +165,345 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-6 py-3 rounded-t-xl text-sm font-medium transition-colors ${
-        isActive
-          ? "bg-bg text-text"
-          : "bg-text/5 text-text/50 hover:text-text/80 cursor-pointer"
-      }`}
+      className={`
+        px-6
+        py-3
+        rounded-t-xl
+        text-sm
+        font-medium
+        transition-colors
+
+        ${
+          isActive
+            ? "bg-bg text-text"
+            : "bg-text/5 text-text/50 hover:text-text/80 cursor-pointer"
+        }
+      `}
     >
-      {" "}
-      {label}{" "}
+      {label}
     </button>
   );
 }
 
-//formulario reutilizável
 function Field({
   label,
   value,
   onChange,
-  type = "text",
+  type = "text"
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (
+    value: string
+  ) => void;
   type?: string;
 }) {
   return (
     <div>
-      <label className="block text-text/80 ">{label} </label>
+
+      <label className="block text-text/80">
+        {label}
+      </label>
+
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-1 -mt-3 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-200 focus:bg-white"
+        onChange={e =>
+          onChange(
+            e.target.value
+          )
+        }
+        className="
+          w-full
+          px-3
+          py-1
+          -mt-3
+          placeholder:text-gray-400
+          focus:outline-none
+          focus:ring-1
+          focus:ring-blue-200
+          focus:bg-white
+        "
       />
+
     </div>
   );
 }
 
-//Formulário de novo usuário
-function CadastrarUsuarioForm() {
-  const [form, setForm] = useState<NovoUsuarioForm>({
+function CadastrarUsuarioForm({
+  onVisualizarUsuarios
+}: {
+  onVisualizarUsuarios: () => void;
+}) {
+  const [
+    form,
+    setForm
+  ] = useState<NovoUsuarioForm>({
     primeiroNome: "",
     sobrenome: "",
     email: "",
     timeUsuario: "",
-    cargoUsuario: "",
+    cargoUsuario: ""
   });
 
-  const setField = (key: keyof NovoUsuarioForm) => (value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const setField =
+    (
+      key: keyof NovoUsuarioForm
+    ) =>
+    (value: string) =>
+      setForm(prev => ({
+        ...prev,
+        [key]: value
+      }));
 
-  const handleSubmit = (e: FormEvent) => {
-    //faz com que n recarregue a página ao enviar o form
+  function handleSubmit(
+    e: FormEvent
+  ) {
     e.preventDefault();
 
-    //Chamar a api pra realmente cadastrar
-    console.log("Novo usuário: ", form);
-  };
+    console.log(
+      "Novo usuário: ",
+      form
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2 className="text-3xl font-bold text-text mb-6">Novo usuário</h2>
+    <form
+      onSubmit={handleSubmit}
+    >
+
+      <h2 className="text-3xl font-bold text-text mb-6">
+        Novo usuário
+      </h2>
 
       <div className="grid grid-cols-2 gap-x-24 gap-y-2">
+
         <Field
           label="Primeiro nome"
-          value={form.primeiroNome}
-          onChange={setField("primeiroNome")}
+          value={
+            form.primeiroNome
+          }
+          onChange={setField(
+            "primeiroNome"
+          )}
         />
+
         <Field
           label="Time do usuário"
-          value={form.timeUsuario}
-          onChange={setField("timeUsuario")}
+          value={
+            form.timeUsuario
+          }
+          onChange={setField(
+            "timeUsuario"
+          )}
         />
 
         <Field
           label="Sobrenome"
-          value={form.sobrenome}
-          onChange={setField("sobrenome")}
+          value={
+            form.sobrenome
+          }
+          onChange={setField(
+            "sobrenome"
+          )}
         />
+
         <Field
           label="Cargo do usuário"
-          value={form.cargoUsuario}
-          onChange={setField("cargoUsuario")}
+          value={
+            form.cargoUsuario
+          }
+          onChange={setField(
+            "cargoUsuario"
+          )}
         />
 
         <Field
           label="Email"
-          value={form.email}
-          onChange={setField("email")}
+          value={
+            form.email
+          }
+          onChange={setField(
+            "email"
+          )}
           type="email"
         />
+
       </div>
 
       <div className="flex justify-end mt-3">
+
         <Button
           type="submit"
           size="xl"
         >
-          {" "}
           Cadastrar
         </Button>
+
       </div>
 
       <div className="flex justify-end mt-12">
+
         <button
           type="button"
-          className="bg-indigo-950 hover:bg-indigo-900 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+          onClick={
+            onVisualizarUsuarios
+          }
+          className="
+            bg-indigo-950
+            hover:bg-indigo-900
+            text-white
+            font-medium
+            px-6
+            py-2
+            rounded-lg
+            transition-colors
+          "
         >
           Visualizar todos os usuários
         </button>
+
       </div>
+
     </form>
   );
 }
 
-//Formulário de novo time
-function CadastrarTimeForm() {
-  const [form, setForm] = useState<NovoTimeForm>({
+function CadastrarTimeForm({
+  onVisualizarUsuarios
+}: {
+  onVisualizarUsuarios: () => void;
+}) {
+  const [
+    form,
+    setForm
+  ] = useState<NovoTimeForm>({
     nomeTime: "",
     pessoaResponsavel: "",
     email: "",
     pessoasVinculadas: "",
-    equipeRelacionada: "",
+    equipeRelacionada: ""
   });
 
-  const setField = (key: keyof NovoTimeForm) => (value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const setField =
+    (
+      key: keyof NovoTimeForm
+    ) =>
+    (value: string) =>
+      setForm(prev => ({
+        ...prev,
+        [key]: value
+      }));
 
-  const handleSubmit = (e: FormEvent) => {
-    //faz com que n recarregue a página ao enviar o form
+  function handleSubmit(
+    e: FormEvent
+  ) {
     e.preventDefault();
 
-    //Chamar a api pra realmente cadastrar o time
-    console.log("Novo usuário: ", form);
-  };
+    console.log(
+      "Novo time: ",
+      form
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2 className="text-3xl font-bold text-text mb-6">Novo time</h2>
+    <form
+      onSubmit={handleSubmit}
+    >
+
+      <h2 className="text-3xl font-bold text-text mb-6">
+        Novo time
+      </h2>
 
       <div className="grid grid-cols-2 gap-x-24 gap-y-2">
+
         <Field
           label="Nome do time"
-          value={form.nomeTime}
-          onChange={setField("nomeTime")}
+          value={
+            form.nomeTime
+          }
+          onChange={setField(
+            "nomeTime"
+          )}
         />
+
         <Field
           label="Pessoas Vinculadas"
-          value={form.pessoasVinculadas}
-          onChange={setField("pessoasVinculadas")}
+          value={
+            form.pessoasVinculadas
+          }
+          onChange={setField(
+            "pessoasVinculadas"
+          )}
         />
 
         <Field
           label="Pessoa Responsável"
-          value={form.pessoaResponsavel}
-          onChange={setField("pessoaResponsavel")}
+          value={
+            form.pessoaResponsavel
+          }
+          onChange={setField(
+            "pessoaResponsavel"
+          )}
         />
+
         <Field
           label="Equipe relacionada"
-          value={form.equipeRelacionada}
-          onChange={setField("equipeRelacionada")}
+          value={
+            form.equipeRelacionada
+          }
+          onChange={setField(
+            "equipeRelacionada"
+          )}
         />
 
         <Field
           label="Email"
-          value={form.email}
-          onChange={setField("email")}
+          value={
+            form.email
+          }
+          onChange={setField(
+            "email"
+          )}
           type="email"
         />
+
       </div>
 
       <div className="flex justify-end mt-3">
+
         <Button
           type="submit"
           size="xl"
         >
           Cadastrar
         </Button>
+
       </div>
 
       <div className="flex justify-end mt-12">
+
         <button
           type="button"
-          className="bg-indigo-950 hover:bg-indigo-900 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+          onClick={
+            onVisualizarUsuarios
+          }
+          className="
+            bg-indigo-950
+            hover:bg-indigo-900
+            text-white
+            font-medium
+            px-6
+            py-2
+            rounded-lg
+            transition-colors
+          "
         >
           Visualizar todos os usuários
         </button>
+
       </div>
+
     </form>
   );
 }
