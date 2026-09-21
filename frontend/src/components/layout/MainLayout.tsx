@@ -16,7 +16,7 @@ export default function MainLayout() {
         text-text
       "
     >
-      <Sidebar />
+      <Sidebar  onCollapsedChange={setSidebarCollapsed}/>
 
       <main
         className={`
@@ -25,8 +25,8 @@ export default function MainLayout() {
           duration-300
           ${
             sidebarCollapsed
-              ? "pl-16"
-              : "pl-64"
+              ? "pl-19"
+              : "pl-60"
           }
         `}
       >

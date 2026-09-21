@@ -79,7 +79,7 @@ export default function Sidebar({
         ${
           collapsed
             ? "w-16"
-            : "w-64"
+            : "w-57"
         }
       `}
     >
@@ -98,7 +98,7 @@ export default function Sidebar({
       </div>
 
       <nav
-        className="flex-1 grid content-start gap-1.5 pr-3 overflow-y-auto"
+        className="flex-1 grid content-start gap-1.5 pr-3 overflow-y-auto overflow-x-hidden"
         aria-label="Navegação principal"
       >
         {visibleItems.map(item => (
