@@ -130,6 +130,7 @@ export default function MinhaConta() {
             onChange={setCurrentPassword}
             placeholder="Digite a senha atual"
             darkTheme={true}
+            className="account-password"
           />
 
           <PasswordInput
@@ -138,6 +139,7 @@ export default function MinhaConta() {
             onChange={setNewPassword}
             placeholder="Digite a nova senha"
             darkTheme={true}
+            className="account-password"
           />
 
           {message && (
