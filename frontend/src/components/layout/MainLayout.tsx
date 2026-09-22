@@ -14,7 +14,7 @@ export default function MainLayout() {
         text-text
       "
     >
-      <Sidebar />
+      <Sidebar  onCollapsedChange={setSidebarCollapsed}/>
 
       <main
         className={`

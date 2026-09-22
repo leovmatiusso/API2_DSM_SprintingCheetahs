@@ -6,7 +6,8 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  darkTheme? : boolean
+  darkTheme? : boolean;
+  className?: string;
 }
 
 export default function PasswordInput({ label, value, onChange, placeholder, darkTheme }: Props) {
@@ -23,7 +24,7 @@ export default function PasswordInput({ label, value, onChange, placeholder, dar
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           required
-          className={darkTheme ? '' : 'no-dark'}
+          className={`${darkTheme ? '' : 'no-dark'} password-input`}
         />
         <button
           type="button"

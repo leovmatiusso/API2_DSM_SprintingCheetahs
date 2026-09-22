@@ -27,3 +27,7 @@
       transparent
     );
 }
+
+.password-input {
+  margin-right: 1%;
+}

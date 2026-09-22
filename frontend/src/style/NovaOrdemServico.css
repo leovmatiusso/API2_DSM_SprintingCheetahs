@@ -1,0 +1,166 @@
+/* =========================================
+   CARD PRINCIPAL
+========================================= */
+
+.nova-os-card {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+
+/* =========================================
+   CAMPOS
+========================================= */
+
+.nova-os-input {
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  font-family: inherit;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.nova-os-input:focus {
+  border-color: var(--primary-500);
+
+  box-shadow:
+    0 0 0 2px rgba(75, 120, 221, 0.15);
+}
+
+
+/* Placeholder */
+
+.nova-os-input::placeholder {
+  color: #94a3b8;
+}
+
+
+/* Select */
+
+.nova-os-input option {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+
+/* =========================================
+   SELETOR DE PRIORIDADE
+========================================= */
+
+.prioridade-select {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.prioridade-select:hover {
+  background: var(--color-bg);
+}
+
+
+/* =========================================
+   MENU DE PRIORIDADE
+========================================= */
+
+.prioridade-menu {
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  border-color: #e2e8f0;
+}
+
+
+/* =========================================
+   PRIORIDADE
+========================================= */
+
+.prioridade-badge {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-width: 65px;
+
+  padding: 5px 10px;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+  font-weight: 500;
+
+  line-height: 1;
+}
+
+
+/* Baixa */
+
+.prioridade-baixa {
+  background: #d9f4df;
+
+  color: #27743a;
+}
+
+
+/* Média */
+
+.prioridade-media {
+  background: #f7e9bd;
+
+  color: #8b6b18;
+}
+
+
+/* Alta */
+
+.prioridade-alta {
+  background: #fbe0c8;
+
+  color: #b85d1a;
+}
+
+
+/* Crítica */
+
+.prioridade-critica {
+  background: #f5d4da;
+
+  color: #bd3147;
+}
+
+
+/* =========================================
+   TEMA ESCURO
+========================================= */
+
+.dark .nova-os-card {
+  border-color: #334155;
+}
+
+.dark .nova-os-input {
+  border-color: #475569;
+}
+
+.dark .nova-os-input:focus {
+  border-color: var(--primary-500);
+}
+
+.dark .nova-os-input::placeholder {
+  color: #94a3b8;
+}
+
+.dark .prioridade-select {
+  border-color: #475569;
+
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.dark .prioridade-menu {
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  border-color: #475569;
+}
