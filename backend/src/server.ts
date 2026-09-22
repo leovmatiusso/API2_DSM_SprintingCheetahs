@@ -3,6 +3,7 @@ import cors from "cors";
 import crypto from "node:crypto";
 import { users, Role, User, publicUser } from "./users.js";
 import { pool } from "./db.js";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { OrdemServico } from "./ordemservico.js";
 
 const app = express();
@@ -464,8 +465,8 @@ app.listen(PORT, () =>
 // CRIAÇÃO DA O.S.
 // =====================================================
 
-/*
-app.post("/api/os", requireAuth, async (req, res) => {{
+
+app.post("/api/os", requireAuth, async (req, res) => {
   const{
     os_titulo,
     os_descricao,
@@ -474,35 +475,15 @@ app.post("/api/os", requireAuth, async (req, res) => {{
     data_limite,
     id_time_responsavel,
   } = req.body as Partial<OrdemServico>;
-
-  if (
-    !os_titulo ||
-    !os_cliente ||
-    !os_descricao ||
-    !prioridade ||
-    !data_limite ||
-    !id_time_responsavel
-  ){
-    return res.status(400).json({
-      message:
-        "Titulo e cliente sao obrigatórios, por favor preencha!!!"
-    });
+  if (!os_titulo || !os_cliente || !os_descricao || !prioridade || !data_limite || !id_time_responsavel){
+    return res.status(400).json({message: "Titulo e cliente sao obrigatórios, por favor preencha!!!"});
   }
-
+  
   try {
     const[result] = await pool.execute(
-      `INSERT INTO os
-      (
-        os_titulo,
-        os_descricao,
-        os_status,
-        prioridade,
-        os_cliente,
-        data_limite,
-        id_criador,
-        id_time_responsavel
-      )
-      VALUES (?, ?, 'aberta', ?, ?, ?, ?, ?)`,
+            `INSERT INTO os
+        (os_titulo, os_descricao, os_status, prioridade, os_cliente, data_limite, id_criador, id_time_responsavel)
+       VALUES (?, ?, 'aberta', ?, ?, ?, ?, ?)`,
       [
         os_titulo,
         os_descricao,
@@ -517,21 +498,13 @@ app.post("/api/os", requireAuth, async (req, res) => {{
     const insertId = (result as any).insertId;
 
     return res.status(201).json({
-      message:
-        "Ordem de serviço aberta com sucesso!",
-      os: {
-        os_id: insertId,
-        os_status: "aberta"
-      },
+      message: "Ordem de serviço aberta com sucesso!",
+      os: { os_id: insertId, os_status: "aberta" },
     });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ message: "Erro ao abrir a ordem de serviço." });
+  }
+  }
 
-    return res.status(500).json({
-      message:
-        "Erro ao abrir a ordem de serviço."
-    });
-  }
-  }
 );
-*/

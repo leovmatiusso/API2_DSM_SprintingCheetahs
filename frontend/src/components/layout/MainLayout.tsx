@@ -3,14 +3,12 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../navigation/Sidebar/Sidebar";
 
 export default function MainLayout() {
-  const [
-    sidebarCollapsed,
-    setSidebarCollapsed
-  ] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div
       className="
+        flex
         min-h-screen
         bg-bg-secondary
         text-text
@@ -23,11 +21,7 @@ export default function MainLayout() {
           min-h-screen
           transition-all
           duration-300
-          ${
-            sidebarCollapsed
-              ? "pl-16"
-              : "pl-64"
-          }
+          flex-1
         `}
       >
         <Outlet />

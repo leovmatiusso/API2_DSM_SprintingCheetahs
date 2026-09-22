@@ -1,5 +1,5 @@
 {
-  "name": "API2_DSM_SprintingCheethas",
+  "name": "API2_DSM_SprintingCheetahs",
   "private": true,
   "scripts": {
     "install:all": "npm install && npm install --prefix frontend && npm install --prefix backend",

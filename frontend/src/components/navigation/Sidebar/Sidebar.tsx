@@ -1,44 +1,27 @@
 import { useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  getCurrentUser,
-  logout
-} from "../../../auth";
+import { getCurrentUser, logout } from "../../../auth";
 import SidebarItem from "./SidebarItem";
 import { menuItems } from "./sidebar.config";
 import ThemeToggle from "./ThemeToggle";
 
 interface SidebarProps {
-  onCollapsedChange?: (
-    collapsed: boolean
-  ) => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export default function Sidebar({
-  onCollapsedChange
-}: SidebarProps) {
-  const [collapsed, setCollapsed] =
-    useState(false);
+export default function Sidebar({ onCollapsedChange }: SidebarProps) {
+  const [collapsed, setCollapsed] = useState(false);
 
   const navigate = useNavigate();
   const user = getCurrentUser();
 
-  const visibleItems =
-    menuItems.filter(
-      item =>
-        !item.roles ||
-        (user &&
-          item.roles.includes(
-            user.role
-          ))
-    );
+  const visibleItems = menuItems.filter(
+    (item) => !item.roles || (user && item.roles.includes(user.role)),
+  );
 
   function handleCollapse() {
-    setCollapsed(current => {
+    setCollapsed((current) => {
       const next = !current;
 
       onCollapsedChange?.(next);
@@ -51,44 +34,35 @@ export default function Sidebar({
     logout();
 
     navigate("/login", {
-      replace: true
+      replace: true,
     });
   }
 
   return (
     <aside
       className={`
-        fixed
+        sticky
         top-0
-        left-0
-        z-50
+        self-start
         bg-bg
         flex
         flex-col
         h-dvh
         shrink-0
         gap-6
-        px-0
-        py-5
         border-r
         border-text/15
         transition-all
         duration-300
         text-nowrap
 
-        ${
-          collapsed
-            ? "w-16"
-            : "w-64"
-        }
+        ${collapsed ? "w-16" : "w-64"}
       `}
     >
-      <div className="min-h-11 px-2.5 py-1 overflow-hidden whitespace-nowrap">
+      <div className="min-h-11 px-2.5 py-5 overflow-hidden whitespace-nowrap">
         {!collapsed && (
           <div className="px-3">
-            <strong className="text-subtitle block">
-              Sistema O.S.
-            </strong>
+            <strong className="text-subtitle block">Sistema O.S.</strong>
 
             <span className="mt-3 text-text-muted text-small block">
               Gestão operacional
@@ -98,15 +72,11 @@ export default function Sidebar({
       </div>
 
       <nav
-        className="flex-1 grid content-start gap-1.5 pr-3 overflow-y-auto"
+        className="flex-1 grid content-start gap-1.5 pr-3"
         aria-label="Navegação principal"
       >
-        {visibleItems.map(item => (
-          <SidebarItem
-            key={item.path}
-            {...item}
-            collapsed={collapsed}
-          />
+        {visibleItems.map((item) => (
+          <SidebarItem key={item.path} {...item} collapsed={collapsed} />
         ))}
       </nav>
 
@@ -124,6 +94,7 @@ export default function Sidebar({
         )}
       </div>
 
+      {/* Seta de hide/show sidebar */}
       <button
         type="button"
         className="
@@ -145,22 +116,10 @@ export default function Sidebar({
           shadow-sm
         "
         onClick={handleCollapse}
-        aria-label={
-          collapsed
-            ? "Abrir menu"
-            : "Fechar menu"
-        }
-        title={
-          collapsed
-            ? "Abrir menu"
-            : "Fechar menu"
-        }
+        aria-label={collapsed ? "Abrir menu" : "Fechar menu"}
+        title={collapsed ? "Abrir menu" : "Fechar menu"}
       >
-        {collapsed ? (
-          <ChevronRight size={16} />
-        ) : (
-          <ChevronLeft size={16} />
-        )}
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
     </aside>
   );

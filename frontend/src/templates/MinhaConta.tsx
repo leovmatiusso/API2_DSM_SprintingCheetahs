@@ -1,4 +1,4 @@
-import "../style/MinhaConta.css";
+import "@/style/MinhaConta.css";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { changePassword, getAccount } from "../api";

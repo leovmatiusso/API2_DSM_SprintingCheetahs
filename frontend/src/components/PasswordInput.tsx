@@ -30,7 +30,7 @@ export default function PasswordInput({ label, value, onChange, placeholder, dar
           className="password-toggle"
           onClick={() => setVisible(!visible)}
         >
-          {visible ? <EyeOff size={20} /> : <Eye size={20} />}
+          {visible ? <Eye size={20} /> : <EyeOff size={20} />}
         </button>
       </div>
     </label>

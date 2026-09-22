@@ -63,7 +63,7 @@ export default function Login() {
           onSubmit={handleSubmit}
         >
 
-          <h1>
+          <h1 className="font-bold text-4xl">
             Entrar
           </h1>
 
@@ -115,42 +115,42 @@ export default function Login() {
           <div className="test-users">
 
             <strong>
-              Contas para teste — senha: 123456
+              <span className="select-none">Contas para teste — senha: </span>123456
             </strong>
 
             <span>
               admin@empresa.com
-              {" — Superusuário"}
+               <span className="select-none">— Superusuário</span>
             </span>
 
             <span>
               gestor@empresa.com
-              {" — Gestor"}
+               <span className="select-none">— Gestor</span>
             </span>
 
             <span>
               comercial@empresa.com
-              {" — Comercial"}
+               <span className="select-none">— Comercial</span>
             </span>
 
             <span>
               suporte@empresa.com
-              {" — Suporte"}
+               <span className="select-none">— Suporte</span>
             </span>
 
             <span>
               producao@empresa.com
-              {" — Produção"}
+               <span className="select-none">— Produção</span>
             </span>
 
             <span>
               software@empresa.com
-              {" — Software"}
+               <span className="select-none">— Software</span>
             </span>
 
             <span>
               implantacao@empresa.com
-              {" — Implantação"}
+               <span className="select-none">— Implantação</span>
             </span>
 
           </div>
