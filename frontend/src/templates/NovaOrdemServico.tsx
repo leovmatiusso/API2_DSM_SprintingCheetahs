@@ -1,17 +1,6 @@
-import {
-  ChangeEvent,
-  FormEvent,
-  useRef,
-  useState
-} from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 
-import {
-  ClipboardList,
-  Link,
-  Upload,
-  X,
-  ChevronDown
-} from "lucide-react";
+import { ClipboardList, Link, Upload, X, ChevronDown } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -31,14 +20,10 @@ interface Anexo {
   tamanho: string;
 }
 
-export default function NovaOrdemServico({
-  tipo
-}: NovaOrdemServicoProps) {
-
+export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
   const navigate = useNavigate();
 
-  const inputArquivo =
-    useRef<HTMLInputElement>(null);
+  const inputArquivo = useRef<HTMLInputElement>(null);
 
   const [cliente, setCliente] = useState("");
   const [projeto, setProjeto] = useState("");
@@ -46,93 +31,57 @@ export default function NovaOrdemServico({
   const [titulo, setTitulo] = useState("");
   const [prazo, setPrazo] = useState("");
 
-  const [prioridade, setPrioridade] =
-    useState("Critica");
+  const [prioridade, setPrioridade] = useState("Critica");
 
-  const [prioridadeAberta, setPrioridadeAberta] =
-    useState(false);
+  const [prioridadeAberta, setPrioridadeAberta] = useState(false);
 
   const [descricao, setDescricao] = useState("");
   const [itens, setItens] = useState("");
 
-  const [anexos, setAnexos] =
-    useState<Anexo[]>([]);
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
 
-  const manutencao =
-    tipo === "manutencao";
+  const manutencao = tipo === "manutencao";
 
-
-  function adicionarArquivos(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
-
-    const arquivos =
-      event.target.files;
+  function adicionarArquivos(event: ChangeEvent<HTMLInputElement>) {
+    const arquivos = event.target.files;
 
     if (!arquivos) {
       return;
     }
 
-    const novosAnexos =
-      Array.from(arquivos).map(
-        (arquivo, index) => ({
-          id: Date.now() + index,
-          nome: arquivo.name,
-          tamanho:
-            formatarTamanho(
-              arquivo.size
-            )
-        })
-      );
+    const arquivosPDF = Array.from(arquivos).filter(
+      (arquivo) => arquivo.type === "application/pdf",
+    );
 
-    setAnexos(anterior => [
-      ...anterior,
-      ...novosAnexos
-    ]);
+    const novosAnexos = arquivosPDF.map((arquivo, index) => ({
+      id: Date.now() + index,
+      nome: arquivo.name,
+      tamanho: formatarTamanho(arquivo.size),
+    }));
+
+    setAnexos((anterior) => [...anterior, ...novosAnexos]);
 
     event.target.value = "";
   }
 
-
   function removerAnexo(id: number) {
-
-    setAnexos(anterior =>
-      anterior.filter(
-        anexo => anexo.id !== id
-      )
-    );
+    setAnexos((anterior) => anterior.filter((anexo) => anexo.id !== id));
   }
 
-
-  function formatarTamanho(
-    bytes: number
-  ) {
-
+  function formatarTamanho(bytes: number) {
     if (bytes < 1024 * 1024) {
-
-      return `${(
-        bytes / 1024
-      ).toFixed(1)} KB`;
-
+      return `${(bytes / 1024).toFixed(1)} KB`;
     }
 
-    return `${(
-      bytes / (1024 * 1024)
-    ).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-
-  function selecionarPrioridade(
-    valor: string
-  ) {
-
+  function selecionarPrioridade(valor: string) {
     setPrioridade(valor);
     setPrioridadeAberta(false);
   }
 
-
   function nomePrioridade() {
-
     if (prioridade === "Media") {
       return "Média";
     }
@@ -144,11 +93,7 @@ export default function NovaOrdemServico({
     return prioridade;
   }
 
-
-  function enviarFormulario(
-    event: FormEvent
-  ) {
-
+  function enviarFormulario(event: FormEvent) {
     event.preventDefault();
 
     /*
@@ -159,17 +104,16 @@ export default function NovaOrdemServico({
     */
   }
 
-
   return (
-
-    <main className="
+    <main
+      className="
       page
       nova-os-page
       min-h-full
       p-5
       md:p-8
-    ">
-
+    "
+    >
       <form
         className="
           nova-os-card
@@ -185,18 +129,18 @@ export default function NovaOrdemServico({
         "
         onSubmit={enviarFormulario}
       >
-
         {/* CABEÇALHO */}
 
         <div className="mb-8">
-
-          <div className="
+          <div
+            className="
             flex
             items-center
             gap-4
-          ">
-
-            <div className="
+          "
+          >
+            <div
+              className="
               flex
               h-16
               w-16
@@ -206,61 +150,56 @@ export default function NovaOrdemServico({
               rounded-full
               bg-blue-50
               text-blue-700
-            ">
-
+            "
+            >
               <ClipboardList size={30} />
-
             </div>
 
-
             <div>
-
-              <h1 className="
+              <h1
+                className="
                 m-0
                 text-2xl
                 font-bold
                 leading-tight
                 text-text
                 md:text-[28px]
-              ">
+              "
+              >
                 Nova Ordem de Serviço
               </h1>
 
-              <p className="
+              <p
+                className="
                 mt-2
                 text-sm
                 leading-6
                 text-slate-500
-              ">
+              "
+              >
                 {manutencao
                   ? "Abra uma nova solicitação de manutenção para que o gestor possa direcioná-la à equipe responsável."
-                  : "Abra uma nova solicitação de projeto para que o gestor possa direcioná-la à equipe responsável."
-                }
+                  : "Abra uma nova solicitação de projeto para que o gestor possa direcioná-la à equipe responsável."}
               </p>
-
             </div>
-
           </div>
-
         </div>
-
 
         {/* CAMPOS */}
 
-        <div className="
+        <div
+          className="
           grid
           grid-cols-1
           gap-x-7
           gap-y-5
           md:grid-cols-2
           xl:grid-cols-4
-        ">
-
-
+        "
+        >
           {/* TÍTULO */}
 
           <div className="xl:col-span-2">
-
             <label
               htmlFor="titulo"
               className="
@@ -277,11 +216,7 @@ export default function NovaOrdemServico({
             <input
               id="titulo"
               value={titulo}
-              onChange={event =>
-                setTitulo(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setTitulo(event.target.value)}
               placeholder={
                 manutencao
                   ? "Ex.: Manutenção de equipamento"
@@ -302,14 +237,11 @@ export default function NovaOrdemServico({
                 placeholder:text-slate-400
               "
             />
-
           </div>
-
 
           {/* CLIENTE */}
 
           <div>
-
             <label
               htmlFor="cliente"
               className="
@@ -326,11 +258,7 @@ export default function NovaOrdemServico({
             <select
               id="cliente"
               value={cliente}
-              onChange={event =>
-                setCliente(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setCliente(event.target.value)}
               required
               className="
                 nova-os-input
@@ -344,32 +272,19 @@ export default function NovaOrdemServico({
                 outline-none
               "
             >
+              <option value="">Selecione o cliente</option>
 
-              <option value="">
-                Selecione o cliente
-              </option>
+              <option value="cliente-1">Cliente 1</option>
 
-              <option value="cliente-1">
-                Cliente 1
-              </option>
+              <option value="cliente-2">Cliente 2</option>
 
-              <option value="cliente-2">
-                Cliente 2
-              </option>
-
-              <option value="cliente-3">
-                Cliente 3
-              </option>
-
+              <option value="cliente-3">Cliente 3</option>
             </select>
-
           </div>
-
 
           {/* PRAZO */}
 
           <div>
-
             <label
               htmlFor="prazo"
               className="
@@ -387,11 +302,7 @@ export default function NovaOrdemServico({
               id="prazo"
               type="date"
               value={prazo}
-              onChange={event =>
-                setPrazo(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setPrazo(event.target.value)}
               required
               className="
                 nova-os-input
@@ -405,16 +316,12 @@ export default function NovaOrdemServico({
                 outline-none
               "
             />
-
           </div>
-
 
           {/* PROJETO */}
 
           {manutencao && (
-
             <div>
-
               <label
                 htmlFor="projeto"
                 className="
@@ -431,11 +338,7 @@ export default function NovaOrdemServico({
               <select
                 id="projeto"
                 value={projeto}
-                onChange={event =>
-                  setProjeto(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setProjeto(event.target.value)}
                 required
                 className="
                   nova-os-input
@@ -449,36 +352,21 @@ export default function NovaOrdemServico({
                   outline-none
                 "
               >
+                <option value="">Selecione o projeto</option>
 
-                <option value="">
-                  Selecione o projeto
-                </option>
+                <option value="projeto-1">Projeto 1</option>
 
-                <option value="projeto-1">
-                  Projeto 1
-                </option>
+                <option value="projeto-2">Projeto 2</option>
 
-                <option value="projeto-2">
-                  Projeto 2
-                </option>
-
-                <option value="projeto-3">
-                  Projeto 3
-                </option>
-
+                <option value="projeto-3">Projeto 3</option>
               </select>
-
             </div>
-
           )}
-
 
           {/* EQUIPAMENTO */}
 
           {manutencao && (
-
             <div>
-
               <label
                 htmlFor="equipamento"
                 className="
@@ -495,11 +383,7 @@ export default function NovaOrdemServico({
               <input
                 id="equipamento"
                 value={equipamento}
-                onChange={event =>
-                  setEquipamento(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setEquipamento(event.target.value)}
                 placeholder="Informe o equipamento ou local"
                 required
                 className="
@@ -515,31 +399,30 @@ export default function NovaOrdemServico({
                   placeholder:text-slate-400
                 "
               />
-
             </div>
-
           )}
-
 
           {/* PRIORIDADE */}
 
           <div>
-
-            <label className="
+            <label
+              className="
               mb-2
               block
               text-sm
               font-semibold
               text-text-muted
-            ">
+            "
+            >
               Prioridade
             </label>
 
-            <div className="
+            <div
+              className="
               relative
               w-full
-            ">
-
+            "
+            >
               <button
                 type="button"
                 className="
@@ -557,13 +440,8 @@ export default function NovaOrdemServico({
                   transition
                   hover:border-slate-400
                 "
-                onClick={() =>
-                  setPrioridadeAberta(
-                    !prioridadeAberta
-                  )
-                }
+                onClick={() => setPrioridadeAberta(!prioridadeAberta)}
               >
-
                 <span
                   className={`
                     prioridade-badge
@@ -579,13 +457,11 @@ export default function NovaOrdemServico({
                     text-slate-500
                   "
                 />
-
               </button>
 
-
               {prioridadeAberta && (
-
-                <div className="
+                <div
+                  className="
                   prioridade-menu
                   absolute
                   left-0
@@ -597,15 +473,11 @@ export default function NovaOrdemServico({
                   border-slate-200
                   p-1.5
                   shadow-lg
-                ">
-
+                "
+                >
                   <button
                     type="button"
-                    onClick={() =>
-                      selecionarPrioridade(
-                        "Baixa"
-                      )
-                    }
+                    onClick={() => selecionarPrioridade("Baixa")}
                     className="
                       flex
                       w-full
@@ -614,24 +486,19 @@ export default function NovaOrdemServico({
                       hover:bg-slate-50
                     "
                   >
-
-                    <span className="
+                    <span
+                      className="
                       prioridade-badge
                       prioridade-baixa
-                    ">
+                    "
+                    >
                       Baixa
                     </span>
-
                   </button>
-
 
                   <button
                     type="button"
-                    onClick={() =>
-                      selecionarPrioridade(
-                        "Media"
-                      )
-                    }
+                    onClick={() => selecionarPrioridade("Media")}
                     className="
                       flex
                       w-full
@@ -640,24 +507,19 @@ export default function NovaOrdemServico({
                       hover:bg-slate-50
                     "
                   >
-
-                    <span className="
+                    <span
+                      className="
                       prioridade-badge
                       prioridade-media
-                    ">
+                    "
+                    >
                       Média
                     </span>
-
                   </button>
-
 
                   <button
                     type="button"
-                    onClick={() =>
-                      selecionarPrioridade(
-                        "Alta"
-                      )
-                    }
+                    onClick={() => selecionarPrioridade("Alta")}
                     className="
                       flex
                       w-full
@@ -666,24 +528,19 @@ export default function NovaOrdemServico({
                       hover:bg-slate-50
                     "
                   >
-
-                    <span className="
+                    <span
+                      className="
                       prioridade-badge
                       prioridade-alta
-                    ">
+                    "
+                    >
                       Alta
                     </span>
-
                   </button>
-
 
                   <button
                     type="button"
-                    onClick={() =>
-                      selecionarPrioridade(
-                        "Critica"
-                      )
-                    }
+                    onClick={() => selecionarPrioridade("Critica")}
                     className="
                       flex
                       w-full
@@ -692,31 +549,24 @@ export default function NovaOrdemServico({
                       hover:bg-slate-50
                     "
                   >
-
-                    <span className="
+                    <span
+                      className="
                       prioridade-badge
                       prioridade-critica
-                    ">
+                    "
+                    >
                       Crítica
                     </span>
-
                   </button>
-
                 </div>
-
               )}
-
             </div>
-
           </div>
-
         </div>
-
 
         {/* DESCRIÇÃO */}
 
         <div className="mt-7">
-
           <label
             htmlFor="descricao"
             className="
@@ -727,20 +577,13 @@ export default function NovaOrdemServico({
               text-text-muted
             "
           >
-            {manutencao
-              ? "Descrição do problema"
-              : "Descrição"
-            }
+            {manutencao ? "Descrição do problema" : "Descrição"}
           </label>
 
           <textarea
             id="descricao"
             value={descricao}
-            onChange={event =>
-              setDescricao(
-                event.target.value
-              )
-            }
+            onChange={(event) => setDescricao(event.target.value)}
             placeholder={
               manutencao
                 ? "Descreva o problema, o relato do cliente e demais informações relevantes..."
@@ -762,16 +605,12 @@ export default function NovaOrdemServico({
               placeholder:text-slate-400
             "
           />
-
         </div>
-
 
         {/* ITENS */}
 
         {!manutencao && (
-
           <div className="mt-7">
-
             <label
               htmlFor="itens"
               className="
@@ -788,11 +627,7 @@ export default function NovaOrdemServico({
             <textarea
               id="itens"
               value={itens}
-              onChange={event =>
-                setItens(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setItens(event.target.value)}
               placeholder="Informe os produtos, peças, serviços ou recursos inicialmente necessários..."
               className="
                 nova-os-input
@@ -809,22 +644,21 @@ export default function NovaOrdemServico({
                 placeholder:text-slate-400
               "
             />
-
           </div>
-
         )}
-
 
         {/* ANEXOS */}
 
-        <div className="
+        <div
+          className="
           mt-7
           ml-auto
           w-full
           md:max-w-[360px]
-        ">
-
-          <div className="
+        "
+        >
+          <div
+            className="
             mb-3
             flex
             items-center
@@ -832,19 +666,14 @@ export default function NovaOrdemServico({
             text-sm
             font-semibold
             text-text-muted
-          ">
-
+          "
+          >
             <Link size={19} />
 
-            <span>
-              Anexos
-            </span>
-
+            <span>Anexos</span>
           </div>
 
-
-          {anexos.map(anexo => (
-
+          {anexos.map((anexo) => (
             <div
               key={anexo.id}
               className="
@@ -856,34 +685,34 @@ export default function NovaOrdemServico({
                 text-xs
               "
             >
-
-              <div className="
+              <div
+                className="
                 flex
                 min-w-0
                 items-center
                 gap-2
-              ">
+              "
+              >
+                <span>📄</span>
 
-                <span>
-                  📄
-                </span>
-
-                <span className="
+                <span
+                  className="
                   truncate
                   text-text-muted
-                ">
+                "
+                >
                   {anexo.nome}
                 </span>
 
-                <span className="
+                <span
+                  className="
                   shrink-0
                   text-slate-500
-                ">
+                "
+                >
                   {anexo.tamanho}
                 </span>
-
               </div>
-
 
               <button
                 type="button"
@@ -894,30 +723,21 @@ export default function NovaOrdemServico({
                   text-slate-500
                   hover:text-red-500
                 "
-                onClick={() =>
-                  removerAnexo(
-                    anexo.id
-                  )
-                }
+                onClick={() => removerAnexo(anexo.id)}
               >
-
                 <X size={15} />
-
               </button>
-
             </div>
-
           ))}
-
 
           <input
             ref={inputArquivo}
             type="file"
             multiple
+            accept=".pdf,application/pdf"
             hidden
             onChange={adicionarArquivos}
           />
-
 
           <button
             type="button"
@@ -941,54 +761,37 @@ export default function NovaOrdemServico({
               hover:border-blue-300
               hover:bg-blue-100
             "
-            onClick={() =>
-              inputArquivo.current?.click()
-            }
+            onClick={() => inputArquivo.current?.click()}
           >
-
             <Upload size={18} />
-
             Upload
-
           </button>
-
         </div>
-
 
         {/* BOTÕES */}
 
-        <div className="
+        <div
+          className="
           mt-8
           flex
           items-center
           justify-end
           gap-6
-        ">
-
+        "
+        >
           <Button
             type="button"
             variant="secondary"
-            onClick={() =>
-              navigate("/dashboard")
-            }
+            onClick={() => navigate("/dashboard")}
           >
             Voltar
           </Button>
 
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-          >
+          <Button type="submit" variant="primary" size="lg">
             Solicitar O.S.
           </Button>
-
         </div>
-
       </form>
-
     </main>
-
   );
 }
