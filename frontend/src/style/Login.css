@@ -1,71 +1,42 @@
 .login-page {
-
   min-height: 100vh;
-
   width: 100%;
-
   display: flex;
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
 }
 
 .login-side {
-
   width: 50%;
-
   min-height: 100vh;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   padding: 40px;
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
 }
 
 .login-card {
-
   width: min(70%, 380px);
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
 }
 
 .login-card h1 {
-
   margin-bottom: 8px;
-
   color: #2563eb !important;
-
 }
 
 .login-card label {
-
   color: #0f172a !important;
-
 }
 
 .login-muted {
-
   color: #6b7280 !important;
-
 }
 
 /* =====================================================
@@ -73,49 +44,29 @@
    ===================================================== */
 
 .login-card input.login-input {
-
   width: 100%;
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
   border: 1px solid #3b82f6 !important;
-
   border-radius: 25px;
-
   outline: none;
-
   box-shadow: none !important;
-
   color-scheme: light !important;
-
 }
 
 .login-card input.login-input::placeholder {
-
   color: #94a3b8 !important;
-
   opacity: 1;
-
 }
 
 .login-card input.login-input:focus {
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
   border-color: #2563eb !important;
-
   box-shadow:
-
     0 0 0 2px #bfdbfe !important;
-
 }
 
 /* =====================================================
@@ -132,27 +83,16 @@
 .login-card input.login-input:-webkit-autofill:focus,
 
 .login-card input.login-input:-webkit-autofill:active {
-
   -webkit-text-fill-color: #0f172a !important;
-
   -webkit-box-shadow:
-
     0 0 0 1000px #ffffff inset !important;
-
   box-shadow:
-
     0 0 0 1000px #ffffff inset !important;
-
   background-color: #ffffff !important;
-
   transition:
-
     background-color
-
     9999s
-
     ease-out 0s !important;
-
 }
 
 /* =====================================================
@@ -162,15 +102,10 @@
 .login-card
 
 .password-wrapper {
-
   position: relative;
-
   display: flex;
-
   align-items: center;
-
   width: 100%;
-
 }
 
 .login-card
@@ -178,21 +113,13 @@
 .password-wrapper
 
 input {
-
   width: 100%;
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
   border: 1px solid #3b82f6 !important;
-
   border-radius: 25px;
-
   color-scheme: light !important;
-
 }
 
 .login-card
@@ -200,19 +127,12 @@ input {
 .password-wrapper
 
 input:focus {
-
   background: #ffffff !important;
-
   background-color: #ffffff !important;
-
   color: #0f172a !important;
-
   border-color: #2563eb !important;
-
   box-shadow:
-
     0 0 0 2px #bfdbfe !important;
-
 }
 
 .login-card
@@ -232,27 +152,16 @@ input:-webkit-autofill:hover,
 .password-wrapper
 
 input:-webkit-autofill:focus,
-
 .login-card
-
 .password-wrapper
-
 input:-webkit-autofill:active {
-
   -webkit-text-fill-color: #0f172a !important;
-
   -webkit-box-shadow:
-
     0 0 0 1000px #ffffff inset !important;
-
   box-shadow:
-
     0 0 0 1000px #ffffff inset !important;
-
   background-color: #ffffff !important;
-
   color-scheme: light !important;
-
 }
 
 /* =====================================================
@@ -260,49 +169,28 @@ input:-webkit-autofill:active {
    ===================================================== */
 
 .login-card
-
 .password-toggle {
-
   position: absolute;
-
   right: 12px;
-
   top: 50%;
-
   transform: translateY(-50%);
-
   width: 32px;
-
   height: 32px;
-
   padding: 0;
-
   background: transparent !important;
-
   color: #3b82f6 !important;
-
   border: none;
-
   border-radius: 50%;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   cursor: pointer;
-
 }
 
 .login-card
-
 .password-toggle:hover {
-
   background: transparent !important;
-
   color: #2563eb !important;
-
 }
 
 /* =====================================================
@@ -310,41 +198,20 @@ input:-webkit-autofill:active {
    ===================================================== */
 
 .login-button {
-
   width: 100%;
-
   padding: 12px;
-
   border-radius: 25px;
-
   background:
-
-    linear-gradient(
-
-      90deg,
-
-      #0c508b,
-
-      #4facfe
-
-    ) !important;
-
+    linear-gradient(90deg,#0c508b,#4facfe) !important;
   color: #ffffff !important;
-
   font-weight: bold;
-
   border: none;
-
   cursor: pointer;
-
 }
 
 .login-button:disabled {
-
   opacity: 0.6;
-
   cursor: not-allowed;
-
 }
 
 /* =====================================================
@@ -352,29 +219,18 @@ input:-webkit-autofill:active {
    ===================================================== */
 
 .test-users {
-
   display: grid;
-
   gap: 5px;
-
   margin-top: 20px;
-
   padding-top: 16px;
-
   border-top: 1px solid #e5e7eb;
-
   font-size: 12px;
-
   color: #0f172a !important;
-
 }
 
 .test-users strong,
-
 .test-users span {
-
   color: #0f172a !important;
-
 }
 
 /* =====================================================
@@ -382,47 +238,29 @@ input:-webkit-autofill:active {
    ===================================================== */
 
 .login-image {
-
   width: 50%;
-
   min-height: 100vh;
-
   background: #ffffff !important;
-
 }
 
 .login-image img {
-
   display: block;
-
   width: 100%;
-
   height: 100%;
-
   object-fit: cover;
-
 }
 
 @media (max-width: 700px) {
-
   .login-side {
-
     width: 100%;
-
   }
 
   .login-image {
-
     display: none;
-
   }
 
   .login-card {
-
     width: 100%;
-
     max-width: 380px;
-
   }
-
 }
