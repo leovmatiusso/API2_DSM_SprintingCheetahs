@@ -53,6 +53,15 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
       (arquivo) => arquivo.type === "application/pdf",
     );
 
+     const arquivosInvalidos = Array.from(arquivos).filter(
+      (arquivo) => arquivo.type !== "application/pdf"
+    );
+
+    if (arquivosInvalidos.length > 0) {
+      alert("Apenas arquivos PDF são permitidos.");
+    }
+    
+
     const novosAnexos = arquivosPDF.map((arquivo, index) => ({
       id: Date.now() + index,
       nome: arquivo.name,
@@ -732,6 +741,7 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
 
           <input
             ref={inputArquivo}
+            id = "arquivopdf"
             type="file"
             multiple
             accept=".pdf,application/pdf"
@@ -741,6 +751,7 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
 
           <button
             type="button"
+            
             className="
               mt-3
               flex
