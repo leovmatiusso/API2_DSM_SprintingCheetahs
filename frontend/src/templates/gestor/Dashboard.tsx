@@ -1,5 +1,13 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, Clock, CircleAlert, Wrench, Users } from "lucide-react";
+
+import {
+  ClipboardList,
+  Clock,
+  CircleAlert,
+  User,
+  ChevronDown,
+} from "lucide-react";
 
 import { getCurrentUser, logout } from "@/auth";
 
@@ -7,6 +15,7 @@ import Button from "@/components/ui/Button";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [menuAberto, setMenuAberto] = useState(false);
 
   const user = getCurrentUser();
 
@@ -24,20 +33,53 @@ export default function Dashboard() {
         <div>
           <strong className="text-xl">Sistema de O.S.</strong>
 
-          <span className="ml-3 rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700">
+          <span className="ml-3 rounded-full bg-red-100 px-3 py-1 text-sm text-red-700">
             Gestor
           </span>
         </div>
 
-        <nav className="flex gap-3">
-          <Button variant="secondary" onClick={() => navigate("/minha-conta")}>
-            Minha conta
-          </Button>
+        {/* Menu do usuário */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuAberto(!menuAberto)}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-gray-100"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-700">
+              <User size={18} />
+            </div>
 
-          <Button variant="secondary" onClick={sair}>
-            Sair
-          </Button>
-        </nav>
+            <span className="text-sm font-medium">{user.name}</span>
+
+            <ChevronDown
+              size={17}
+              className={`transition-transform ${
+                menuAberto ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {/* Dropdown */}
+          {menuAberto && (
+            <div className="absolute right-0 z-10 mt-2 w-44 rounded-lg border border-gray-300 bg-bg p-1 shadow-md">
+              <button
+                type="button"
+                onClick={() => navigate("/minha-conta")}
+                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-gray-100"
+              >
+                Minha conta
+              </button>
+
+              <button
+                type="button"
+                onClick={sair}
+                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-gray-100"
+              >
+                Sair
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Conteúdo */}
