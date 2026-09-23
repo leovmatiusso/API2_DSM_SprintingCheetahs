@@ -1,47 +1,62 @@
 import {
-  useState,
-  FormEvent
+  FormEvent,
+  useEffect,
+  useState
 } from "react";
 
-import type { Role } from "../types";
+import { useNavigate } from "react-router-dom";
+
+import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/PasswordInput";
+
+import {
+  createUser,
+  getTimes
+} from "../api";
+
 import {
   getCurrentUser,
   logout
 } from "../auth";
 
-import { useNavigate } from "react-router-dom";
+import type {
+  Role,
+  Time
+} from "../types";
 
-import Button from "@/components/ui/Button";
-
-const labels: Record<Role, string> = {
-  superusuario: "Superusuário",
-  gestor: "Gestor",
-  comercial: "Comercial",
-  suporte: "Suporte",
-  producao: "Produção",
-  software: "Software",
-  implantacao: "Implantação"
-};
-
-type TabType =
-  | "usuario"
-  | "time";
-
-interface NovoUsuarioForm {
-  primeiroNome: string;
-  sobrenome: string;
-  email: string;
-  timeUsuario: string;
-  cargoUsuario: string;
-}
-
-interface NovoTimeForm {
-  nomeTime: string;
-  pessoaResponsavel: string;
-  email: string;
-  pessoasVinculadas: string;
-  equipeRelacionada: string;
-}
+const roles: {
+  value: Role;
+  label: string;
+}[] = [
+  {
+    value: "superusuario",
+    label: "Superusuário"
+  },
+  {
+    value: "gestor",
+    label: "Gestor"
+  },
+  {
+    value: "comercial",
+    label: "Comercial"
+  },
+  {
+    value: "suporte",
+    label: "Suporte"
+  },
+  {
+    value: "producao",
+    label: "Produção"
+  },
+  {
+    value: "software",
+    label: "Software"
+  },
+  {
+    value: "implantacao",
+    label: "Implantação"
+  }
+];
 
 export default function Cadastro() {
   const navigate = useNavigate();
@@ -49,9 +64,52 @@ export default function Cadastro() {
   const user = getCurrentUser();
 
   const [
-    activeTab,
-    setActiveTab
-  ] = useState<TabType>("usuario");
+    times,
+    setTimes
+  ] = useState<Time[]>([]);
+
+  const [
+    loadingTimes,
+    setLoadingTimes
+  ] = useState(true);
+
+  const [
+    error,
+    setError
+  ] = useState("");
+
+  const [
+    message,
+    setMessage
+  ] = useState("");
+
+  const [
+    form,
+    setForm
+  ] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "comercial" as Role,
+    time_id: ""
+  });
+
+  useEffect(() => {
+    async function loadTimes() {
+      try {
+        const result =
+          await getTimes();
+
+        setTimes(result.times);
+      } catch {
+        setTimes([]);
+      } finally {
+        setLoadingTimes(false);
+      }
+    }
+
+    loadTimes();
+  }, []);
 
   if (!user) {
     return null;
@@ -65,25 +123,67 @@ export default function Cadastro() {
     });
   }
 
-  function visualizarUsuarios() {
-    navigate("/usuarios");
+  async function handleSubmit(
+    e: FormEvent
+  ) {
+    e.preventDefault();
+
+    setError("");
+    setMessage("");
+
+    if (!form.time_id) {
+      setError(
+        "Selecione o time do usuário."
+      );
+
+      return;
+    }
+
+    try {
+      await createUser({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        time_id: form.time_id
+      });
+
+      setMessage(
+        "Usuário cadastrado com sucesso."
+      );
+
+      setForm({
+        name: "",
+        email: "",
+        password: "",
+        role: "comercial",
+        time_id: ""
+      });
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Erro ao cadastrar usuário."
+      );
+    }
   }
 
   return (
-    <>
+    <main className="page">
       <header className="topbar">
         <div>
           <strong>
-            Sistema de O.S.
+            Cadastro de usuário
           </strong>
 
           <span className="role-badge">
-            {labels[user.role]}
+            {user.role === "superusuario"
+              ? "Superusuário"
+              : "Gestor"}
           </span>
         </div>
 
-        <nav className="nav-actions">
-
+        <div className="nav-actions">
           <Button
             variant="secondary"
             onClick={() =>
@@ -99,411 +199,153 @@ export default function Cadastro() {
           >
             Sair
           </Button>
-
-        </nav>
+        </div>
       </header>
 
-      <main className="p-10">
+      <section className="card content">
+        <h1>
+          Novo usuário
+        </h1>
 
-        <div className="flex">
+        <form
+          className="user-form"
+          onSubmit={handleSubmit}
+        >
+          <label>
+            Nome
 
-          <TabButton
-            label="Cadastrar usuário"
-            isActive={
-              activeTab === "usuario"
+            <input
+              value={form.name}
+              onChange={e =>
+                setForm({
+                  ...form,
+                  name: e.target.value
+                })
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Email
+
+            <input
+              type="email"
+              value={form.email}
+              onChange={e =>
+                setForm({
+                  ...form,
+                  email: e.target.value
+                })
+              }
+              required
+            />
+          </label>
+
+          <PasswordInput
+            label="Senha"
+            value={form.password}
+            onChange={value =>
+              setForm({
+                ...form,
+                password: value
+              })
             }
-            onClick={() =>
-              setActiveTab("usuario")
-            }
+            placeholder="Mínimo 6 caracteres"
+            darkTheme
           />
 
-          <TabButton
-            label="Cadastrar time"
-            isActive={
-              activeTab === "time"
-            }
-            onClick={() =>
-              setActiveTab("time")
-            }
-          />
+          <label>
+            Cargo do usuário
 
-        </div>
-
-        <div className="bg-bg rounded-br-2xl shadow-lg/5 rounded-tr-2xl p-18">
-
-          {activeTab === "usuario" ? (
-            <CadastrarUsuarioForm
-              onVisualizarUsuarios={
-                visualizarUsuarios
+            <select
+              value={form.role}
+              onChange={e =>
+                setForm({
+                  ...form,
+                  role: e.target.value as Role
+                })
               }
-            />
-          ) : (
-            <CadastrarTimeForm
-              onVisualizarUsuarios={
-                visualizarUsuarios
+              required
+            >
+              <option value="">
+                Selecione um cargo
+              </option>
+
+              {roles.map(role => (
+                <option
+                  key={role.value}
+                  value={role.value}
+                >
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Time do usuário
+
+            <select
+              value={form.time_id}
+              onChange={e =>
+                setForm({
+                  ...form,
+                  time_id: e.target.value
+                })
               }
-            />
-          )}
+              required
+              disabled={loadingTimes}
+            >
+              <option value="">
+                {loadingTimes
+                  ? "Carregando times..."
+                  : "Selecione um time"}
+              </option>
 
-        </div>
+              {times.map(time => (
+                <option
+                  key={time.id}
+                  value={time.id}
+                >
+                  {time.nome_time}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      </main>
-    </>
-  );
-}
+          <div className="nav-actions">
+            <Button
+              type="submit"
+              variant="primary"
+            >
+              Cadastrar
+            </Button>
 
-function TabButton({
-  label,
-  isActive,
-  onClick
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        px-6
-        py-3
-        rounded-t-xl
-        text-sm
-        font-medium
-        transition-colors
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                navigate("/usuarios")
+              }
+            >
+              Visualizar usuários
+            </Button>
+          </div>
+        </form>
 
-        ${
-          isActive
-            ? "bg-bg text-text"
-            : "bg-text/5 text-text/50 hover:text-text/80 cursor-pointer"
-        }
-      `}
-    >
-      {label}
-    </button>
-  );
-}
+        {message && (
+          <div className="success">
+            {message}
+          </div>
+        )}
 
-function Field({
-  label,
-  value,
-  onChange,
-  type = "text"
-}: {
-  label: string;
-  value: string;
-  onChange: (
-    value: string
-  ) => void;
-  type?: string;
-}) {
-  return (
-    <div>
-
-      <label className="block text-text/80">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        value={value}
-        onChange={e =>
-          onChange(
-            e.target.value
-          )
-        }
-        className="
-          w-full
-          px-3
-          py-1
-          -mt-3
-          placeholder:text-gray-400
-          focus:outline-none
-          focus:ring-1
-          focus:ring-blue-200
-          focus:bg-white
-        "
-      />
-
-    </div>
-  );
-}
-
-function CadastrarUsuarioForm({
-  onVisualizarUsuarios
-}: {
-  onVisualizarUsuarios: () => void;
-}) {
-  const [
-    form,
-    setForm
-  ] = useState<NovoUsuarioForm>({
-    primeiroNome: "",
-    sobrenome: "",
-    email: "",
-    timeUsuario: "",
-    cargoUsuario: ""
-  });
-
-  const setField =
-    (
-      key: keyof NovoUsuarioForm
-    ) =>
-    (value: string) =>
-      setForm(prev => ({
-        ...prev,
-        [key]: value
-      }));
-
-  function handleSubmit(
-    e: FormEvent
-  ) {
-    e.preventDefault();
-
-    console.log(
-      "Novo usuário: ",
-      form
-    );
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-    >
-
-      <h2 className="text-3xl font-bold text-text mb-6">
-        Novo usuário
-      </h2>
-
-      <div className="grid grid-cols-2 gap-x-24 gap-y-2">
-
-        <Field
-          label="Primeiro nome"
-          value={
-            form.primeiroNome
-          }
-          onChange={setField(
-            "primeiroNome"
-          )}
-        />
-
-        <Field
-          label="Time do usuário"
-          value={
-            form.timeUsuario
-          }
-          onChange={setField(
-            "timeUsuario"
-          )}
-        />
-
-        <Field
-          label="Sobrenome"
-          value={
-            form.sobrenome
-          }
-          onChange={setField(
-            "sobrenome"
-          )}
-        />
-
-        <Field
-          label="Cargo do usuário"
-          value={
-            form.cargoUsuario
-          }
-          onChange={setField(
-            "cargoUsuario"
-          )}
-        />
-
-        <Field
-          label="Email"
-          value={
-            form.email
-          }
-          onChange={setField(
-            "email"
-          )}
-          type="email"
-        />
-
-      </div>
-
-      <div className="flex justify-end mt-3">
-
-        <Button
-          type="submit"
-          size="xl"
-        >
-          Cadastrar
-        </Button>
-
-      </div>
-
-      <div className="flex justify-end mt-12">
-
-        <button
-          type="button"
-          onClick={
-            onVisualizarUsuarios
-          }
-          className="
-            bg-indigo-950
-            hover:bg-indigo-900
-            text-white
-            font-medium
-            px-6
-            py-2
-            rounded-lg
-            transition-colors
-          "
-        >
-          Visualizar todos os usuários
-        </button>
-
-      </div>
-
-    </form>
-  );
-}
-
-function CadastrarTimeForm({
-  onVisualizarUsuarios
-}: {
-  onVisualizarUsuarios: () => void;
-}) {
-  const [
-    form,
-    setForm
-  ] = useState<NovoTimeForm>({
-    nomeTime: "",
-    pessoaResponsavel: "",
-    email: "",
-    pessoasVinculadas: "",
-    equipeRelacionada: ""
-  });
-
-  const setField =
-    (
-      key: keyof NovoTimeForm
-    ) =>
-    (value: string) =>
-      setForm(prev => ({
-        ...prev,
-        [key]: value
-      }));
-
-  function handleSubmit(
-    e: FormEvent
-  ) {
-    e.preventDefault();
-
-    console.log(
-      "Novo time: ",
-      form
-    );
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-    >
-
-      <h2 className="text-3xl font-bold text-text mb-6">
-        Novo time
-      </h2>
-
-      <div className="grid grid-cols-2 gap-x-24 gap-y-2">
-
-        <Field
-          label="Nome do time"
-          value={
-            form.nomeTime
-          }
-          onChange={setField(
-            "nomeTime"
-          )}
-        />
-
-        <Field
-          label="Pessoas Vinculadas"
-          value={
-            form.pessoasVinculadas
-          }
-          onChange={setField(
-            "pessoasVinculadas"
-          )}
-        />
-
-        <Field
-          label="Pessoa Responsável"
-          value={
-            form.pessoaResponsavel
-          }
-          onChange={setField(
-            "pessoaResponsavel"
-          )}
-        />
-
-        <Field
-          label="Equipe relacionada"
-          value={
-            form.equipeRelacionada
-          }
-          onChange={setField(
-            "equipeRelacionada"
-          )}
-        />
-
-        <Field
-          label="Email"
-          value={
-            form.email
-          }
-          onChange={setField(
-            "email"
-          )}
-          type="email"
-        />
-
-      </div>
-
-      <div className="flex justify-end mt-3">
-
-        <Button
-          type="submit"
-          size="xl"
-        >
-          Cadastrar
-        </Button>
-
-      </div>
-
-      <div className="flex justify-end mt-12">
-
-        <button
-          type="button"
-          onClick={
-            onVisualizarUsuarios
-          }
-          className="
-            bg-indigo-950
-            hover:bg-indigo-900
-            text-white
-            font-medium
-            px-6
-            py-2
-            rounded-lg
-            transition-colors
-          "
-        >
-          Visualizar todos os usuários
-        </button>
-
-      </div>
-
-    </form>
+        {error && (
+          <div className="error">
+            {error}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }

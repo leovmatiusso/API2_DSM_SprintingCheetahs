@@ -1,0 +1,79 @@
+.times-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.people-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.person-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+
+.linked-users {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: -8px;
+}
+
+.linked-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 10px 12px;
+
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-text) 15%,
+      transparent
+    );
+
+  border-radius: 8px;
+
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
+}
+
+.linked-user button {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.linked-user button:hover {
+  color: #b91c1c;
+}
+
+@media (max-width: 700px) {
+  .times-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .linked-users {
+    grid-column: auto;
+  }
+}
+
+.nav-actions{
+  margin-top: 3%;
+}

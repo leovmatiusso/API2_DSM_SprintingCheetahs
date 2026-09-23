@@ -3,11 +3,11 @@ import { Route } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 import Usuarios from "@/templates/Usuarios";
+import Times from "@/templates/Times";
 import Modulo from "@/templates/Modulo";
 
 export const superusuarioRoutes = (
   <>
-    {/* Superusuário e Gestor podem visualizar usuários */}
     <Route
       element={
         <ProtectedRoute
@@ -22,9 +22,13 @@ export const superusuarioRoutes = (
         path="/usuarios"
         element={<Usuarios />}
       />
+
+      <Route
+        path="/times"
+        element={<Times />}
+      />
     </Route>
 
-    {/* Somente Superusuário */}
     <Route
       element={
         <ProtectedRoute

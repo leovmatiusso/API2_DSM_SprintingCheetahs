@@ -1,63 +1,124 @@
 import "../style/Usuarios.css";
-import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+
 import {
-  createUser,
+  FormEvent,
+  useEffect,
+  useState
+} from "react";
+
+import { useNavigate } from "react-router-dom";
+
+import {
   deleteUser,
   getUsers,
   updateUser
 } from "../api";
+
 import { getCurrentUser } from "../auth";
-import type { Role, User } from "../types";
+
+import type {
+  Role,
+  User
+} from "../types";
+
 import Button from "@/components/ui/Button";
 
 const roles: {
   value: Role;
   label: string;
 }[] = [
-  ["superusuario", "Superusuário"],
-  ["gestor", "Gestor"],
-  ["comercial", "Comercial"],
-  ["suporte", "Suporte"],
-  ["producao", "Produção"],
-  ["software", "Software"],
-  ["implantacao", "Implantação"]
-].map(([value, label]) => ({
-  value: value as Role,
-  label: label as string
-}));
+  {
+    value: "superusuario",
+    label: "Superusuário"
+  },
+  {
+    value: "gestor",
+    label: "Gestor"
+  },
+  {
+    value: "comercial",
+    label: "Comercial"
+  },
+  {
+    value: "suporte",
+    label: "Suporte"
+  },
+  {
+    value: "producao",
+    label: "Produção"
+  },
+  {
+    value: "software",
+    label: "Software"
+  },
+  {
+    value: "implantacao",
+    label: "Implantação"
+  }
+];
 
 export default function Usuarios() {
-  const navigate = useNavigate();
-  const currentUser = getCurrentUser();
+  const navigate =
+    useNavigate();
+
+  const currentUser =
+    getCurrentUser();
 
   const isSuperusuario =
-    currentUser?.role === "superusuario";
+    currentUser?.role ===
+    "superusuario";
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [
+    users,
+    setUsers
+  ] = useState<User[]>([]);
 
-  const [form, setForm] = useState({
+  const [
+    error,
+    setError
+  ] = useState("");
+
+  const [
+    message,
+    setMessage
+  ] = useState("");
+
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
+
+  const [
+    editing,
+    setEditing
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    userToDelete,
+    setUserToDelete
+  ] = useState<User | null>(
+    null
+  );
+
+  const [
+    form,
+    setForm
+  ] = useState({
     name: "",
     email: "",
-    password: "123456",
+    password: "",
     role: "comercial" as Role
   });
-
-  const [editing, setEditing] =
-    useState<string | null>(null);
-
-  const [userToDelete, setUserToDelete] =
-    useState<User | null>(null);
 
   async function load() {
     setLoading(true);
     setError("");
 
     try {
-      const result = await getUsers();
+      const result =
+        await getUsers();
 
       setUsers(result.users);
     } catch (e) {
@@ -81,55 +142,9 @@ export default function Usuarios() {
     setForm({
       name: "",
       email: "",
-      password: "123456",
+      password: "",
       role: "comercial"
     });
-  }
-
-  async function submit(
-    e: FormEvent
-  ) {
-    e.preventDefault();
-
-    setError("");
-    setMessage("");
-
-    try {
-      if (editing) {
-        const data = form.password
-          ? form
-          : {
-              name: form.name,
-              email: form.email,
-              role: form.role
-            };
-
-        await updateUser(
-          editing,
-          data
-        );
-
-        setMessage(
-          "Usuário atualizado com sucesso."
-        );
-      } else {
-        await createUser(form);
-
-        setMessage(
-          "Usuário cadastrado com sucesso."
-        );
-      }
-
-      reset();
-
-      await load();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Erro ao salvar usuário."
-      );
-    }
   }
 
   function edit(user: User) {
@@ -152,6 +167,55 @@ export default function Usuarios() {
     });
   }
 
+  async function submit(
+    e: FormEvent
+  ) {
+    e.preventDefault();
+
+    if (!editing) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      const data =
+        form.password
+          ? {
+              name: form.name,
+              email: form.email,
+              password:
+                form.password,
+              role: form.role
+            }
+          : {
+              name: form.name,
+              email: form.email,
+              role: form.role
+            };
+
+      await updateUser(
+        editing,
+        data
+      );
+
+      setMessage(
+        "Usuário atualizado com sucesso."
+      );
+
+      reset();
+
+      await load();
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Erro ao atualizar usuário."
+      );
+    }
+  }
+
   async function toggleUser(
     user: User
   ) {
@@ -163,7 +227,8 @@ export default function Usuarios() {
       await updateUser(
         user.id,
         {
-          active: !user.active
+          active:
+            !user.active
         }
       );
 
@@ -208,7 +273,8 @@ export default function Usuarios() {
   ) {
     return (
       roles.find(
-        item => item.value === role
+        item =>
+          item.value === role
       )?.label ?? role
     );
   }
@@ -230,104 +296,97 @@ export default function Usuarios() {
         </Button>
       </header>
 
-      <section className="card content">
-        <h1>
-          {editing
-            ? "Editar usuário"
-            : "Novo usuário"}
-        </h1>
+      {editing && (
+        <section className="card content">
+          <h1>
+            Editar usuário
+          </h1>
 
-        <form
-          className="user-form"
-          onSubmit={submit}
-        >
-          <label>
-            Nome
+          <form
+            className="user-form"
+            onSubmit={submit}
+          >
+            <label>
+              Nome
 
-            <input
-              value={form.name}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  name: e.target.value
-                })
-              }
-              required
-            />
-          </label>
+              <input
+                value={form.name}
+                onChange={e =>
+                  setForm({
+                    ...form,
+                    name: e.target.value
+                  })
+                }
+                required
+              />
+            </label>
 
-          <label>
-            Email
+            <label>
+              Email
 
-            <input
-              type="email"
-              value={form.email}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  email: e.target.value
-                })
-              }
-              required
-            />
-          </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e =>
+                  setForm({
+                    ...form,
+                    email:
+                      e.target.value
+                  })
+                }
+                required
+              />
+            </label>
 
-          <label>
-            Senha
+            <label>
+              Nova senha
 
-            <input
-              type="password"
-              value={form.password}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  password: e.target.value
-                })
-              }
-              placeholder={
-                editing
-                  ? "Deixe vazio para manter"
-                  : "Mínimo 6 caracteres"
-              }
-              required={!editing}
-            />
-          </label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={e =>
+                  setForm({
+                    ...form,
+                    password:
+                      e.target.value
+                  })
+                }
+                placeholder="Deixe vazio para manter"
+              />
+            </label>
 
-          <label>
-            Perfil
+            <label>
+              Perfil
 
-            <select
-              value={form.role}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  role:
-                    e.target.value as Role
-                })
-              }
-            >
-              {roles.map(role => (
-                <option
-                  key={role.value}
-                  value={role.value}
-                >
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              <select
+                value={form.role}
+                onChange={e =>
+                  setForm({
+                    ...form,
+                    role:
+                      e.target.value as Role
+                  })
+                }
+              >
+                {roles.map(role => (
+                  <option
+                    key={role.value}
+                    value={role.value}
+                  >
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <div className="nav-actions">
-            <Button
-              variant="primary"
-              type="submit"
-            >
-              {editing
-                ? "Salvar alterações"
-                : "Criar usuário"}
-            </Button>
+            <div className="nav-actions">
+              <Button
+                type="submit"
+                variant="primary"
+              >
+                Salvar alterações
+              </Button>
 
-            {editing && (
               <Button
                 type="button"
                 variant="secondary"
@@ -335,27 +394,29 @@ export default function Usuarios() {
               >
                 Cancelar
               </Button>
-            )}
-          </div>
-        </form>
+            </div>
+          </form>
+        </section>
+      )}
 
-        {message && (
-          <div className="success">
-            {message}
-          </div>
-        )}
+      {message && (
+        <div className="success content">
+          {message}
+        </div>
+      )}
 
-        {error && (
-          <div className="error">
-            {error}
-          </div>
-        )}
-      </section>
+      {error && (
+        <div className="error content">
+          {error}
+        </div>
+      )}
 
       <section className="card content">
-        <h2>
-          Usuários cadastrados
-        </h2>
+        <div className="times-header">
+          <h2>
+            Usuários cadastrados
+          </h2>
+        </div>
 
         {loading ? (
           <p>
@@ -391,81 +452,87 @@ export default function Usuarios() {
                     </td>
                   </tr>
                 ) : (
-                  users.map(user => (
-                    <tr key={user.id}>
-                      <td>
-                        {user.name}
-                      </td>
-
-                      <td>
-                        {user.email}
-                      </td>
-
-                      <td>
-                        {getRoleLabel(
-                          user.role
-                        )}
-                      </td>
-
-                      <td>
-                        <span
-                          className={
-                            user.active
-                              ? "status-active"
-                              : "status-inactive"
-                          }
-                        >
-                          {user.active
-                            ? "Ativo"
-                            : "Inativo"}
-                        </span>
-                      </td>
-
-                      {isSuperusuario && (
+                  users.map(
+                    user => (
+                      <tr
+                        key={user.id}
+                      >
                         <td>
-                          <div className="nav-actions">
-                            <Button
-                              variant="secondary"
-                              onClick={() =>
-                                edit(user)
-                              }
-                            >
-                              Editar
-                            </Button>
-
-                            {user.role !==
-                              "superusuario" && (
-                              <>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() =>
-                                    toggleUser(
-                                      user
-                                    )
-                                  }
-                                >
-                                  {user.active
-                                    ? "Desativar"
-                                    : "Ativar"}
-                                </Button>
-
-                                <Button
-                                  variant="danger"
-                                  onClick={() =>
-                                    setUserToDelete(
-                                      user
-                                    )
-                                  }
-                                >
-                                  Excluir
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                          {user.name}
                         </td>
-                      )}
-                    </tr>
-                  ))
+
+                        <td>
+                          {user.email}
+                        </td>
+
+                        <td>
+                          {getRoleLabel(
+                            user.role
+                          )}
+                        </td>
+
+                        <td>
+                          <span
+                            className={
+                              user.active
+                                ? "status-active"
+                                : "status-inactive"
+                            }
+                          >
+                            {user.active
+                              ? "Ativo"
+                              : "Inativo"}
+                          </span>
+                        </td>
+
+                        {isSuperusuario && (
+                          <td>
+                            <div className="nav-actions">
+                              <Button
+                                variant="secondary"
+                                onClick={() =>
+                                  edit(
+                                    user
+                                  )
+                                }
+                              >
+                                Editar
+                              </Button>
+
+                              {user.role !==
+                                "superusuario" && (
+                                <>
+                                  <Button
+                                    variant="secondary"
+                                    onClick={() =>
+                                      toggleUser(
+                                        user
+                                      )
+                                    }
+                                  >
+                                    {user.active
+                                      ? "Desativar"
+                                      : "Ativar"}
+                                  </Button>
+
+                                  <Button
+                                    variant="danger"
+                                    onClick={() =>
+                                      setUserToDelete(
+                                        user
+                                      )
+                                    }
+                                  >
+                                    Excluir
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  )
                 )}
               </tbody>
             </table>
@@ -483,21 +550,26 @@ export default function Usuarios() {
             <p>
               Deseja excluir usuário{" "}
               <strong>
-                {userToDelete.email}
+                {
+                  userToDelete.email
+                }
               </strong>{" "}
               na função de{" "}
               <strong>
                 {getRoleLabel(
                   userToDelete.role
                 )}
-              </strong>?
+              </strong>
+              ?
             </p>
 
             <div className="delete-actions">
               <button
                 type="button"
                 className="delete-confirm"
-                onClick={confirmDelete}
+                onClick={
+                  confirmDelete
+                }
               >
                 Confirmar
               </button>
@@ -506,7 +578,9 @@ export default function Usuarios() {
                 type="button"
                 className="delete-cancel"
                 onClick={() =>
-                  setUserToDelete(null)
+                  setUserToDelete(
+                    null
+                  )
                 }
               >
                 Cancelar
