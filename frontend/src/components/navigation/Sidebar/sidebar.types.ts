@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import type { Role } from "../../../types";
+import type { Role } from "@/types";
 
 export interface SidebarItemConfig {
   label: string;

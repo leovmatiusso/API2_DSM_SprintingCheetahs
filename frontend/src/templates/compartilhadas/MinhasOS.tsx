@@ -1,7 +1,7 @@
-import "../style/MinhasOS.css";
-import Modulo from "./Modulo";
-import { getCurrentUser } from "../auth";
-import type { Role } from "../types";
+import "@/style/MinhasOS.css";
+import Modulo from "@/templates/Modulo";
+import { getCurrentUser } from "@/auth";
+import type { Role } from "@/types";
 
 const data: Partial<Record<Role, {title:string; description:string; items:string[]}>> = {
   comercial: { title:"Minhas Ordens de Serviço — Comercial", description:"Acompanhamento das O.S. de novos projetos abertas pelo usuário Comercial.", items:["Consultar O.S. abertas pelo usuário", "Acompanhar status e etapa atual", "Visualizar histórico", "Consultar informações e anexos permitidos"] },

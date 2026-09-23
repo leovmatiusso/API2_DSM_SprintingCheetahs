@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Clock, CircleAlert, Wrench, Users } from "lucide-react";
 
-import { getCurrentUser, logout } from "../auth";
+import { getCurrentUser, logout } from "@/auth";
 
 import Button from "@/components/ui/Button";
 
-export default function DashboardGestor() {
+export default function Dashboard() {
   const navigate = useNavigate();
 
   const user = getCurrentUser();

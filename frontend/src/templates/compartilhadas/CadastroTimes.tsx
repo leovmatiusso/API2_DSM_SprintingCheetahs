@@ -11,14 +11,14 @@ import Button from "@/components/ui/Button";
 import {
   createTime,
   getUsers
-} from "../api";
+} from "@/api";
 
-import { getCurrentUser } from "../auth";
+import { getCurrentUser } from "@/auth";
 
 import type {
   Role,
   User
-} from "../types";
+} from "@/types";
 
 const equipes: {
   value: Role;

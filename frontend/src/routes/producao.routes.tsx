@@ -1,7 +1,8 @@
 import { Route } from "react-router-dom";
 
-import ProtectedRoute from "@/components/ProtectedRoute";
 import Modulo from "@/templates/Modulo";
+
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export const producaoRoutes = (
   <Route element={<ProtectedRoute allowedRoles={["producao"]} />}>

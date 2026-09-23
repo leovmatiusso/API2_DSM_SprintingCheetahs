@@ -1,5 +1,5 @@
 import { Route } from "react-router-dom";
-import Login from "@/templates/Login";
+import Login from "@/templates/auth/Login";
 
 export const authRoutes = (
   <>

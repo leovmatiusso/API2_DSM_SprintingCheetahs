@@ -1,8 +1,8 @@
-import "../style/Login.css";
+import "@/style/Login.css";
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../api";
-import { saveSession } from "../auth";
+import { login } from "@/api";
+import { saveSession } from "@/auth";
 import PasswordInput from "@/components/PasswordInput";
 
 export default function Login() {

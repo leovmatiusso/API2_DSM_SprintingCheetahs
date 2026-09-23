@@ -1,7 +1,7 @@
-import "../style/Dashboard.css";
+import "@/style/Dashboard.css";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, logout } from "../auth";
-import type { Role } from "../types";
+import { getCurrentUser, logout } from "@/auth";
+import type { Role } from "@/types";
 import Button from "@/components/ui/Button";
 
 const labels: Record<Role, string> = {

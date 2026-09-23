@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import Sidebar from "../navigation/Sidebar/Sidebar";
+import Sidebar from "@/components/navigation/Sidebar/Sidebar";
 
 export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

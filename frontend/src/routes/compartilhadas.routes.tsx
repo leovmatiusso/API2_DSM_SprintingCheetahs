@@ -1,10 +1,11 @@
 import { Route } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Dashboard from "@/templates/Dashboard";
-import MinhaConta from "@/templates/MinhaConta";
-import Cadastro from "@/templates/Cadastro";
-import CadastroTimes from "@/templates/CadastroTimes";
-import MinhasOS from "@/templates/MinhasOS";
+
+import Dashboard from "@/templates/compartilhadas/Dashboard";
+import MinhaConta from "@/templates/compartilhadas/MinhaConta";
+import Cadastro from "@/templates/compartilhadas/Cadastro";
+import CadastroTimes from "@/templates/compartilhadas/CadastroTimes";
+import MinhasOS from "@/templates/compartilhadas/MinhasOS";
 
 export const compartilhadasRoutes = (
   <>

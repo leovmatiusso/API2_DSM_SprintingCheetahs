@@ -1,5 +1,5 @@
-import "../style/Usuarios.css";
-import "../style/Times.css";
+import "@/style/Usuarios.css";
+import "@/style/Times.css";
 
 import {
   FormEvent,
@@ -16,15 +16,15 @@ import {
   getTimes,
   getUsers,
   updateTime
-} from "../api";
+} from "@/api";
 
-import { getCurrentUser } from "../auth";
+import { getCurrentUser } from "@/auth";
 
 import type {
   Role,
   Time,
   User
-} from "../types";
+} from "@/types";
 
 const equipes: {
   value: Role;

@@ -1,6 +1,6 @@
-import "../style/Modulo.css";
+import "@/style/Modulo.css";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, logout } from "../auth";
+import { getCurrentUser, logout } from "@/auth";
 import Button from "@/components/ui/Button";
 
 export interface ModuloProps {

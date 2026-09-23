@@ -2,9 +2,10 @@ import { Route } from "react-router-dom";
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-import Usuarios from "@/templates/Usuarios";
-import Times from "@/templates/Times";
 import Modulo from "@/templates/Modulo";
+
+import Times from "@/templates/superusuario/Times";
+import Usuarios from "@/templates/superusuario/Usuarios";
 
 export const superusuarioRoutes = (
   <>

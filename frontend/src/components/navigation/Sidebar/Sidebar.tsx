@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, logout } from "../../../auth";
+import { getCurrentUser, logout } from "@/auth";
 import SidebarItem from "./SidebarItem";
 import { menuItems } from "./sidebar.config";
 import ThemeToggle from "./ThemeToggle";

@@ -1,8 +1,8 @@
 import "@/style/MinhaConta.css";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { changePassword, getAccount } from "../api";
-import { getCurrentUser } from "../auth";
+import { changePassword, getAccount } from "@/api";
+import { getCurrentUser } from "@/auth";
 import PasswordInput from "@/components/PasswordInput";
 import Button from "@/components/ui/Button";
 

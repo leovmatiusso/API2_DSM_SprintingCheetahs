@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { getCurrentUser } from "../auth";
-import ProtectedRoute from "../components/ProtectedRoute";
-import MainLayout from "../components/layout/MainLayout";
+import { getCurrentUser } from "@/auth";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import MainLayout from "@/components/layout/MainLayout";
 
 import { authRoutes } from "./auth.routes";
 import { compartilhadasRoutes } from "./compartilhadas.routes";

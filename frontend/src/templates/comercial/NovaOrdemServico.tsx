@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import Button from "@/components/ui/Button";
 
-import "../style/NovaOrdemServico.css";
+import "@/style/NovaOrdemServico.css";
 
 type TipoOS = "manutencao" | "novo-projeto";
 

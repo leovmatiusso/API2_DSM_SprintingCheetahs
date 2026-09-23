@@ -1,4 +1,4 @@
-import "../style/Usuarios.css";
+import "@/style/Usuarios.css";
 
 import {
   FormEvent,
@@ -12,14 +12,14 @@ import {
   deleteUser,
   getUsers,
   updateUser
-} from "../api";
+} from "@/api";
 
-import { getCurrentUser } from "../auth";
+import { getCurrentUser } from "@/auth";
 
 import type {
   Role,
   User
-} from "../types";
+} from "@/types";
 
 import Button from "@/components/ui/Button";
 

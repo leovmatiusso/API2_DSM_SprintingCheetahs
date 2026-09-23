@@ -12,17 +12,17 @@ import PasswordInput from "@/components/PasswordInput";
 import {
   createUser,
   getTimes
-} from "../api";
+} from "@/api";
 
 import {
   getCurrentUser,
   logout
-} from "../auth";
+} from "@/auth";
 
 import type {
   Role,
   Time
-} from "../types";
+} from "@/types";
 
 const roles: {
   value: Role;
