@@ -16,9 +16,18 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
   const navigate = useNavigate();
   const user = getCurrentUser();
 
-  const visibleItems = menuItems.filter(
-    (item) => !item.roles || (user && item.roles.includes(user.role)),
-  );
+  const visibleItems = menuItems
+    .filter((item) => !item.roles || (user && item.roles.includes(user.role)))
+    .map((item) => {
+      if (item.label === "Dashboard" && user?.role === "gestor") {
+        return {
+          ...item,
+          path: "/dashboard/gestor",
+        };
+      }
+
+      return item;
+    });
 
   function handleCollapse() {
     setCollapsed((current) => {

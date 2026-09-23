@@ -1,8 +1,5 @@
 import "../style/Login.css";
-import {
-  FormEvent,
-  useState
-} from "react";
+import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api";
 import { saveSession } from "../auth";
@@ -11,44 +8,32 @@ import PasswordInput from "@/components/PasswordInput";
 export default function Login() {
   const navigate = useNavigate();
 
-  const [email, setEmail] =
-    useState("");
+  const [email, setEmail] = useState("");
 
-  const [password, setPassword] =
-    useState("");
+  const [password, setPassword] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(
-    event: FormEvent
-  ) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     setError("");
     setLoading(true);
 
     try {
-      const result =
-        await login(
-          email,
-          password
-        );
+      const result = await login(email, password);
 
       saveSession(result);
 
-      navigate("/dashboard", {
-        replace: true
-      });
+      if (result.user.role === "gestor") {
+        navigate("/dashboard/gestor", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Erro no login."
-      );
+      setError(err instanceof Error ? err.message : "Erro no login.");
     } finally {
       setLoading(false);
     }
@@ -56,33 +41,19 @@ export default function Login() {
 
   return (
     <main className="login-page">
-
       <section className="login-side">
-        <form
-          className="login-card"
-          onSubmit={handleSubmit}
-        >
+        <form className="login-card" onSubmit={handleSubmit}>
+          <h1 className="font-bold text-4xl">Entrar</h1>
 
-          <h1 className="font-bold text-4xl">
-            Entrar
-          </h1>
-
-          <p className="login-muted">
-            Acesse sua conta para continuar.
-          </p>
+          <p className="login-muted">Acesse sua conta para continuar.</p>
 
           <label>
             Email
-
             <input
               className="login-input"
               type="email"
               value={email}
-              onChange={e =>
-                setEmail(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               autoComplete="username"
               required
@@ -96,75 +67,59 @@ export default function Login() {
             placeholder="Digite sua senha"
           />
 
-          {error && (
-            <div className="error">
-              {error}
-            </div>
-          )}
+          {error && <div className="error">{error}</div>}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="login-button"
-          >
-            {loading
-              ? "Entrando..."
-              : "Entrar"}
+          <button type="submit" disabled={loading} className="login-button">
+            {loading ? "Entrando..." : "Entrar"}
           </button>
 
           <div className="test-users">
-
             <strong>
-              <span className="select-none">Contas para teste — senha: </span>123456
+              <span className="select-none">Contas para teste — senha: </span>
+              123456
             </strong>
 
             <span>
               admin@empresa.com
-               <span className="select-none">— Superusuário</span>
+              <span className="select-none">— Superusuário</span>
             </span>
 
             <span>
               gestor@empresa.com
-               <span className="select-none">— Gestor</span>
+              <span className="select-none">— Gestor</span>
             </span>
 
             <span>
               comercial@empresa.com
-               <span className="select-none">— Comercial</span>
+              <span className="select-none">— Comercial</span>
             </span>
 
             <span>
               suporte@empresa.com
-               <span className="select-none">— Suporte</span>
+              <span className="select-none">— Suporte</span>
             </span>
 
             <span>
               producao@empresa.com
-               <span className="select-none">— Produção</span>
+              <span className="select-none">— Produção</span>
             </span>
 
             <span>
               software@empresa.com
-               <span className="select-none">— Software</span>
+              <span className="select-none">— Software</span>
             </span>
 
             <span>
               implantacao@empresa.com
-               <span className="select-none">— Implantação</span>
+              <span className="select-none">— Implantação</span>
             </span>
-
           </div>
-
         </form>
       </section>
 
       <section className="login-image">
-        <img
-          src="../../img/fundo_login.png"
-          alt="Imagem da empresa"
-        />
+        <img src="../../img/fundo_login.png" alt="Imagem da empresa" />
       </section>
-
     </main>
   );
 }
