@@ -30,11 +30,9 @@ Os usuários e sessões ficam em memória para testes. Ao reiniciar o backend, a
 INSTALAÇÃO
 1. Abra o terminal na pasta do projeto.
 2. npm run install:all
-3. rmdir /s /q node_modules
-4. del package-lock.json
-5. npm run install:all
-6. npm run dev
-7. Acesse http://localhost:5173
+3. npm run install:all
+4. npm run dev
+5. Acesse http://localhost:5173
 
 SEGURANÇA DO PROTÓTIPO
 Foi adicionada uma sessão/token em memória e autorização no backend. Ainda não é produção: senhas estão em texto puro. Em produção, usar banco de dados, hash com bcrypt/Argon2, HTTPS, gestão segura de sessão/JWT, rate limiting, validação e auditoria persistente.
