@@ -1,13 +1,15 @@
 # Estratégia de branches
 
-Toda branch nova nasce de uma `develop` atualizada.
+A estratégia foi escolhida por proporcionar maior organização ao desenvolvimento em equipe, permitindo que diferentes funcionalidades sejam desenvolvidas de forma independente. A separação das branches reduz o risco de alterações incompletas afetarem a versão estável do sistema e facilita o controle das modificações realizadas por cada integrante.
+
+O uso de `Pull Requests` e revisão de código também contribui para a identificação de erros antes da integração das alterações, além de facilitar o acompanhamento do histórico do projeto. Dessa forma, a estratégia escolhida é adequada ao desenvolvimento colaborativo e ao controle das diferentes versões do sistema.
 
 | Tipo de branch | Convenção de nome | Uso |
 | --- | --- | --- |
 | Produção | `main` | Único branch de produção/entrega. Nunca recebe commit direto — só recebe merge (pull) vindo da `develop`, já validada. |
 | Integração/teste | `develop` | Branch de integração. Recebe as branches de funcionalidade/correção via Pull Request. Funciona como uma etapa de teste antes de ir para a `main`. |
-| Funcionalidade | `feature/US\<id>-descricao-curta` | Novas funcionalidades, associadas a uma User Story do backlog. |
-| Correção | `fix/US\<id>-descricao-curta` | Correções de bugs em uma User Story já entregue. |
+| Funcionalidade | `feature/US<id>-descricao-curta` | Novas funcionalidades, associadas a uma User Story do backlog. |
+| Correção | `fix/US<id>-descricao-curta` | Correções de bugs em uma User Story já entregue. |
 
 `<id>` é o número da User Story do backlog (ex.: `US#04` vira `US04` na branch — sem o `#`).
 
@@ -33,11 +35,11 @@ Branches de experimentação, prova de conceito ou estudo (ex.: `test/react`) n�
 
 ```mermaid
 flowchart TD
-    A["`feature` ou `fix`"] --> B["<Pull Request>"]
-    B --> C["`develop`"]
+    A["(feature) ou (fix)"] --> B["Pull Request"]
+    B --> C["(develop)"]
     C --> D["testes"]
-    D --> E["<Pull Request>"]
-    E --> F["`main`"]
+    D --> E["Pull Request"]
+    E --> F["(main)"]
 ```
 
 1. Criar a branch a partir da `develop` atualizada.
@@ -55,4 +57,4 @@ flowchart TD
 
 - A `main` nunca recebe commit direto: só recebe merge vindo da `develop`, sempre via Pull Request revisado pelo time.
 - A `develop` deve evitar commit direto: priorizar merge vindo de `feature/` ou `fix/`, sempre via Pull Request revisado por outra pessoa.
-- Toda branch de trabalho (`feature/` ou `fix/`) nasce da `develop`, não da `main`.
+- Branch de trabalho (`feature/` ou `fix/`) deve nascer da `develop`, não da `main`.
