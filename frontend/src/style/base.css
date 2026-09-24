@@ -33,7 +33,7 @@ body {
 }
 
 .card {
-  @apply bg-bg rounded-xl p-7 shadow-lg;
+  @apply bg-bg rounded-xl p-7 ring-1 ring-border;
 }
 
 .page {
@@ -44,7 +44,7 @@ body {
 }
 
 .topbar {
-  @apply bg-bg border-b border-text/15 flex justify-between items-center gap-4 px-6 py-4;
+  @apply bg-bg border-b border-border flex justify-between items-center gap-4 px-6 py-4;
 }
 
 .nav-actions {
@@ -62,6 +62,13 @@ body {
   margin: 40px auto;
 }
 
+.input-label {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-weight: 700;
+}
+
 h1 {
   margin-top: 0;
 }
@@ -70,16 +77,9 @@ h2 {
   margin-top: 0;
 }
 
-label {
-  display: grid;
-  gap: 8px;
-  margin: 18px 0;
-  font-weight: 700;
-}
-
 input,
 select {
-  @apply bg-bg border border-text/15 focus:outline-none focus:ring-2 focus:ring-primary;
+  @apply bg-bg border border-border focus:outline-none focus:ring-2 focus:ring-primary;
 
   width: 100%;
 
@@ -121,33 +121,4 @@ input.no-dark {
 
 .muted {
   color: #6b7280;
-}
-
-@media (max-width: 700px) {
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .nav-actions {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .content {
-    margin: 20px auto;
-  }
-
-  .card {
-    padding: 20px;
-  }
-}
-
-:root {
-  --shell-bg-secondary: #ffffff;
-  --shell-background: #eef2f6;
-  --shell-border: #dce3ea;
-  --shell-text: #1f2937;
-  --shell-muted: #64748b;
-  --shell-accent: #2563eb;
 }

@@ -5,126 +5,113 @@ import {
   Home,
   Settings,
   Users,
-  UserRoundPlus
+  UserRoundPlus,
+  CirclePlus,
 } from "lucide-react";
 
-import type {
-  SidebarItemConfig
-} from "./sidebar.types";
+import type { SidebarItemConfig } from "./sidebar.types";
 
-export const menuItems:
-  SidebarItemConfig[] = [
+export const menuItems: SidebarItemConfig[] = [
   {
     label: "Dashboard",
     icon: Home,
-    path: "/dashboard"
+    path: "/dashboard",
   },
 
   {
     label: "Minha conta",
     icon: Settings,
-    path: "/minha-conta"
+    path: "/minha-conta",
   },
 
   {
     label: "Usuários",
     icon: Users,
     path: "/usuarios",
-    roles: [
-      "superusuario",
-      "gestor"
-    ]
+    roles: ["superusuario", "gestor"],
   },
 
   {
     label: "Times",
     icon: Users,
     path: "/times",
-    roles: [
-      "superusuario",
-      "gestor"
-    ]
+    roles: ["superusuario", "gestor"],
   },
 
   {
     label: "Ordens disponíveis",
     icon: ClipboardList,
     path: "/os/disponiveis",
-    roles: ["gestor"]
+    roles: ["gestor"],
   },
 
   {
     label: "Minhas O.S.",
     icon: ClipboardList,
     path: "/os/minhas",
-    roles: [
-      "comercial",
-      "suporte",
-      "producao",
-      "software",
-      "implantacao"
-    ]
+    roles: ["comercial", "suporte", "producao", "software", "implantacao"],
   },
 
   {
     label: "Nova O.S.",
     icon: FilePlus2,
-    path: "/os/nova-projeto",
-    roles: ["comercial"]
+    path: "/os/nova-os",
+    roles: ["comercial"],
+  },
+
+  {
+    label: "Nova OS",
+    icon: FilePlus2,
+    path: "/os/nova-os",
+    roles: ["suporte"],
   },
 
   {
     label: "Nova manutenção",
-    icon: FilePlus2,
-    path: "/os/nova-manutencao",
-    roles: ["suporte"]
+    icon: CirclePlus,
+    path: "/os/nova-manutencao-suporte",
+    roles: ["suporte"],
   },
 
   {
     label: "Execução",
     icon: ClipboardList,
     path: "/execucao/producao",
-    roles: ["producao"]
+    roles: ["producao"],
   },
 
   {
     label: "Execução",
     icon: ClipboardList,
     path: "/execucao/software",
-    roles: ["software"]
+    roles: ["software"],
   },
 
   {
     label: "Execução",
     icon: ClipboardList,
     path: "/execucao/implantacao",
-    roles: ["implantacao"]
+    roles: ["implantacao"],
   },
 
   {
     label: "Relatórios",
     icon: BarChart3,
     path: "/relatorios",
-    roles: ["gestor"]
+    roles: ["gestor"],
   },
 
   {
     label: "Cadastrar",
     icon: UserRoundPlus,
     path: "/cadastro",
-    roles: [
-      "superusuario",
-      "gestor"
-    ]
+    roles: ["superusuario", "gestor"],
   },
 
   {
     label: "Cadastrar Times",
     icon: UserRoundPlus,
     path: "/cadastro-times",
-    roles: [
-      "superusuario",
-      "gestor"
-    ]
-  }
+    roles: ["superusuario", "gestor"],
+  },
 ];

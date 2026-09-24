@@ -9,54 +9,24 @@ import MinhasOS from "@/templates/compartilhadas/MinhasOS";
 
 export const compartilhadasRoutes = (
   <>
-    <Route
-      path="/dashboard"
-      element={<Dashboard />}
-    />
+    <Route path="/dashboard" element={<Dashboard />} />
 
-    <Route
-      path="/minha-conta"
-      element={<MinhaConta />}
-    />
+    <Route path="/minha-conta" element={<MinhaConta />} />
 
-    <Route
-      element={
-        <ProtectedRoute
-          allowedRoles={[
-            "superusuario",
-            "gestor"
-          ]}
-        />
-      }
-    >
-      <Route
-        path="/cadastro"
-        element={<Cadastro />}
-      />
+    <Route element={<ProtectedRoute allowedRoles={["superusuario", "gestor"]} />}>
+      <Route path="/cadastro" element={<Cadastro />} />
 
-      <Route
-        path="/cadastro-times"
-        element={<CadastroTimes />}
-      />
+      <Route path="/cadastro-times" element={<CadastroTimes />} />
     </Route>
 
     <Route
       element={
         <ProtectedRoute
-          allowedRoles={[
-            "comercial",
-            "suporte",
-            "producao",
-            "software",
-            "implantacao"
-          ]}
+          allowedRoles={["comercial", "suporte", "producao", "software", "implantacao"]}
         />
       }
     >
-      <Route
-        path="/os/minhas"
-        element={<MinhasOS />}
-      />
+      <Route path="/os/minhas" element={<MinhasOS />} />
     </Route>
   </>
 );

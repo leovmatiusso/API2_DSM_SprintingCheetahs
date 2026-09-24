@@ -27,7 +27,7 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-bg-secondary p-6 text-text">
+    <main className="bg-bg-secondary text-text min-h-screen p-6">
       {/* Cabeçalho */}
       <header className="mb-8 flex items-center justify-between">
         <div>
@@ -84,82 +84,74 @@ export default function Dashboard() {
 
       {/* Conteúdo */}
       <section>
-        <p className="mb-1 text-sm text-text-muted">Painel inicial</p>
+        <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
 
         <h1 className="mb-6 text-3xl font-bold">Olá, {user.name}</h1>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-10">
           {/* Card - Projetos em andamento */}
-          <section className="rounded-lg border border-gray-400 bg-bg p-6 shadow-sm lg:col-span-6">
+          <section className="card lg:col-span-6">
             {/* Título do card */}
             <div className="mb-6">
-              <p className="text-2xl text-text">Projetos em andamento</p>
+              <p className="text-text text-2xl">Projetos em andamento</p>
 
-              <strong className="mt-1 block text-4xl font-bold text-text">
-                12
-              </strong>
+              <strong className="text-text mt-1 block text-4xl font-bold">12</strong>
             </div>
 
             {/* Mini cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {/* O.S. abertas */}
-              <div className="min-w-0 rounded-xl border border-text/10 bg-bg-secondary p-4">
+              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black">
                     <ClipboardList size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm font-medium leading-tight">
-                    OS abertas
-                  </span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">OS abertas</span>
                 </div>
 
                 <div className="mt-3 pl-11">
                   <strong className="block text-3xl font-bold">24</strong>
 
-                  <span className="mt-1 block text-xs leading-4 text-text-muted">
+                  <span className="text-text-muted mt-1 block text-xs leading-4">
                     Total de OS em aberto
                   </span>
                 </div>
               </div>
 
               {/* O.S. em andamento */}
-              <div className="min-w-0 rounded-xl border border-text/10 bg-bg-secondary p-4">
+              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-200 text-black">
                     <Clock size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm font-medium leading-tight">
-                    OS em andamento
-                  </span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">OS em andamento</span>
                 </div>
 
                 <div className="mt-3 pl-11">
                   <strong className="block text-3xl font-bold">5</strong>
 
-                  <span className="mt-1 block text-xs leading-4 text-text-muted">
+                  <span className="text-text-muted mt-1 block text-xs leading-4">
                     Sendo tratadas
                   </span>
                 </div>
               </div>
 
               {/* O.S. em alerta */}
-              <div className="min-w-0 rounded-xl border border-text/10 bg-bg-secondary p-4">
+              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 text-black">
                     <CircleAlert size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm font-medium leading-tight">
-                    OS em alerta
-                  </span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">OS em alerta</span>
                 </div>
 
                 <div className="mt-3 pl-11">
                   <strong className="block text-3xl font-bold">8</strong>
 
-                  <span className="mt-1 block text-xs leading-4 text-text-muted">
+                  <span className="text-text-muted mt-1 block text-xs leading-4">
                     Total de OS em alerta
                   </span>
                 </div>
@@ -168,11 +160,9 @@ export default function Dashboard() {
           </section>
 
           {/* Card - Minhas O.S. por equipe */}
-          <section className="rounded-lg border border-gray-400 bg-bg p-6 shadow-sm lg:col-span-4">
+          <section className="card lg:col-span-4">
             <div className="mb-6">
-              <p className="text-2xl font-bold text-text">
-                Minhas O.S. por equipe
-              </p>
+              <p className="text-text text-2xl font-bold">Minhas O.S. por equipe</p>
             </div>
 
             {/* Equipes */}
@@ -186,7 +176,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
                     <div className="h-full w-[65%] rounded-full bg-blue-300"></div>
                   </div>
 
@@ -203,7 +193,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
                     <div className="h-full w-[90%] rounded-full bg-green-300"></div>
                   </div>
 
@@ -220,7 +210,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
                     <div className="h-full w-[32%] rounded-full bg-orange-300"></div>
                   </div>
 
@@ -237,7 +227,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
                     <div className="h-full w-[32%] rounded-full bg-pink-300"></div>
                   </div>
 
@@ -248,75 +238,67 @@ export default function Dashboard() {
           </section>
 
           {/* Card - Manutenções em andamento */}
-          <section className="rounded-lg border border-gray-400 bg-bg p-6 shadow-sm lg:col-span-6">
+          <section className="card lg:col-span-6">
             <div className="mb-6">
-              <p className="text-2xl text-text">Manutenções em andamento</p>
+              <p className="text-text text-2xl">Manutenções em andamento</p>
 
-              <strong className="mt-1 block text-4xl font-bold text-text">
-                16
-              </strong>
+              <strong className="text-text mt-1 block text-4xl font-bold">16</strong>
             </div>
 
             {/* Mini cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {/* O.S. abertas */}
-              <div className="min-w-0 rounded-xl border border-text/10 bg-bg-secondary p-4">
+              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black">
                     <ClipboardList size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm font-medium leading-tight">
-                    Abertas
-                  </span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">Abertas</span>
                 </div>
 
                 <div className="mt-3 pl-11">
                   <strong className="block text-3xl font-bold">14</strong>
 
-                  <span className="mt-1 block text-xs leading-4 text-text-muted">
+                  <span className="text-text-muted mt-1 block text-xs leading-4">
                     Total em aberto
                   </span>
                 </div>
               </div>
 
               {/* O.S. em andamento */}
-              <div className="min-w-0 rounded-xl border border-text/10 bg-bg-secondary p-4">
+              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-200 text-black">
                     <Clock size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm font-medium leading-tight">
-                    Em andamento
-                  </span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">Em andamento</span>
                 </div>
 
                 <div className="mt-3 pl-11">
                   <strong className="block text-3xl font-bold">9</strong>
 
-                  <span className="mt-1 block text-xs leading-4 text-text-muted">
+                  <span className="text-text-muted mt-1 block text-xs leading-4">
                     Sendo tratadas
                   </span>
                 </div>
               </div>
 
               {/* O.S. em alerta */}
-              <div className="min-w-0 rounded-xl border border-text/10 bg-bg-secondary p-4">
+              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 text-black">
                     <CircleAlert size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm font-medium leading-tight">
-                    Em alerta
-                  </span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">Em alerta</span>
                 </div>
 
                 <div className="mt-3 pl-11">
                   <strong className="block text-3xl font-bold">6</strong>
 
-                  <span className="mt-1 block text-xs leading-4 text-text-muted">
+                  <span className="text-text-muted mt-1 block text-xs leading-4">
                     Total em alerta
                   </span>
                 </div>

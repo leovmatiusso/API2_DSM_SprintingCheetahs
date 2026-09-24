@@ -1,43 +1,24 @@
-import type {
-  LoginResponse,
-  Role,
-  Time,
-  User
-} from "./types";
+import type { LoginResponse, Role, Time, User } from "./types";
 
 import { getToken } from "./auth";
 
 const API_URL = "http://localhost:3001/api";
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const headers = new Headers(
-    options.headers
-  );
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
 
-  headers.set(
-    "Content-Type",
-    "application/json"
-  );
+  headers.set("Content-Type", "application/json");
 
   const token = getToken();
 
   if (token) {
-    headers.set(
-      "Authorization",
-      `Bearer ${token}`
-    );
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(
-    `${API_URL}${path}`,
-    {
-      ...options,
-      headers
-    }
-  );
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
 
   let data: any = null;
 
@@ -48,10 +29,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new Error(
-      data?.message ??
-        "Erro na requisição."
-    );
+    throw new Error(data?.message ?? "Erro na requisição.");
   }
 
   return data as T;
@@ -61,20 +39,14 @@ async function request<T>(
 // LOGIN
 // =====================================================
 
-export function login(
-  email: string,
-  password: string
-): Promise<LoginResponse> {
-  return request<LoginResponse>(
-    "/login",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        password
-      })
-    }
-  );
+export function login(email: string, password: string): Promise<LoginResponse> {
+  return request<LoginResponse>("/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  });
 }
 
 // =====================================================
@@ -82,12 +54,9 @@ export function login(
 // =====================================================
 
 export function logout(): Promise<void> {
-  return request<void>(
-    "/logout",
-    {
-      method: "POST"
-    }
-  );
+  return request<void>("/logout", {
+    method: "POST",
+  });
 }
 
 // =====================================================
@@ -106,20 +75,14 @@ export function getAccount(): Promise<{
 // ALTERAR SENHA
 // =====================================================
 
-export function changePassword(
-  currentPassword: string,
-  newPassword: string
-): Promise<void> {
-  return request<void>(
-    "/change-password",
-    {
-      method: "PUT",
-      body: JSON.stringify({
-        currentPassword,
-        newPassword
-      })
-    }
-  );
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return request<void>("/change-password", {
+    method: "PUT",
+    body: JSON.stringify({
+      currentPassword,
+      newPassword,
+    }),
+  });
 }
 
 // =====================================================
@@ -151,7 +114,7 @@ export function createUser(data: {
     user: User;
   }>("/users", {
     method: "POST",
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
 }
 
@@ -168,34 +131,26 @@ export function updateUser(
     role: Role;
     active: boolean;
     time_id: string | null;
-  }>
+  }>,
 ): Promise<{
   user: User;
 }> {
   return request<{
     user: User;
-  }>(
-    `/users/${encodeURIComponent(id)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(data)
-    }
-  );
+  }>(`/users/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 
 // =====================================================
 // EXCLUIR USUÁRIO
 // =====================================================
 
-export function deleteUser(
-  id: string
-): Promise<void> {
-  return request<void>(
-    `/users/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE"
-    }
-  );
+export function deleteUser(id: string): Promise<void> {
+  return request<void>(`/users/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
 
 // =====================================================
@@ -226,7 +181,7 @@ export function createTime(data: {
     time: Time;
   }>("/times", {
     method: "POST",
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
 }
 
@@ -241,32 +196,24 @@ export function updateTime(
     departamento: string;
     responsavel_id: string | null;
     usuarios_ids: string[];
-  }
+  },
 ): Promise<{
   time: Time;
 }> {
   return request<{
     time: Time;
-  }>(
-    `/times/${encodeURIComponent(id)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(data)
-    }
-  );
+  }>(`/times/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 
 // =====================================================
 // EXCLUIR TIME
 // =====================================================
 
-export function deleteTime(
-  id: string
-): Promise<void> {
-  return request<void>(
-    `/times/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE"
-    }
-  );
+export function deleteTime(id: string): Promise<void> {
+  return request<void>(`/times/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

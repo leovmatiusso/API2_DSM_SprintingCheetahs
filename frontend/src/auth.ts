@@ -6,8 +6,12 @@ const TOKEN_KEY = "sistema-os-token";
 export function getCurrentUser(): User | null {
   const raw = localStorage.getItem(USER_KEY);
   if (!raw) return null;
-  try { return JSON.parse(raw) as User; }
-  catch { logout(); return null; }
+  try {
+    return JSON.parse(raw) as User;
+  } catch {
+    logout();
+    return null;
+  }
 }
 
 export function getToken(): string | null {

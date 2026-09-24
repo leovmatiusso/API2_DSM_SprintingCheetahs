@@ -38,9 +38,7 @@ export default function MinhaConta() {
         setName(data.user.name);
         setRole(data.user.role);
       })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Erro.")
-      );
+      .catch((err) => setError(err instanceof Error ? err.message : "Erro."));
   }, []);
 
   async function handleSubmit(event: FormEvent) {
@@ -72,9 +70,7 @@ export default function MinhaConta() {
       setCurrentPassword("");
       setNewPassword("");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Erro ao atualizar."
-      );
+      setError(err instanceof Error ? err.message : "Erro ao atualizar.");
     } finally {
       setLoading(false);
     }
@@ -85,10 +81,7 @@ export default function MinhaConta() {
       <header className="topbar">
         <strong>Minha conta</strong>
 
-        <Button
-          variant="secondary"
-          onClick={() => navigate("/dashboard")}
-        >
+        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
           Voltar
         </Button>
       </header>
@@ -96,31 +89,19 @@ export default function MinhaConta() {
       <section className="card content account-card">
         <h1>Minha conta</h1>
 
-        <label>
+        <label className="input-label">
           Nome
-          <input
-            value={name}
-            readOnly
-            className="account-readonly"
-          />
+          <input value={name} readOnly className="account-readonly" />
         </label>
 
-        <label>
+        <label className="input-label">
           Email
-          <input
-            value={email}
-            readOnly
-            className="account-readonly"
-          />
+          <input value={email} readOnly className="account-readonly" />
         </label>
 
-        <label>
+        <label className="input-label">
           Perfil
-          <input
-            value={roleLabels[role] ?? role}
-            readOnly
-            className="account-readonly"
-          />
+          <input value={roleLabels[role] ?? role} readOnly className="account-readonly" />
         </label>
 
         <form onSubmit={handleSubmit}>
@@ -142,23 +123,11 @@ export default function MinhaConta() {
             className="account-password"
           />
 
-          {message && (
-            <div className="success">
-              {message}
-            </div>
-          )}
+          {message && <div className="success">{message}</div>}
 
-          {error && (
-            <div className="error">
-              {error}
-            </div>
-          )}
+          {error && <div className="error">{error}</div>}
 
-          <Button
-            variant="primary"
-            type="submit"
-            disabled={loading}
-          >
+          <Button variant="primary" type="submit" disabled={loading}>
             {loading ? "Atualizando..." : "Confirmar alteração"}
           </Button>
         </form>

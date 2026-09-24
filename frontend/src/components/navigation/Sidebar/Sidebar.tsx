@@ -49,81 +49,32 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
 
   return (
     <aside
-      className={`
-        sticky
-        top-0
-        self-start
-        bg-bg
-        flex
-        flex-col
-        h-dvh
-        shrink-0
-        gap-6
-        border-r
-        border-text/15
-        transition-all
-        duration-300
-        text-nowrap
-
-        ${collapsed ? "w-16" : "w-64"}
-      `}
+      className={`bg-bg border-border sticky top-0 flex h-dvh shrink-0 flex-col gap-6 self-start border-r text-nowrap transition-all duration-300 ${collapsed ? "w-16" : "w-64"} `}
     >
-      <div className="min-h-11 px-2.5 py-5 overflow-hidden whitespace-nowrap">
+      <div className="min-h-11 overflow-hidden px-2.5 py-5 whitespace-nowrap">
         {!collapsed && (
           <div className="px-3">
             <strong className="text-subtitle block">Sistema O.S.</strong>
 
-            <span className="mt-3 text-text-muted text-small block">
-              Gestão operacional
-            </span>
+            <span className="text-text-muted text-small mt-3 block">Gestão operacional</span>
           </div>
         )}
       </div>
 
-      <nav
-        className="flex-1 grid content-start gap-1.5 pr-3"
-        aria-label="Navegação principal"
-      >
+      <nav className="grid flex-1 content-start gap-1.5 pr-3" aria-label="Navegação principal">
         {visibleItems.map((item) => (
           <SidebarItem key={item.path} {...item} collapsed={collapsed} />
         ))}
       </nav>
 
-      <div className="flex items-center gap-1 p-3 border-t border-text/15">
+      <div className="border-border flex items-center gap-1 border-t p-3">
         <ThemeToggle />
-
-        {!collapsed && (
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="ml-auto px-3 py-2 text-sm rounded-lg text-text-muted hover:bg-text/5"
-          >
-            Sair
-          </button>
-        )}
       </div>
 
       {/* Seta de hide/show sidebar */}
       <button
         type="button"
-        className="
-          cursor-pointer
-          absolute
-          top-6
-          right-0
-          inline-flex
-          size-7
-          items-center
-          justify-center
-          p-0
-          translate-x-1/2
-          rounded-2xl
-          bg-bg
-          border
-          border-text/15
-          text-text-muted
-          shadow-sm
-        "
+        className="bg-bg border-border text-text-muted absolute top-6 right-0 inline-flex size-7 translate-x-1/2 cursor-pointer items-center justify-center rounded-2xl border p-0 shadow-sm"
         onClick={handleCollapse}
         aria-label={collapsed ? "Abrir menu" : "Fechar menu"}
         title={collapsed ? "Abrir menu" : "Fechar menu"}

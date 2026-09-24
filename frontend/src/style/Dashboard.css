@@ -22,5 +22,5 @@
 }
 
 .menu-card {
-  @apply bg-transparent text-text border border-text/15 dark:hover:bg-bg-tertiary shadow-lg/5 rounded-xl gap-2 p-8 grid text-left cursor-pointer;
+  @apply bg-transparent text-text border border-border dark:hover:bg-bg-tertiary shadow-lg/5 rounded-xl gap-2 p-8 grid text-left cursor-pointer;
 }

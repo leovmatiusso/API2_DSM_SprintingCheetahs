@@ -19,15 +19,7 @@ export default function AppRoutes() {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <Navigate
-            to={user ? "/dashboard" : "/login"}
-            replace
-          />
-        }
-      />
+      <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
 
       {authRoutes}
 
@@ -45,15 +37,7 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      <Route
-        path="*"
-        element={
-          <Navigate
-            to={user ? "/dashboard" : "/login"}
-            replace
-          />
-        }
-      />
+      <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );
 }

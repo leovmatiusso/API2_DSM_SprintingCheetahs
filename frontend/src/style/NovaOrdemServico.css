@@ -1,3 +1,4 @@
+@reference "./Theme.css";
 /* =========================================
    CARD PRINCIPAL
 ========================================= */
@@ -15,6 +16,7 @@
 .nova-os-input {
   background: var(--color-bg);
   color: var(--color-text);
+  height: 44px;
 
   font-family: inherit;
 
@@ -68,7 +70,7 @@
   background: var(--color-bg);
   color: var(--color-text);
 
-  border-color: #e2e8f0;
+  border-color: var(--color-border);
 }
 
 
@@ -76,7 +78,7 @@
    PRIORIDADE
 ========================================= */
 
-.prioridade-badge {
+.badge {
   display: inline-flex;
 
   align-items: center;
@@ -98,69 +100,26 @@
 /* Baixa */
 
 .prioridade-baixa {
-  background: #d9f4df;
-
-  color: #27743a;
+  @apply bg-success-alt text-success-alt-inverted;
 }
 
 
 /* Média */
 
 .prioridade-media {
-  background: #f7e9bd;
-
-  color: #8b6b18;
+  @apply bg-warning-alt text-warning-alt-inverted;
 }
 
 
 /* Alta */
 
 .prioridade-alta {
-  background: #fbe0c8;
-
-  color: #b85d1a;
+  @apply bg-laranja-alt text-laranja-alt-inverted;
 }
 
 
 /* Crítica */
 
 .prioridade-critica {
-  background: #f5d4da;
-
-  color: #bd3147;
-}
-
-
-/* =========================================
-   TEMA ESCURO
-========================================= */
-
-.dark .nova-os-card {
-  border-color: #334155;
-}
-
-.dark .nova-os-input {
-  border-color: #475569;
-}
-
-.dark .nova-os-input:focus {
-  border-color: var(--primary-500);
-}
-
-.dark .nova-os-input::placeholder {
-  color: #94a3b8;
-}
-
-.dark .prioridade-select {
-  border-color: #475569;
-
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.dark .prioridade-menu {
-  background: var(--color-bg);
-  color: var(--color-text);
-
-  border-color: #475569;
+  @apply bg-danger-alt text-danger-alt-inverted;
 }

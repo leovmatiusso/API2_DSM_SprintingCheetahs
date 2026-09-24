@@ -6,24 +6,11 @@ export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div
-      className="
-        flex
-        min-h-screen
-        bg-bg-secondary
-        text-text
-      "
-    >
-      <Sidebar  onCollapsedChange={setSidebarCollapsed}/>
+    <div className="bg-bg-secondary text-text flex min-h-screen">
+      <Sidebar onCollapsedChange={setSidebarCollapsed} />
 
-      <main
-        className={`
-          min-h-screen
-          transition-all
-          duration-300
-          flex-1
-        `}
-      >
+      <main className={`min-h-screen flex-1 transition-all duration-300`}>
+        
         <Outlet />
       </main>
     </div>

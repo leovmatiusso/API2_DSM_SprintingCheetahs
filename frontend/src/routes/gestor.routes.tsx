@@ -1,13 +1,12 @@
 import { Route } from "react-router-dom";
 
 import Modulo from "@/templates/Modulo";
-import Dashboard from "@/templates/gestor/Dashboard";
+import Dashboard from "@/templates/gestor/dashboard";
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export const gestorRoutes = (
   <Route element={<ProtectedRoute allowedRoles={["gestor"]} />}>
-    
     <Route path="/dashboard/gestor" element={<Dashboard />} />
 
     <Route

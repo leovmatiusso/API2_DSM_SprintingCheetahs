@@ -1,30 +1,17 @@
 import "@/style/Usuarios.css";
 import "@/style/Times.css";
 
-import {
-  FormEvent,
-  useEffect,
-  useState
-} from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
 import Button from "@/components/ui/Button";
 
-import {
-  deleteTime,
-  getTimes,
-  getUsers,
-  updateTime
-} from "@/api";
+import { deleteTime, getTimes, getUsers, updateTime } from "@/api";
 
 import { getCurrentUser } from "@/auth";
 
-import type {
-  Role,
-  Time,
-  User
-} from "@/types";
+import type { Role, Time, User } from "@/types";
 
 const equipes: {
   value: Role;
@@ -32,124 +19,73 @@ const equipes: {
 }[] = [
   {
     value: "gestor",
-    label: "Gestor"
+    label: "Gestor",
   },
   {
     value: "comercial",
-    label: "Comercial"
+    label: "Comercial",
   },
   {
     value: "suporte",
-    label: "Suporte"
+    label: "Suporte",
   },
   {
     value: "producao",
-    label: "Produção"
+    label: "Produção",
   },
   {
     value: "software",
-    label: "Software"
+    label: "Software",
   },
   {
     value: "implantacao",
-    label: "Implantação"
-  }
+    label: "Implantação",
+  },
 ];
 
 export default function Times() {
   const navigate = useNavigate();
 
-  const currentUser =
-    getCurrentUser();
+  const currentUser = getCurrentUser();
 
-  const isAllowed =
-    currentUser?.role === "superusuario" ||
-    currentUser?.role === "gestor";
+  const isAllowed = currentUser?.role === "superusuario" || currentUser?.role === "gestor";
 
-  const isSuperusuario =
-    currentUser?.role === "superusuario";
+  const isSuperusuario = currentUser?.role === "superusuario";
 
-  const [
-    times,
-    setTimes
-  ] = useState<Time[]>([]);
+  const [times, setTimes] = useState<Time[]>([]);
 
-  const [
-    users,
-    setUsers
-  ] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
-  const [
-    loading,
-    setLoading
-  ] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [
-    error,
-    setError
-  ] = useState("");
+  const [error, setError] = useState("");
 
-  const [
-    message,
-    setMessage
-  ] = useState("");
+  const [message, setMessage] = useState("");
 
-  const [
-    editing,
-    setEditing
-  ] = useState<Time | null>(null);
+  const [editing, setEditing] = useState<Time | null>(null);
 
-  const [
-    timeToDelete,
-    setTimeToDelete
-  ] = useState<Time | null>(null);
+  const [timeToDelete, setTimeToDelete] = useState<Time | null>(null);
 
-  const [
-    nomeTime,
-    setNomeTime
-  ] = useState("");
+  const [nomeTime, setNomeTime] = useState("");
 
-  const [
-    departamento,
-    setDepartamento
-  ] = useState("");
+  const [departamento, setDepartamento] = useState("");
 
-  const [
-    responsavelId,
-    setResponsavelId
-  ] = useState("");
+  const [responsavelId, setResponsavelId] = useState("");
 
-  const [
-    pessoasVinculadas,
-    setPessoasVinculadas
-  ] = useState<string[]>([]);
+  const [pessoasVinculadas, setPessoasVinculadas] = useState<string[]>([]);
 
   async function load() {
     setLoading(true);
     setError("");
 
     try {
-      const [
-        timesResult,
-        usersResult
-      ] = await Promise.all([
-        getTimes(),
-        getUsers()
-      ]);
+      const [timesResult, usersResult] = await Promise.all([getTimes(), getUsers()]);
 
-      setTimes(
-        timesResult.times
-      );
+      setTimes(timesResult.times);
 
-      setUsers(
-        usersResult.users
-      );
+      setUsers(usersResult.users);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Erro ao carregar times."
-      );
+      setError(e instanceof Error ? e.message : "Erro ao carregar times.");
     } finally {
       setLoading(false);
     }
@@ -169,28 +105,16 @@ export default function Times() {
     return null;
   }
 
-  function abrirEdicao(
-    time: Time
-  ) {
+  function abrirEdicao(time: Time) {
     setEditing(time);
 
-    setNomeTime(
-      time.nome_time
-    );
+    setNomeTime(time.nome_time);
 
-    setDepartamento(
-      time.departamento
-    );
+    setDepartamento(time.departamento);
 
-    setResponsavelId(
-      time.responsavel_id ?? ""
-    );
+    setResponsavelId(time.responsavel_id ?? "");
 
-    setPessoasVinculadas(
-      time.pessoasVinculadas.map(
-        user => user.id
-      )
-    );
+    setPessoasVinculadas(time.pessoasVinculadas.map((user) => user.id));
 
     setError("");
     setMessage("");
@@ -204,35 +128,19 @@ export default function Times() {
     setPessoasVinculadas([]);
   }
 
-  function adicionarPessoa(
-    id: string
-  ) {
-    if (
-      !id ||
-      pessoasVinculadas.includes(id)
-    ) {
+  function adicionarPessoa(id: string) {
+    if (!id || pessoasVinculadas.includes(id)) {
       return;
     }
 
-    setPessoasVinculadas([
-      ...pessoasVinculadas,
-      id
-    ]);
+    setPessoasVinculadas([...pessoasVinculadas, id]);
   }
 
-  function removerPessoa(
-    id: string
-  ) {
-    setPessoasVinculadas(
-      pessoasVinculadas.filter(
-        item => item !== id
-      )
-    );
+  function removerPessoa(id: string) {
+    setPessoasVinculadas(pessoasVinculadas.filter((item) => item !== id));
   }
 
-  async function salvarEdicao(
-    e: FormEvent
-  ) {
+  async function salvarEdicao(e: FormEvent) {
     e.preventDefault();
 
     if (!editing) {
@@ -243,32 +151,20 @@ export default function Times() {
     setMessage("");
 
     try {
-      await updateTime(
-        editing.id,
-        {
-          nome_time:
-            nomeTime.trim(),
-          departamento,
-          responsavel_id:
-            responsavelId || null,
-          usuarios_ids:
-            pessoasVinculadas
-        }
-      );
+      await updateTime(editing.id, {
+        nome_time: nomeTime.trim(),
+        departamento,
+        responsavel_id: responsavelId || null,
+        usuarios_ids: pessoasVinculadas,
+      });
 
       cancelarEdicao();
 
-      setMessage(
-        "Time atualizado com sucesso."
-      );
+      setMessage("Time atualizado com sucesso.");
 
       await load();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Erro ao atualizar time."
-      );
+      setError(e instanceof Error ? e.message : "Erro ao atualizar time.");
     }
   }
 
@@ -278,226 +174,117 @@ export default function Times() {
     }
 
     try {
-      await deleteTime(
-        timeToDelete.id
-      );
+      await deleteTime(timeToDelete.id);
 
       setTimeToDelete(null);
 
-      setMessage(
-        "Time excluído com sucesso."
-      );
+      setMessage("Time excluído com sucesso.");
 
       await load();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Erro ao excluir time."
-      );
+      setError(e instanceof Error ? e.message : "Erro ao excluir time.");
     }
   }
 
-  function getEquipeLabel(
-    value: string
-  ) {
-    return (
-      equipes.find(
-        item => item.value === value
-      )?.label ?? value
-    );
+  function getEquipeLabel(value: string) {
+    return equipes.find((item) => item.value === value)?.label ?? value;
   }
 
   return (
     <main className="page">
       <header className="topbar">
-        <strong>
-          Gerenciamento de times
-        </strong>
+        <strong>Gerenciamento de times</strong>
 
-        <Button
-          variant="secondary"
-          onClick={() =>
-            navigate("/dashboard")
-          }
-        >
+        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
           Voltar
         </Button>
       </header>
 
       {editing && (
         <section className="card content">
-          <h1>
-            Editar time
-          </h1>
+          <h1>Editar time</h1>
 
-          <form
-            className="user-form"
-            onSubmit={salvarEdicao}
-          >
+          <form className="user-form" onSubmit={salvarEdicao}>
             <label>
               Nome do time
-
-              <input
-                value={nomeTime}
-                onChange={e =>
-                  setNomeTime(
-                    e.target.value
-                  )
-                }
-                required
-              />
+              <input value={nomeTime} onChange={(e) => setNomeTime(e.target.value)} required />
             </label>
 
             <label>
               Equipe relacionada
-
               <select
                 value={departamento}
-                onChange={e =>
-                  setDepartamento(
-                    e.target.value
-                  )
-                }
+                onChange={(e) => setDepartamento(e.target.value)}
                 required
               >
-                <option value="">
-                  Selecione uma equipe
-                </option>
+                <option value="">Selecione uma equipe</option>
 
-                {equipes.map(
-                  equipe => (
-                    <option
-                      key={
-                        equipe.value
-                      }
-                      value={
-                        equipe.value
-                      }
-                    >
-                      {equipe.label}
-                    </option>
-                  )
-                )}
+                {equipes.map((equipe) => (
+                  <option key={equipe.value} value={equipe.value}>
+                    {equipe.label}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label>
               Pessoa responsável
-
               <select
                 value={responsavelId}
-                onChange={e =>
-                  setResponsavelId(
-                    e.target.value
-                  )
-                }
+                onChange={(e) => setResponsavelId(e.target.value)}
                 required
               >
-                <option value="">
-                  Selecione um usuário
-                </option>
+                <option value="">Selecione um usuário</option>
 
-                {users.map(
-                  user => (
-                    <option
-                      key={user.id}
-                      value={user.id}
-                    >
-                      {user.name} —{" "}
-                      {user.email}
-                    </option>
-                  )
-                )}
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} — {user.email}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label>
               Pessoas vinculadas
-
-              <select
-                value=""
-                onChange={e =>
-                  adicionarPessoa(
-                    e.target.value
-                  )
-                }
-              >
-                <option value="">
-                  Adicionar usuário
-                </option>
+              <select value="" onChange={(e) => adicionarPessoa(e.target.value)}>
+                <option value="">Adicionar usuário</option>
 
                 {users
-                  .filter(
-                    user =>
-                      !pessoasVinculadas.includes(
-                        user.id
-                      )
-                  )
-                  .map(
-                    user => (
-                      <option
-                        key={user.id}
-                        value={user.id}
-                      >
-                        {user.name}
-                      </option>
-                    )
-                  )}
+                  .filter((user) => !pessoasVinculadas.includes(user.id))
+                  .map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
               </select>
             </label>
 
             <div className="linked-users">
-              {pessoasVinculadas.map(
-                id => {
-                  const user =
-                    users.find(
-                      item =>
-                        item.id === id
-                    );
+              {pessoasVinculadas.map((id) => {
+                const user = users.find((item) => item.id === id);
 
-                  if (!user) {
-                    return null;
-                  }
-
-                  return (
-                    <div
-                      className="linked-user"
-                      key={id}
-                    >
-                      <span>
-                        {user.name}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          removerPessoa(id)
-                        }
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  );
+                if (!user) {
+                  return null;
                 }
-              )}
+
+                return (
+                  <div className="linked-user" key={id}>
+                    <span>{user.name}</span>
+
+                    <button type="button" onClick={() => removerPessoa(id)}>
+                      Remover
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="nav-actions">
-              <Button
-                type="submit"
-                variant="primary"
-              >
+              <Button type="submit" variant="primary">
                 Salvar alterações
               </Button>
 
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={
-                  cancelarEdicao
-                }
-              >
+              <Button type="button" variant="secondary" onClick={cancelarEdicao}>
                 Cancelar
               </Button>
             </div>
@@ -505,149 +292,77 @@ export default function Times() {
         </section>
       )}
 
-      {message && (
-        <div className="success content">
-          {message}
-        </div>
-      )}
+      {message && <div className="success content">{message}</div>}
 
-      {error && (
-        <div className="error content">
-          {error}
-        </div>
-      )}
+      {error && <div className="error content">{error}</div>}
 
       <section className="card content">
         <div className="times-header">
-          <h1>
-            Times cadastrados
-          </h1>
+          <h1>Times cadastrados</h1>
         </div>
 
         {loading ? (
-          <p>
-            Carregando times...
-          </p>
+          <p>Carregando times...</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>
-                    Nome do time
-                  </th>
+                  <th>Nome do time</th>
 
-                  <th>
-                    Pessoa responsável
-                  </th>
+                  <th>Pessoa responsável</th>
 
-                  <th>
-                    Pessoas vinculadas
-                  </th>
+                  <th>Pessoas vinculadas</th>
 
-                  <th>
-                    Equipe
-                  </th>
+                  <th>Equipe</th>
 
-                  <th>
-                    Ações
-                  </th>
+                  <th>Ações</th>
                 </tr>
               </thead>
 
               <tbody>
-                {times.length ===
-                0 ? (
+                {times.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>
-                      Nenhum time cadastrado.
-                    </td>
+                    <td colSpan={5}>Nenhum time cadastrado.</td>
                   </tr>
                 ) : (
-                  times.map(
-                    time => (
-                      <tr
-                        key={time.id}
-                      >
-                        <td>
-                          {
-                            time.nome_time
-                          }
-                        </td>
+                  times.map((time) => (
+                    <tr key={time.id}>
+                      <td>{time.nome_time}</td>
 
-                        <td>
-                          {time
-                            .responsavel
-                            ? time
-                                .responsavel
-                                .name
-                            : "Não definido"}
-                        </td>
+                      <td>{time.responsavel ? time.responsavel.name : "Não definido"}</td>
 
-                        <td>
-                          <div className="people-list">
-                            {time
-                              .pessoasVinculadas
-                              .length ===
-                            0 ? (
-                              <span className="muted">
-                                Nenhuma
+                      <td>
+                        <div className="people-list">
+                          {time.pessoasVinculadas.length === 0 ? (
+                            <span className="muted">Nenhuma</span>
+                          ) : (
+                            time.pessoasVinculadas.map((person) => (
+                              <span key={person.id} className="person-tag">
+                                {person.name}
                               </span>
-                            ) : (
-                              time.pessoasVinculadas.map(
-                                person => (
-                                  <span
-                                    key={
-                                      person.id
-                                    }
-                                    className="person-tag"
-                                  >
-                                    {
-                                      person.name
-                                    }
-                                  </span>
-                                )
-                              )
-                            )}
-                          </div>
-                        </td>
-
-                        <td>
-                          {getEquipeLabel(
-                            time.departamento
+                            ))
                           )}
-                        </td>
+                        </div>
+                      </td>
 
-                        <td>
-                          <div className="nav-actions">
-                            <Button
-                              variant="secondary"
-                              onClick={() =>
-                                abrirEdicao(
-                                  time
-                                )
-                              }
-                            >
-                              Editar
+                      <td>{getEquipeLabel(time.departamento)}</td>
+
+                      <td>
+                        <div className="nav-actions">
+                          <Button variant="secondary" onClick={() => abrirEdicao(time)}>
+                            Editar
+                          </Button>
+
+                          {isSuperusuario && (
+                            <Button variant="danger" onClick={() => setTimeToDelete(time)}>
+                              Excluir
                             </Button>
-
-                            {isSuperusuario && (
-                              <Button
-                                variant="danger"
-                                onClick={() =>
-                                  setTimeToDelete(
-                                    time
-                                  )
-                                }
-                              >
-                                Excluir
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  )
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -658,40 +373,18 @@ export default function Times() {
       {timeToDelete && (
         <div className="delete-overlay">
           <div className="delete-modal">
-            <h2>
-              Excluir time
-            </h2>
+            <h2>Excluir time</h2>
 
             <p>
-              Deseja excluir o time{" "}
-              <strong>
-                {
-                  timeToDelete.nome_time
-                }
-              </strong>
-              ?
+              Deseja excluir o time <strong>{timeToDelete.nome_time}</strong>?
             </p>
 
             <div className="delete-actions">
-              <button
-                type="button"
-                className="delete-confirm"
-                onClick={
-                  confirmarExclusao
-                }
-              >
+              <button type="button" className="delete-confirm" onClick={confirmarExclusao}>
                 Confirmar
               </button>
 
-              <button
-                type="button"
-                className="delete-cancel"
-                onClick={() =>
-                  setTimeToDelete(
-                    null
-                  )
-                }
-              >
+              <button type="button" className="delete-cancel" onClick={() => setTimeToDelete(null)}>
                 Cancelar
               </button>
             </div>

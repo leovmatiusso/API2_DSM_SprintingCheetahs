@@ -2,13 +2,14 @@ interface ButtonProps {
   children: React.ReactNode;
   type?: "button" | "submit" | "reset";
   onClick?: () => void;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "outline";
   size?: "sm" | "md" | "lg" | "xl";
   disabled?: boolean;
 }
 
 const variantStyles = {
   primary: "bg-primary text-white hover:bg-primary-hover",
+  outline: "text-primary ring ring-border hover:bg-primary-muted",
   secondary: "bg-secondary text-text hover:bg-secondary-hover",
   danger: "bg-danger text-white hover:bg-danger-hover",
 };
@@ -33,16 +34,7 @@ export default function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`
-        rounded-lg
-        font-medium
-        transition
-        cursor-pointer
-        disabled:cursor-not-allowed
-        disabled:opacity-50
-        ${sizeStyles[size]}
-        ${variantStyles[variant]}
-      `}
+      className={`cursor-pointer rounded-lg font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${sizeStyles[size]} ${variantStyles[variant]} `}
     >
       {children}
     </button>
