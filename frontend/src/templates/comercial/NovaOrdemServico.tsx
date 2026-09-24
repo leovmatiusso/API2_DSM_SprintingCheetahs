@@ -1,6 +1,12 @@
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
 
-import { ClipboardList, Link, Upload, X, ChevronDown } from "lucide-react";
+import {
+  ClipboardList,
+  Link,
+  Upload,
+  X,
+  ChevronDown,
+} from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -25,13 +31,18 @@ interface Anexo {
 
 function Obrigatorio() {
   return (
-    <span className="text-danger ml-0.5 font-light" aria-hidden="true">
+    <span
+      className="text-danger ml-0.5 font-light"
+      aria-hidden="true"
+    >
       *
     </span>
   );
 }
 
-export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
+export default function NovaOrdemServico({
+  tipo,
+}: NovaOrdemServicoProps) {
   const navigate = useNavigate();
 
   const inputArquivo = useRef<HTMLInputElement>(null);
@@ -44,7 +55,6 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
   const [timeResponsavel, setTimeResponsavel] = useState("");
 
   const [prioridade, setPrioridade] = useState("Baixa");
-
   const [prioridadeAberta, setPrioridadeAberta] = useState(false);
 
   const [descricao, setDescricao] = useState("");
@@ -87,7 +97,9 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
   }
 
   function removerAnexo(id: number) {
-    setAnexos((anterior) => anterior.filter((anexo) => anexo.id !== id));
+    setAnexos((anterior) =>
+      anterior.filter((anexo) => anexo.id !== id),
+    );
   }
 
   function formatarTamanho(bytes: number) {
@@ -142,7 +154,9 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token
+            ? { Authorization: `Bearer ${token}` }
+            : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -150,25 +164,21 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
       const dados = await resposta.json();
 
       if (!resposta.ok) {
-        setErro(dados.message ?? "Não foi possível abrir a ordem de serviço.");
+        setErro(
+          dados.message ??
+            "Não foi possível abrir a ordem de serviço.",
+        );
         return;
       }
 
       navigate("/dashboard");
     } catch {
-      setErro("Não foi possível conectar ao servidor. Tente novamente.");
+      setErro(
+        "Não foi possível conectar ao servidor. Tente novamente.",
+      );
     } finally {
       setEnviando(false);
     }
-  }
-
-  {
-    /*
-    Front-end apenas.
-    
-    O envio real poderá ser conectado
-    ao back-end posteriormente.
-    */
   }
 
   return (
@@ -197,22 +207,27 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
               </p>
             </div>
           </div>
+
           <p className="text-text-muted mt-4 text-xs">
-            Campos marcados com <span className="text-red-500">*</span> são obrigatórios.
+            Campos marcados com{" "}
+            <span className="text-red-500">*</span> são obrigatórios.
           </p>
         </div>
 
-        {/* CAMPOS */}
+        {/* CAMPOS PRINCIPAIS */}
 
-        <div className="grid grid-cols-1 gap-x-7 gap-y-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+
           {/* TÍTULO */}
 
-          <div className="xl:col-span-2">
+          <div>
             <Input
               id="titulo"
               label="Título da solicitação"
               value={titulo}
-              onChange={(event) => setTitulo(event.target.value)}
+              onChange={(event) =>
+                setTitulo(event.target.value)
+              }
               placeholder={
                 manutencao
                   ? "Ex.: Manutenção de equipamento"
@@ -222,14 +237,16 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
             />
           </div>
 
-          {/*TIME RESPONSÁVEL*/}
+          {/* TIME RESPONSÁVEL */}
 
           <div>
             <Select
               id="timeResponsavel"
               label="Time responsável"
               value={timeResponsavel}
-              onChange={(event) => setTimeResponsavel(event.target.value)}
+              onChange={(event) =>
+                setTimeResponsavel(event.target.value)
+              }
               required
             >
               <option value="" hidden>
@@ -237,6 +254,7 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
               </option>
 
               {/* TODO: substituir por times reais vindos da API */}
+
               <option value="1">Time 1</option>
               <option value="2">Time 2</option>
               <option value="3">Time 3</option>
@@ -250,7 +268,9 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
               id="prazo"
               type="date"
               value={prazo}
-              onChange={(event) => setPrazo(event.target.value)}
+              onChange={(event) =>
+                setPrazo(event.target.value)
+              }
               required
               label="Prazo desejado"
             />
@@ -264,7 +284,9 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
                 id="projeto"
                 label="Projeto existente"
                 value={projeto}
-                onChange={(event) => setProjeto(event.target.value)}
+                onChange={(event) =>
+                  setProjeto(event.target.value)
+                }
                 required
               >
                 <option value="" hidden>
@@ -286,8 +308,10 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
                 id="equipamento"
                 label="Equipamento / local"
                 value={equipamento}
-                onChange={(event) => setEquipamento(event.target.value)}
-                placeholder={"Informe o equipamento ou local"}
+                onChange={(event) =>
+                  setEquipamento(event.target.value)
+                }
+                placeholder="Informe o equipamento ou local"
                 required
               />
             </div>
@@ -305,47 +329,70 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
               <button
                 type="button"
                 className="prioridade-select border-border hover:border-border-hover flex h-11 w-full cursor-pointer items-center justify-between rounded-lg border px-3 transition outline-none"
-                onClick={() => setPrioridadeAberta(!prioridadeAberta)}
+                onClick={() =>
+                  setPrioridadeAberta(!prioridadeAberta)
+                }
               >
-                <span className={`badge prioridade-${prioridade.toLowerCase()} `}>
+                <span
+                  className={`badge prioridade-${prioridade.toLowerCase()}`}
+                >
                   {nomePrioridade()}
                 </span>
 
-                <ChevronDown size={18} className="text-text-muted" />
+                <ChevronDown
+                  size={18}
+                  className="text-text-muted"
+                />
               </button>
 
               {prioridadeAberta && (
                 <div className="prioridade-menu border-border absolute right-0 left-0 z-20 mt-1.5 rounded-lg border p-1.5 shadow-lg">
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Baixa")}
+                    onClick={() =>
+                      selecionarPrioridade("Baixa")
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-baixa">Baixa</span>
+                    <span className="badge prioridade-baixa">
+                      Baixa
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Media")}
+                    onClick={() =>
+                      selecionarPrioridade("Media")
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-media">Média</span>
+                    <span className="badge prioridade-media">
+                      Média
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Alta")}
+                    onClick={() =>
+                      selecionarPrioridade("Alta")
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-alta">Alta</span>
+                    <span className="badge prioridade-alta">
+                      Alta
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Critica")}
+                    onClick={() =>
+                      selecionarPrioridade("Critica")
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-critica">Crítica</span>
+                    <span className="badge prioridade-critica">
+                      Crítica
+                    </span>
                   </button>
                 </div>
               )}
@@ -358,9 +405,15 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
         <div className="mt-7">
           <Textarea
             id="descricao"
-            label={manutencao ? "Descrição do problema" : "Descrição"}
+            label={
+              manutencao
+                ? "Descrição do problema"
+                : "Descrição"
+            }
             value={descricao}
-            onChange={(event) => setDescricao(event.target.value)}
+            onChange={(event) =>
+              setDescricao(event.target.value)
+            }
             placeholder={
               manutencao
                 ? "Descreva o problema, o relato do cliente e demais informações relevantes..."
@@ -376,12 +429,12 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
           <div className="mt-7">
             <Textarea
               id="itens"
-              label={"Itens inicialmente necessários"}
+              label="Itens inicialmente necessários"
               value={itens}
-              onChange={(event) => setItens(event.target.value)}
-              placeholder={
-                "Informe os produtos, peças, serviços ou recursos inicialmente necessários..."
+              onChange={(event) =>
+                setItens(event.target.value)
               }
+              placeholder="Informe os produtos, peças, serviços ou recursos inicialmente necessários..."
               required
             />
           </div>
@@ -394,7 +447,10 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
             <Link size={19} />
 
             <span>Anexos</span>
-            <span className="font-normal text-slate-400">(opcional)</span>
+
+            <span className="font-normal text-slate-400">
+              (opcional)
+            </span>
           </div>
 
           {anexos.map((anexo) => (
@@ -405,9 +461,13 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
               <div className="flex min-w-0 items-center gap-2">
                 <span>📄</span>
 
-                <span className="text-text-muted truncate">{anexo.nome}</span>
+                <span className="text-text-muted truncate">
+                  {anexo.nome}
+                </span>
 
-                <span className="text-text-muted shrink-0">{anexo.tamanho}</span>
+                <span className="text-text-muted shrink-0">
+                  {anexo.tamanho}
+                </span>
               </div>
 
               <button
@@ -443,11 +503,20 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
         {/* BOTÕES */}
 
         <div className="mt-8 flex items-center justify-end gap-6">
-          <Button type="button" variant="outline" size="lg" onClick={() => navigate("/dashboard")}>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={() => navigate("/dashboard")}
+          >
             Voltar
           </Button>
 
-          <Button type="submit" variant="primary" size="lg">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+          >
             Solicitar O.S.
           </Button>
         </div>

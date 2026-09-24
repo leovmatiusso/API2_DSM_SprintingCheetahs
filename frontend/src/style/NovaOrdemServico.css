@@ -1,4 +1,3 @@
-@reference "./Theme.css";
 /* =========================================
    CARD PRINCIPAL
 ========================================= */
@@ -17,7 +16,6 @@
   background: var(--color-bg);
   color: var(--color-text);
   height: 44px;
-
   font-family: inherit;
 
   transition:
@@ -69,7 +67,6 @@
 .prioridade-menu {
   background: var(--color-bg);
   color: var(--color-text);
-
   border-color: var(--color-border);
 }
 
@@ -80,7 +77,6 @@
 
 .badge {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
@@ -92,7 +88,6 @@
 
   font-size: 12px;
   font-weight: 500;
-
   line-height: 1;
 }
 
