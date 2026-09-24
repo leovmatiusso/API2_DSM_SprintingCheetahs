@@ -27,9 +27,9 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="bg-bg-secondary text-text min-h-screen p-6">
+    <main className="bg-bg-secondary text-text min-h-screen">
       {/* Cabeçalho */}
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-8 py-4 px-6 flex items-center justify-between border-b border-border bg-bg">
         <div>
           <strong className="text-xl">Sistema de O.S.</strong>
 
@@ -43,7 +43,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setMenuAberto(!menuAberto)}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-gray-100"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-bg-tertiary"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-700">
               <User size={18} />
@@ -61,11 +61,11 @@ export default function Dashboard() {
 
           {/* Dropdown */}
           {menuAberto && (
-            <div className="absolute right-0 z-10 mt-2 w-44 rounded-lg border border-gray-300 bg-bg p-1 shadow-md">
+            <div className="absolute right-0 z-10 mt-2 w-44 rounded-lg border border-border bg-bg p-1 shadow-md">
               <button
                 type="button"
                 onClick={() => navigate("/minha-conta")}
-                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-gray-100"
+                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-bg-tertiary"
               >
                 Minha conta
               </button>
@@ -73,7 +73,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={sair}
-                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-gray-100"
+                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-bg-tertiary"
               >
                 Sair
               </button>
@@ -83,7 +83,7 @@ export default function Dashboard() {
       </header>
 
       {/* Conteúdo */}
-      <section>
+      <section className="px-6 mb-[2%]">
         <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
 
         <h1 className="mb-6 text-3xl font-bold">Olá, {user.name}</h1>
@@ -95,7 +95,9 @@ export default function Dashboard() {
             <div className="mb-6">
               <p className="text-text text-2xl">Projetos em andamento</p>
 
-              <strong className="text-text mt-1 block text-4xl font-bold">12</strong>
+              <strong className="text-text mt-1 block text-4xl font-bold">
+                12
+              </strong>
             </div>
 
             {/* Mini cards */}
@@ -107,7 +109,9 @@ export default function Dashboard() {
                     <ClipboardList size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS abertas</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">
+                    OS abertas
+                  </span>
                 </div>
 
                 <div className="mt-3 pl-11">
@@ -126,7 +130,9 @@ export default function Dashboard() {
                     <Clock size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS em andamento</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">
+                    OS em andamento
+                  </span>
                 </div>
 
                 <div className="mt-3 pl-11">
@@ -145,7 +151,9 @@ export default function Dashboard() {
                     <CircleAlert size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS em alerta</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">
+                    OS em alerta
+                  </span>
                 </div>
 
                 <div className="mt-3 pl-11">
@@ -162,7 +170,9 @@ export default function Dashboard() {
           {/* Card - Minhas O.S. por equipe */}
           <section className="card lg:col-span-4">
             <div className="mb-6">
-              <p className="text-text text-2xl font-bold">Minhas O.S. por equipe</p>
+              <p className="text-text text-2xl font-bold">
+                Minhas O.S. por equipe
+              </p>
             </div>
 
             {/* Equipes */}
@@ -242,7 +252,9 @@ export default function Dashboard() {
             <div className="mb-6">
               <p className="text-text text-2xl">Manutenções em andamento</p>
 
-              <strong className="text-text mt-1 block text-4xl font-bold">16</strong>
+              <strong className="text-text mt-1 block text-4xl font-bold">
+                16
+              </strong>
             </div>
 
             {/* Mini cards */}
@@ -254,7 +266,9 @@ export default function Dashboard() {
                     <ClipboardList size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm leading-tight font-medium">Abertas</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">
+                    Abertas
+                  </span>
                 </div>
 
                 <div className="mt-3 pl-11">
@@ -273,7 +287,9 @@ export default function Dashboard() {
                     <Clock size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm leading-tight font-medium">Em andamento</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">
+                    Em andamento
+                  </span>
                 </div>
 
                 <div className="mt-3 pl-11">
@@ -292,7 +308,9 @@ export default function Dashboard() {
                     <CircleAlert size={19} />
                   </div>
 
-                  <span className="min-w-0 text-sm leading-tight font-medium">Em alerta</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">
+                    Em alerta
+                  </span>
                 </div>
 
                 <div className="mt-3 pl-11">

@@ -82,7 +82,7 @@ export default function Dashboard() {
       </header>
 
       {/* Conteúdo */}
-      <section className="px-6">
+      <section className="px-6  mb-[2%]">
         <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
 
         <h1 className="mb-6 text-3xl font-bold">Olá, {user.name}</h1>
