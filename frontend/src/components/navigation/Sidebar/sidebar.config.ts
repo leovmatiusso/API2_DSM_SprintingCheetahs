@@ -7,6 +7,7 @@ import {
   Users,
   UserRoundPlus,
   CirclePlus,
+  LayersPlus,
 } from "lucide-react";
 
 import type { SidebarItemConfig } from "./sidebar.types";
@@ -113,5 +114,12 @@ export const menuItems: SidebarItemConfig[] = [
     icon: UserRoundPlus,
     path: "/cadastro-times",
     roles: ["superusuario", "gestor"],
+  },
+
+  {
+    label: "Novo projeto",
+    icon: LayersPlus,
+    path: "/novo-projeto",
+    roles: ["comercial"],
   },
 ];

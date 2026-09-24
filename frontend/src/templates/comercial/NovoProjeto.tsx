@@ -1,20 +1,35 @@
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
 
-import { ClipboardList, Link, Upload, X, ChevronDown } from "lucide-react";
+import {
+  ClipboardList,
+  Link,
+  Upload,
+  X,
+  ChevronDown,
+  CalendarArrowUp,
+  CalendarArrowDown,
+} from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
 
 import Select from "@/components/ui/Select";
-import Textarea from "@/components/ui/Textarea";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
-import "@/style/NovaOrdemServico.css";
+// import "@/style/NovoProjeto.css";
 
 type TipoOS = "manutencao" | "novo-projeto";
 
-interface NovaOrdemServicoProps {
+interface NovoProjetoProps {
   tipo: TipoOS;
+}
+
+{
+  /* interfaces que definem o tipo dos objetos aceitos pelo form */
+}
+interface Equipamento {
+  nome: string;
+  quantidade: number;
 }
 
 interface Anexo {
@@ -31,17 +46,18 @@ function Obrigatorio() {
   );
 }
 
-export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
+export default function NovoProjeto({ tipo }: NovoProjetoProps) {
   const navigate = useNavigate();
 
   const inputArquivo = useRef<HTMLInputElement>(null);
 
-  const [cliente, setCliente] = useState("");
   const [projeto, setProjeto] = useState("");
   const [equipamento, setEquipamento] = useState("");
   const [titulo, setTitulo] = useState("");
-  const [prazo, setPrazo] = useState("");
-  const [timeResponsavel, setTimeResponsavel] = useState("");
+  const [dataAssinatura, setDataAssinatura] = useState("");
+  const [dataVencimento, setDataVencimento] = useState("");
+  const [responsavel, setResponsavel] = useState("");
+  const [vendedor, setVendedor] = useState("");
 
   const [prioridade, setPrioridade] = useState("Baixa");
 
@@ -50,7 +66,18 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
   const [descricao, setDescricao] = useState("");
   const [itens, setItens] = useState("");
 
+  const [buscaEquipamento, setBuscaEquipamento] = useState("");
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+
   const [anexos, setAnexos] = useState<Anexo[]>([]);
+
+  {
+    /* função de remover equipamento */
+  }
+  function removerEquipamento(nome: string) {
+    setEquipamentos((prev) => prev.filter((eq) => eq.nome !== nome));
+  }
+
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -120,7 +147,7 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
 
     setErro(null);
 
-    if (!timeResponsavel) {
+    if (!responsavel) {
       setErro("Selecione o time responsável.");
       return;
     }
@@ -131,8 +158,7 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
       os_titulo: titulo,
       os_descricao: descricao,
       prioridade: prioridade.toLowerCase(),
-      data_limite: prazo,
-      id_time_responsavel: Number(timeResponsavel),
+      id_time_responsavel: Number(responsavel),
     };
 
     setEnviando(true);
@@ -187,7 +213,7 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
 
             <div>
               <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]">
-                Nova Ordem de Serviço
+                Novo projeto
               </h1>
 
               <p className="text-text-muted mt-2 text-sm leading-6">
@@ -204,13 +230,13 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
 
         {/* CAMPOS */}
 
-        <div className="grid grid-cols-1 gap-x-7 gap-y-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-7 gap-y-8 md:grid-cols-2 xl:grid-cols-4">
           {/* TÍTULO */}
 
           <div className="xl:col-span-2">
             <Input
               id="titulo"
-              label="Título da solicitação"
+              label="Título do Projeto"
               value={titulo}
               onChange={(event) => setTitulo(event.target.value)}
               placeholder={
@@ -222,76 +248,59 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
             />
           </div>
 
-          {/*TIME RESPONSÁVEL*/}
+          {/*RESPONSÁVEL*/}
 
           <div>
-            <Select
-              id="timeResponsavel"
-              label="Time responsável"
-              value={timeResponsavel}
-              onChange={(event) => setTimeResponsavel(event.target.value)}
+            <Input
+              id="responsavel"
+              label="Responsável"
+              value={responsavel}
+              onChange={(event) => setResponsavel(event.target.value)}
+              placeholder={"Ex.: João Silva"}
               required
-            >
-              <option value="" hidden>
-                Selecione o time
-              </option>
-
-              {/* TODO: substituir por times reais vindos da API */}
-              <option value="1">Time 1</option>
-              <option value="2">Time 2</option>
-              <option value="3">Time 3</option>
-            </Select>
+            />
           </div>
 
-          {/* PRAZO */}
+          {/*VENDEDOR*/}
+
+          <div>
+            <Input
+              id="vendedor"
+              label="Vendedor"
+              value={vendedor}
+              onChange={(event) => setResponsavel(event.target.value)}
+              placeholder={"Ex.: João Silva"}
+              required
+            />
+          </div>
+
+          {/* DATA DE ASSINATURA */}
 
           <div>
             <Input
               id="prazo"
               type="date"
-              value={prazo}
-              onChange={(event) => setPrazo(event.target.value)}
+              value={dataAssinatura}
+              onChange={(event) => setDataAssinatura(event.target.value)}
               required
-              label="Prazo desejado"
+              iconRight={CalendarArrowUp}
+              label="Data de assinatura"
             />
           </div>
 
-          {/* PROJETO */}
+          {/* DATA DE VENCIMENTO */}
 
-          {manutencao && (
-            <div>
-              <Select
-                id="projeto"
-                label="Projeto existente"
-                value={projeto}
-                onChange={(event) => setProjeto(event.target.value)}
-                required
-              >
-                <option value="" hidden>
-                  Selecione o projeto
-                </option>
-
-                <option value="1">Projeto 1</option>
-                <option value="2">Projeto 2</option>
-                <option value="3">Projeto 3</option>
-              </Select>
-            </div>
-          )}
-
-          {/* EQUIPAMENTO */}
-
-          {manutencao && (
-            <div>
-              <Input
-                id="equipamento"
-                label="Equipamento / local"
-                value={equipamento}
-                onChange={(event) => setEquipamento(event.target.value)}
-                placeholder={"Informe o equipamento ou local"}
-                required
-              />
-            </div>
-          )}
+          <div>
+            <Input
+              id="prazo"
+              type="date"
+              value={dataVencimento}
+              onChange={(event) => setDataVencimento(event.target.value)}
+              required
+              iconRight={CalendarArrowDown}
+              label="Data de vencimento"
+            />
+          </div>
 
           {/* PRIORIDADE */}
 
@@ -351,93 +360,109 @@ export default function NovaOrdemServico({ tipo }: NovaOrdemServicoProps) {
               )}
             </div>
           </div>
-        </div>
 
-        {/* DESCRIÇÃO */}
-
-        <div className="mt-7">
-          <Textarea
-            id="descricao"
-            label={manutencao ? "Descrição do problema" : "Descrição"}
-            value={descricao}
-            onChange={(event) => setDescricao(event.target.value)}
-            placeholder={
-              manutencao
-                ? "Descreva o problema, o relato do cliente e demais informações relevantes..."
-                : "Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
-            }
-            required
-          />
-        </div>
-
-        {/* ITENS */}
-
-        {!manutencao && (
-          <div className="mt-7">
-            <Textarea
-              id="itens"
-              label={"Itens inicialmente necessários"}
-              value={itens}
-              onChange={(event) => setItens(event.target.value)}
-              placeholder={
-                "Informe os produtos, peças, serviços ou recursos inicialmente necessários..."
-              }
+          {/* TIPO DE SISTEMA */}
+          
+          <div>
+            <Select
+              id="tipo-sistema"
+              label="Tipo de sistema"
+              value={projeto}
+              onChange={(event) => setProjeto(event.target.value)}
               required
-            />
-          </div>
-        )}
-
-        {/* ANEXOS */}
-
-        <div className="mt-7 ml-auto w-full md:max-w-[360px]">
-          <div className="text-text-muted mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Link size={19} />
-
-            <span>Anexos</span>
-            <span className="font-normal text-slate-400">(opcional)</span>
-          </div>
-
-          {anexos.map((anexo) => (
-            <div
-              key={anexo.id}
-              className="flex min-h-[34px] items-center justify-between py-1.5 text-xs"
             >
-              <div className="flex min-w-0 items-center gap-2">
-                <span>📄</span>
+              <option value="" hidden>
+                Selecione o tipo de sistema
+              </option>
 
-                <span className="text-text-muted truncate">{anexo.nome}</span>
+              <option value="1">Tipo de sistema 1</option>
+              <option value="2">Tipo de sistema 2</option>
+              <option value="3">Tipo de sistema 3</option>
+            </Select>
+          </div>
 
-                <span className="text-text-muted shrink-0">{anexo.tamanho}</span>
+          {/* EQUIPAMENTOS E ANEXOS */}
+
+          <div className="col-span-4 mt-8 grid grid-cols-[1fr_auto_1fr] gap-6">
+            <div className="flex flex-col gap-4">
+              <Input
+                type="text"
+                value={buscaEquipamento}
+                onChange={(e) => setBuscaEquipamento(e.target.value)}
+                placeholder="Buscar equipamentos e materiais"
+                label="Equipamentos e materiais"
+              />
+
+              <div className="flex flex-wrap gap-2">
+                {equipamentos.map((eq) => (
+                  <span
+                    key={eq.nome}
+                    className="bg-primary/15 text-primary flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
+                  >
+                    {eq.quantidade}x {eq.nome}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => removerEquipamento(eq.nome)}
+                    />
+                  </span>
+                ))}
               </div>
+            </div>
+
+            {/* linha que separa o campo de equipamento com anexo */}
+            <div className="border-border w-px border-l" />
+
+            <div className="ml-auto h-full w-full">
+              <div className="text-text-muted mb-3 flex items-center gap-2 text-sm font-semibold">
+                <Link size={19} />
+
+                <span>Anexos</span>
+                <span className="font-normal text-slate-400">(opcional)</span>
+              </div>
+
+              {anexos.map((anexo) => (
+                <div
+                  key={anexo.id}
+                  className="flex min-h-[34px] items-center justify-between py-1.5 text-xs"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span>📄</span>
+
+                    <span className="text-text-muted truncate">{anexo.nome}</span>
+
+                    <span className="text-text-muted shrink-0">{anexo.tamanho}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="text-text-muted ml-2 shrink-0 p-1 hover:text-red-500"
+                    onClick={() => removerAnexo(anexo.id)}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ))}
+
+              <input
+                ref={inputArquivo}
+                id="arquivopdf"
+                type="file"
+                multiple
+                accept=".pdf,application/pdf"
+                hidden
+                onChange={adicionarArquivos}
+              />
 
               <button
                 type="button"
-                className="text-text-muted ml-2 shrink-0 p-1 hover:text-red-500"
-                onClick={() => removerAnexo(anexo.id)}
+                className="border-primary bg-primary-muted text-primary hover:border-primary-hover hover:bg-primary/25 mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
+                onClick={() => inputArquivo.current?.click()}
               >
-                <X size={15} />
+                <Upload size={18} />
+                Upload
               </button>
             </div>
-          ))}
-
-          <input
-            ref={inputArquivo}
-            id="arquivopdf"
-            type="file"
-            multiple
-            accept=".pdf,application/pdf"
-            hidden
-            onChange={adicionarArquivos}
-          />
-
-          <button
-            type="button"
-            className="border-primary bg-primary-muted text-primary hover:border-primary-hover hover:bg-primary/25 mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
-            onClick={() => inputArquivo.current?.click()}
-          >
-            <Upload size={18} />
-            Upload
-          </button>
+          </div>
         </div>
 
         {/* BOTÕES */}

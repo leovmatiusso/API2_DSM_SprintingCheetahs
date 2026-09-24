@@ -69,6 +69,36 @@ body {
   font-weight: 700;
 }
 
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+}
+
+input[type="date"].date-empty {
+  color: var(--color-text-muted);
+}
+
+input[type="date"].date-empty::-webkit-datetime-edit {
+  color: var(--color-text-muted);
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  color: inherit;
+}
+
+select.select-empty {
+  color: var(--color-text-muted);
+}
+
+select option {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+select option[value=""] {
+  color: var(--color-text-muted);
+}
+
 h1 {
   margin-top: 0;
 }
