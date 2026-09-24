@@ -167,12 +167,6 @@ export default function NovaManutencao() {
                                 placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
                                 rows={5}
                                 className="bg-bg border-border focus:ring-primary w-full resize-none rounded-lg border p-3 font-normal focus:outline-none focus:ring-2" />
-                                <button type="button"
-                                className="border-border bg-primary/15 text-primary absolute bottom-3 right-3 flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium">
-                                    
-                                <ClipboardList className="size-3.5" />
-                                Usar modelo de descrição
-                                </button>
                             </div>
                         </label>
                     </div>
