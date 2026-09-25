@@ -43,7 +43,7 @@
    CAMPO DE EMAIL
    ===================================================== */
 
-.login-card input.login-input {
+/* .login-card input.login-input {
   width: 100%;
   background: #ffffff !important;
   background-color: #ffffff !important;
@@ -67,7 +67,7 @@
   border-color: #2563eb !important;
   box-shadow:
     0 0 0 2px #bfdbfe !important;
-}
+} */
 
 /* =====================================================
    AUTOFILL DO CHROME
@@ -112,7 +112,7 @@
 
 .password-wrapper
 
-input {
+/* input {
   width: 100%;
   background: #ffffff !important;
   background-color: #ffffff !important;
@@ -120,7 +120,7 @@ input {
   border: 1px solid #3b82f6 !important;
   border-radius: 25px;
   color-scheme: light !important;
-}
+} */
 
 .login-card
 

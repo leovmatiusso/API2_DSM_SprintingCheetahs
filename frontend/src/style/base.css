@@ -107,17 +107,6 @@ h2 {
   margin-top: 0;
 }
 
-input,
-select {
-  @apply bg-bg border border-border focus:outline-none focus:ring-2 focus:ring-primary;
-
-  width: 100%;
-
-  border-radius: 8px;
-
-  padding: 12px;
-}
-
 input.no-dark {
   background-color: white;
 }

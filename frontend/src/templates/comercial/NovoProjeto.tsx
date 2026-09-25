@@ -218,7 +218,7 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
 
               <p className="text-text-muted mt-2 text-sm leading-6">
                 {manutencao
-                  ? "Abra uma nova solicitação de manutenção para que o gestor possa direcioná-la à equipe responsável."
+                  ? "Crie um novo projeto e atribua OS a ele após criação."
                   : "Abra uma nova solicitação de projeto para que o gestor possa direcioná-la à equipe responsável."}
               </p>
             </div>
@@ -240,7 +240,7 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               value={titulo}
               onChange={(event) => setTitulo(event.target.value)}
               placeholder={
-                manutencao
+                !manutencao
                   ? "Ex.: Manutenção de equipamento"
                   : "Ex.: Desenvolvimento de novo equipamento"
               }

@@ -35,8 +35,8 @@
   --color-bg-secondary: var(--color-neutral-50);
   --color-bg-tertiary: var(--color-neutral-100);
 
-  --color-text: #0f172a;
-  --color-text-muted: #64748b;
+  --color-text: var(--color-slate-950);
+  --color-text-muted: var(--color-slate-500);
 
   --color-text-inverted: #f8fafc;
   --color-text-inverted-muted: #94a3b8;
@@ -124,8 +124,8 @@
     --color-success-alt: var(--success-700);
     --color-success-alt-inverted: var(--success-200);
 
-    --color-text: #f8fafc;
-    --color-text-muted: #94a3b8;
+    --color-text: var(--color-slate-50);
+    --color-text-muted: var(--color-slate-400);
 
     --color-text-inveted: #0f172a;
     --color-text-inveted-muted: #64748b;

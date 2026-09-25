@@ -9,6 +9,8 @@ import { createTime, getUsers } from "@/api";
 import { getCurrentUser } from "@/auth";
 
 import type { Role, User } from "@/types";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 
 const equipes: {
   value: Role;
@@ -154,67 +156,70 @@ export default function CadastroTimes() {
         </Button>
       </header>
 
-      <section className="card content">
+      <section className="card content flex flex-col gap-5">
         <h1>Novo time</h1>
 
-        <form className="user-form" onSubmit={handleSubmit}>
-          <label className="input-label">
-            Nome do time
-            <input value={nomeTime} onChange={(e) => setNomeTime(e.target.value)} required />
-          </label>
+        <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
+          <Input
+            label="Nome do time"
+            value={nomeTime}
+            onChange={(e) => setNomeTime(e.target.value)}
+            required
+          />
 
-          <label className="input-label">
-            Equipe relacionada
-            <select value={departamento} onChange={(e) => setDepartamento(e.target.value)} required>
-              <option value="">Selecione uma equipe</option>
-
-              {equipes.map((equipe) => (
-                <option key={equipe.value} value={equipe.value}>
-                  {equipe.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="input-label">
-            Pessoa responsável
-            <select
-              value={responsavelId}
-              onChange={(e) => setResponsavelId(e.target.value)}
-              required
-              disabled={loadingUsers}
-            >
-              <option value="">
-                {loadingUsers ? "Carregando usuários..." : "Selecione um usuário"}
+          <Select
+            value={departamento}
+            onChange={(e) => setDepartamento(e.target.value)}
+            required
+            label="Equipe relacionada"
+          >
+            <option value="" hidden>
+              Selecione uma equipe
+            </option>
+            {equipes.map((equipe) => (
+              <option key={equipe.value} value={equipe.value}>
+                {equipe.label}
               </option>
+            ))}
+          </Select>
 
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} — {user.email}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            value={responsavelId}
+            onChange={(e) => setResponsavelId(e.target.value)}
+            required
+            label="Pessoa responsável"
+            disabled={loadingUsers}
+          >
+            <option value="">
+              {loadingUsers ? "Carregando usuários..." : "Selecione um usuário"}
+            </option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name} — {user.email}
+              </option>
+            ))}
+          </Select>
 
           <div>
-            <label className="input-label">
-              Pessoas vinculadas
-              <select
-                value=""
-                onChange={(e) => adicionarPessoa(e.target.value)}
-                disabled={loadingUsers}
-              >
-                <option value="">Selecione um usuário para adicionar</option>
+            <Select
+              value={responsavelId}
+              onChange={(e) => adicionarPessoa(e.target.value)}
+              required
+              label="Pessoas vinculadas"
+              disabled={loadingUsers}
+            >
+              <option hidden value="">
+                Selecione um usuário para adicionar
+              </option>
 
-                {users
-                  .filter((user) => !pessoasVinculadas.includes(user.id))
-                  .map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} — {user.email}
-                    </option>
-                  ))}
-              </select>
-            </label>
+              {users
+                .filter((user) => !pessoasVinculadas.includes(user.id))
+                .map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} — {user.email}
+                  </option>
+                ))}
+            </Select>
 
             <div className="linked-users">
               {pessoasVinculadas.length === 0 ? (
@@ -242,11 +247,11 @@ export default function CadastroTimes() {
           </div>
 
           <div className="nav-actions">
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" size="lg">
               Cadastrar
             </Button>
 
-            <Button type="button" variant="secondary" onClick={() => navigate("/times")}>
+            <Button type="button" variant="secondary" onClick={() => navigate("/times")} size="lg">
               Visualizar times
             </Button>
           </div>

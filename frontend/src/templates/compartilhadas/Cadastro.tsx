@@ -3,6 +3,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import PasswordInput from "@/components/PasswordInput";
 
 import { createUser, getTimes } from "@/api";
@@ -151,38 +153,33 @@ export default function Cadastro() {
         </div>
       </header>
 
-      <section className="card content">
+      <section className="card content flex flex-col gap-5">
         <h1>Novo usuário</h1>
 
-        <form className="user-form" onSubmit={handleSubmit}>
-          <label className="input-label">
-            Nome
-            <input
-              value={form.name}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  name: e.target.value,
-                })
-              }
-              required
-            />
-          </label>
+        <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
+          <Input
+            label="Nome"
+            required
+            value={form.name}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                name: e.target.value,
+              })
+            }
+          />
 
-          <label className="input-label">
-            Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  email: e.target.value,
-                })
-              }
-              required
-            />
-          </label>
+          <Input
+            label="Email"
+            required
+            value={form.email}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                email: e.target.value,
+              })
+            }
+          />
 
           <PasswordInput
             label="Senha"
@@ -194,55 +191,53 @@ export default function Cadastro() {
               })
             }
             placeholder="Mínimo 6 caracteres"
-            darkTheme
+            required
           />
 
-          <label className="input-label">
-            Cargo do usuário
-            <select
-              value={form.role}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  role: e.target.value as Role,
-                })
-              }
-              required
-            >
-              <option value="">Selecione um cargo</option>
+          <Select
+            label="Cargo do usuário"
+            value={form.role}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                role: e.target.value as Role,
+              })
+            }
+            required
+          >
+            <option value="" hidden>
+              Selecione um cargo
+            </option>
 
-              {roles.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            {roles.map((role) => (
+              <option key={role.value} value={role.value}>
+                {role.label}
+              </option>
+            ))}
+          </Select>
 
-          <label className="input-label">
-            Time do usuário
-            <select
-              value={form.time_id}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  time_id: e.target.value,
-                })
-              }
-              required
-              disabled={loadingTimes}
-            >
-              <option value="">{loadingTimes ? "Carregando times..." : "Selecione um time"}</option>
+          <Select
+            label={"Time do usuário"}
+            value={form.time_id}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                time_id: e.target.value,
+              })
+            }
+            required
+            disabled={loadingTimes}
+          >
+            <option value="">{loadingTimes ? "Carregando times..." : "Selecione um time"}</option>
 
-              {times.map((time) => (
-                <option key={time.id} value={time.id}>
-                  {time.nome_time}
-                </option>
-              ))}
-            </select>
-          </label>
+            {times.map((time) => (
+              <option key={time.id} value={time.id}>
+                {time.nome_time}
+              </option>
+            ))}
+          </Select>
 
-          <div className="nav-actions">
+          <div className="col-span-full space-x-5">
             <Button type="submit" variant="primary" size="lg">
               Cadastrar
             </Button>

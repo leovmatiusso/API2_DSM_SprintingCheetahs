@@ -1,12 +1,36 @@
 import type { ComponentPropsWithoutRef } from "react";
+
 import type { LucideIcon } from "lucide-react";
+
 import { CalendarDays } from "lucide-react";
 
 interface InputProps extends ComponentPropsWithoutRef<"input"> {
   label?: string;
   iconLeft?: LucideIcon;
   iconRight?: LucideIcon;
+  variant?: "default" | "pill";
+  textSize?: "xs" | "sm" | "base" | "lg" | "xl";
 }
+
+const variantStyles = {
+  default: `
+    bg-bg
+    text-text
+    rounded-lg
+    border-border
+    focus:border-primary
+  `,
+
+  pill: `
+    bg-white
+    text-black
+    rounded-full
+    border-primary
+    border-2
+    hover:border-primary-hover
+    focus:border-primary-hover
+  `,
+};
 
 export default function Input({
   label,
@@ -17,7 +41,9 @@ export default function Input({
   readOnly,
   type = "text",
   value,
+  variant = "default",
   className = "",
+  textSize = "sm",
   ...props
 }: InputProps) {
   const isDate = type === "date";
@@ -28,11 +54,17 @@ export default function Input({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={props.id} className="text-text-muted mb-2 block text-sm font-semibold">
+        <label
+          htmlFor={props.id}
+          className={`text-text-muted mb-2 block text-${textSize} font-semibold`}
+        >
           {label}
 
           {required && (
-            <span className="text-danger ml-0.5 font-light" aria-hidden="true">
+            <span
+              className="text-danger ml-0.5 font-light"
+              aria-hidden="true"
+            >
               *
             </span>
           )}
@@ -54,7 +86,23 @@ export default function Input({
           required={required}
           disabled={disabled}
           readOnly={readOnly}
-          className={`bg-bg text-text border-border placeholder:text-text-muted h-11 w-full rounded-lg border px-3 text-sm transition outline-none ${isDateEmpty ? "date-empty" : ""} focus:border-primary focus:ring-primary read-only:opacity-70 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${IconLeft ? "pl-10" : ""} ${IconRight ? "pr-10" : ""} ${className} `}
+          className={`
+            border
+            placeholder:text-text-muted
+            h-11 w-full
+            px-3 text-${textSize}
+            transition outline-none
+            ${isDateEmpty ? "date-empty" : ""}
+            ${variantStyles[variant]}
+            focus:ring-primary
+            focus:ring-2
+            read-only:opacity-70
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+            ${IconLeft ? "pl-10" : ""}
+            ${IconRight ? "pr-10" : ""}
+            ${className}
+          `}
         />
 
         {IconRight && (

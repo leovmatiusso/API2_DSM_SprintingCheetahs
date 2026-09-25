@@ -5,6 +5,7 @@ import { changePassword, getAccount } from "@/api";
 import { getCurrentUser } from "@/auth";
 import PasswordInput from "@/components/PasswordInput";
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
 const roleLabels: Record<string, string> = {
   superusuario: "superusuario",
@@ -86,50 +87,43 @@ export default function MinhaConta() {
         </Button>
       </header>
 
-      <section className="card content account-card">
+      <section className="card content account-card flex flex-col gap-5">
         <h1>Minha conta</h1>
 
-        <label className="input-label">
-          Nome
-          <input value={name} readOnly className="account-readonly" />
-        </label>
+        <Input label="Nome" value={name} readOnly />
 
-        <label className="input-label">
-          Email
-          <input value={email} readOnly className="account-readonly" />
-        </label>
+        <Input label="Email" value={email} readOnly />
 
-        <label className="input-label">
-          Perfil
-          <input value={roleLabels[role] ?? role} readOnly className="account-readonly" />
-        </label>
+        <Input label="Perfil" value={roleLabels[role] ?? role} readOnly />
 
         <form onSubmit={handleSubmit}>
-          <PasswordInput
-            label="Senha atual"
-            value={currentPassword}
-            onChange={setCurrentPassword}
-            placeholder="Digite a senha atual"
-            darkTheme={true}
-            className="account-password"
-          />
+          <div className="space-y-5">
+            <PasswordInput
+              label="Senha atual"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              placeholder="Digite a senha atual"
+              required
+            />
 
-          <PasswordInput
-            label="Nova senha"
-            value={newPassword}
-            onChange={setNewPassword}
-            placeholder="Digite a nova senha"
-            darkTheme={true}
-            className="account-password"
-          />
+            <PasswordInput
+              label="Nova senha"
+              value={newPassword}
+              onChange={setNewPassword}
+              placeholder="Digite a nova senha"
+              required
+            />
+          </div>
 
           {message && <div className="success">{message}</div>}
 
           {error && <div className="error">{error}</div>}
 
-          <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? "Atualizando..." : "Confirmar alteração"}
-          </Button>
+          <div className="mt-5">
+            <Button variant="primary" type="submit" disabled={loading}>
+              {loading ? "Atualizando..." : "Confirmar alteração"}
+            </Button>
+          </div>
         </form>
       </section>
     </main>

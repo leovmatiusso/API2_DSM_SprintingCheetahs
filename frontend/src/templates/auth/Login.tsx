@@ -3,6 +3,7 @@ import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/api";
 import { saveSession } from "@/auth";
+import Input from "@/components/ui/Input";
 import PasswordInput from "@/components/PasswordInput";
 
 export default function Login() {
@@ -74,27 +75,32 @@ export default function Login() {
         <form className="login-card" onSubmit={handleSubmit}>
           <h1 className="text-4xl font-bold">Entrar</h1>
 
-          <p className="login-muted">Acesse sua conta para continuar.</p>
+          <p className="login-muted mb-5">Acesse sua conta para continuar.</p>
 
-          <label className="input-label">
-            Email
-            <input
-              className="login-input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              autoComplete="username"
-              required
-            />
-          </label>
+          <div className="flex flex-col gap-5 mb-5">
+            <Input
+            type="email"
+            label="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="seu@email.com"
+            autoComplete="username"
+            required
+            variant="pill"
+            textSize="lg"
+          />
 
           <PasswordInput
+            id="senha"
             label="Senha"
             value={password}
-            onChange={setPassword}
+            onChange={(value) => setPassword(value)}
             placeholder="Digite sua senha"
+            required
+            variant="pill"
+            textSize="lg"
           />
+          </div>
 
           {error && <div className="error">{error}</div>}
 
