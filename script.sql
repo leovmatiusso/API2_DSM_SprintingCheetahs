@@ -112,3 +112,20 @@ create table item_equipamento_manutencao (
     constraint fk_item_manutencao foreign key (manutencao_id) references manutencoes(manutencao_id) on delete cascade,
     constraint fk_item_manutencao_equipamento foreign key (equipamento_id) references equipamentos(equipamento_id) on delete cascade
 );
+
+
+/*
+INSERT DOS EQUIPAMENTOS
+---------------------------------------------------
+insert into equipamentos (nome_equipamento) values
+('aeróstato'),
+('torre'),
+('câmera óptica'),
+('câmera térmica'),
+('switch'),
+('roteador'),
+('cabo de rede'),
+('conector rj45'),
+('patch cord'),
+('sensor de movimento');
+*/
