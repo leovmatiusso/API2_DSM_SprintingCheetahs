@@ -78,6 +78,7 @@ create table anexo (
     data_anexo datetime default current_timestamp,
     manutencao_id int,
     projeto_id int,
+    conteudo_arquivo longblob not null,
     constraint fk_anexos_os foreign key (os_id) references os(os_id) on delete cascade,
     constraint fk_anexo_manutencao foreign key (manutencao_id) references manutencoes(manutencao_id) on delete cascade,
     constraint fk_anexo_projeto foreign key (projeto_id) references projetos(projeto_id) on delete cascade,
