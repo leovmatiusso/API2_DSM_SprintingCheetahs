@@ -128,6 +128,12 @@
 
 ---
 
+## Contribuição
+
+O padrão de commits e a estratégia de branches pode ser visualizada em [GUIA.md](./docs/GUIA.md).
+
+---
+
 ## 👤 Equipe <a id="equipe"></a>
 
 | Foto | Função | Nome | GitHub | Linkedin |

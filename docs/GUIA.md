@@ -1,8 +1,37 @@
+## Padrão de commits
+
+Commits devem seguir esse modelo:
+
+```
+<tipo>: <descrição da entrega>
+```
+
+| Tipo | Quando usar |
+| --- | --- |
+| `feat` | Adição de função nova |
+| `fix` | Correção de erro/bug |
+| `docs` | Alteração em algum documento (ex: README.md) |
+| `style` | Mudança de formatação, sem afetar o código |
+| `refactor` | Reorganização do código, sem mudar o comportamento |
+| `test` | Adiciona ou modifica testes |
+| `chore` | Atualizações menores que não impactam diretamente a funcionalidade do código |
+
+**Exemplos:**
+
+```
+feat: adiciona função de cadastro de times
+fix: faz campo de upload da OS aceitar apenas PDF
+docs: atualiza estratégia de branches no guia
+refactor: reformula padronização dos códigos
+```
+
+
+
 # Estratégia de branches
 
 A estratégia foi escolhida por proporcionar maior organização ao desenvolvimento em equipe, permitindo que diferentes funcionalidades sejam desenvolvidas de forma independente. A separação das branches reduz o risco de alterações incompletas afetarem a versão estável do sistema e facilita o controle das modificações realizadas por cada integrante.
 
-O uso de `Pull Requests` e revisão de código também contribui para a identificação de erros antes da integração das alterações, além de facilitar o acompanhamento do histórico do projeto. Dessa forma, a estratégia escolhida é adequada ao desenvolvimento colaborativo e ao controle das diferentes versões do sistema.
+O uso de `Pull Requests`   e revisão de código também contribui para a identificação de erros antes da integração das alterações, além de facilitar o acompanhamento do histórico do projeto. Dessa forma, a estratégia escolhida é adequada ao desenvolvimento colaborativo e ao controle das diferentes versões do sistema.
 
 | Tipo de branch | Convenção de nome | Uso |
 | --- | --- | --- |
