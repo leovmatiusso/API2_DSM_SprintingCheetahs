@@ -1,5 +1,4 @@
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
-
 import {
   ClipboardList,
   Link,
@@ -19,6 +18,20 @@ import Button from "@/components/ui/Button";
 // import "@/style/NovoProjeto.css";
 
 type TipoOS = "manutencao" | "novo-projeto";
+
+{/* variável dos equipamentos */}
+const EQUIPAMENTOS_DISPONIVEIS = [
+  "Aerostato",
+  "Torre",
+  "Câmera óptica",
+  "Câmera térmica",
+  "Switch",
+  "Roteador",
+  "Cabo de rede",
+  "Conector RJ45",
+  "Patch Cord",
+  "Sensor de movimento",
+];
 
 interface NovoProjetoProps {
   tipo: TipoOS;
@@ -68,14 +81,37 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
 
   const [buscaEquipamento, setBuscaEquipamento] = useState("");
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [dropdownEquipamentoAberto, setDropdownEquipamentoAberto] = useState(false);
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
 
-  {
-    /* função de remover equipamento */
-  }
+  {/* função de remover equipamento */}
   function removerEquipamento(nome: string) {
     setEquipamentos((prev) => prev.filter((eq) => eq.nome !== nome));
+  }
+
+  {/* função de adicionar equipamento */}
+  function adicionarEquipamento(nome: string) {
+    setEquipamentos((prev) => {
+      const existente = prev.find((eq) => eq.nome === nome);
+
+      if (existente) {
+        return prev.map((eq) =>
+          eq.nome === nome ? { ...eq, quantidade: eq.quantidade + 1 } : eq,
+        );
+      }
+
+      return [...prev, { nome, quantidade: 1 }];
+    });
+
+    setBuscaEquipamento("");
+    setDropdownEquipamentoAberto(false);
+  }
+
+  function equipamentosFiltrados() {
+    return EQUIPAMENTOS_DISPONIVEIS.filter((nome) =>
+      nome.toLowerCase().includes(buscaEquipamento.toLowerCase()),
+    );
   }
 
   const [enviando, setEnviando] = useState(false);
@@ -188,14 +224,9 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
     }
   }
 
-  {
-    /*
-    Front-end apenas.
-    
+  {/*Front-end apenas.
     O envio real poderá ser conectado
-    ao back-end posteriormente.
-    */
-  }
+    ao back-end posteriormente. */}
 
   return (
     <main className="page nova-os-page min-h-full p-5 md:p-8">
@@ -212,9 +243,7 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
             </div>
 
             <div>
-              <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]">
-                Novo projeto
-              </h1>
+              <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]"> Novo projeto </h1>
 
               <p className="text-text-muted mt-2 text-sm leading-6">
                 {manutencao
@@ -223,21 +252,16 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               </p>
             </div>
           </div>
-          <p className="text-text-muted mt-4 text-xs">
-            Campos marcados com <span className="text-red-500">*</span> são obrigatórios.
-          </p>
+
+          <p className="text-text-muted mt-4 text-xs"> Campos marcados com <span className="text-red-500">*</span> são obrigatórios. </p>
         </div>
 
         {/* CAMPOS */}
-
         <div className="grid grid-cols-1 gap-x-7 gap-y-8 md:grid-cols-2 xl:grid-cols-4">
-          {/* TÍTULO */}
 
+          {/* TÍTULO */}
           <div className="xl:col-span-2">
-            <Input
-              id="titulo"
-              label="Título do Projeto"
-              value={titulo}
+            <Input id="titulo" label="Título do Projeto" value={titulo}
               onChange={(event) => setTitulo(event.target.value)}
               placeholder={
                 !manutencao
@@ -249,12 +273,8 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
           </div>
 
           {/*RESPONSÁVEL*/}
-
           <div>
-            <Input
-              id="responsavel"
-              label="Responsável"
-              value={responsavel}
+            <Input id="responsavel" label="Responsável" value={responsavel}
               onChange={(event) => setResponsavel(event.target.value)}
               placeholder={"Ex.: João Silva"}
               required
@@ -264,11 +284,8 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
           {/*VENDEDOR*/}
 
           <div>
-            <Input
-              id="vendedor"
-              label="Vendedor"
-              value={vendedor}
-              onChange={(event) => setResponsavel(event.target.value)}
+            <Input id="vendedor" label="Vendedor" value={vendedor}
+              onChange={(event) => setVendedor(event.target.value)}
               placeholder={"Ex.: João Silva"}
               required
             />
@@ -277,10 +294,7 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
           {/* DATA DE ASSINATURA */}
 
           <div>
-            <Input
-              id="prazo"
-              type="date"
-              value={dataAssinatura}
+            <Input id="prazo" type="date" value={dataAssinatura}
               onChange={(event) => setDataAssinatura(event.target.value)}
               required
               iconRight={CalendarArrowUp}
@@ -291,10 +305,7 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
           {/* DATA DE VENCIMENTO */}
 
           <div>
-            <Input
-              id="prazo"
-              type="date"
-              value={dataVencimento}
+            <Input id="prazo" type="date" value={dataVencimento}
               onChange={(event) => setDataVencimento(event.target.value)}
               required
               iconRight={CalendarArrowDown}
@@ -305,14 +316,12 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
           {/* PRIORIDADE */}
 
           <div>
-            <label className="text-text-muted mb-2 block text-sm font-semibold">
-              Prioridade
+            <label className="text-text-muted mb-2 block text-sm font-semibold"> Prioridade
               <Obrigatorio />
             </label>
 
             <div className="relative w-full">
-              <button
-                type="button"
+              <button type="button"
                 className="prioridade-select border-border hover:border-border-hover flex h-11 w-full cursor-pointer items-center justify-between rounded-lg border px-3 transition outline-none"
                 onClick={() => setPrioridadeAberta(!prioridadeAberta)}
               >
@@ -375,9 +384,9 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
                 Selecione o tipo de sistema
               </option>
 
-              <option value="1">Tipo de sistema 1</option>
-              <option value="2">Tipo de sistema 2</option>
-              <option value="3">Tipo de sistema 3</option>
+              <option value="1">Sistema de Torres</option>
+              <option value="2">Sistema de Embarcação</option>
+              <option value="3">Sistema de Sonda</option>
             </Select>
           </div>
 
@@ -385,13 +394,41 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
 
           <div className="col-span-4 mt-8 grid grid-cols-[1fr_auto_1fr] gap-6">
             <div className="flex flex-col gap-4">
-              <Input
-                type="text"
-                value={buscaEquipamento}
-                onChange={(e) => setBuscaEquipamento(e.target.value)}
-                placeholder="Buscar equipamentos e materiais"
-                label="Equipamentos e materiais"
-              />
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={buscaEquipamento}
+                  onChange={(e) => {
+                    setBuscaEquipamento(e.target.value);
+                    setDropdownEquipamentoAberto(true);
+                  }}
+                  onFocus={() => setDropdownEquipamentoAberto(true)}
+                  onBlur={() => setTimeout(() => setDropdownEquipamentoAberto(false), 150)}
+                  placeholder="Buscar equipamentos e materiais"
+                  label="Equipamentos e materiais"
+                />
+
+                {dropdownEquipamentoAberto && (
+                  <div className="border-border bg-bg absolute right-0 left-0 z-20 mt-1.5 max-h-56 overflow-y-auto rounded-lg border p-1.5 shadow-lg">
+                    {equipamentosFiltrados().length === 0 ? (
+                      <p className="text-text-muted px-2 py-1.5 text-sm">
+                        Nenhum equipamento encontrado.
+                      </p>
+                    ) : (
+                      equipamentosFiltrados().map((nome) => (
+                        <button
+                          key={nome}
+                          type="button"
+                          onClick={() => adicionarEquipamento(nome)}
+                          className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-text"
+                        >
+                          {nome}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex flex-wrap gap-2">
                 {equipamentos.map((eq) => (
@@ -423,13 +460,10 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               {anexos.map((anexo) => (
                 <div
                   key={anexo.id}
-                  className="flex min-h-[34px] items-center justify-between py-1.5 text-xs"
-                >
+                  className="flex min-h-[34px] items-center justify-between py-1.5 text-xs" >
                   <div className="flex min-w-0 items-center gap-2">
                     <span>📄</span>
-
                     <span className="text-text-muted truncate">{anexo.nome}</span>
-
                     <span className="text-text-muted shrink-0">{anexo.tamanho}</span>
                   </div>
 
@@ -450,32 +484,28 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
                 multiple
                 accept=".pdf,application/pdf"
                 hidden
-                onChange={adicionarArquivos}
-              />
+                onChange={adicionarArquivos} />
 
-              <button
-                type="button"
+              <button type="button"
                 className="border-primary bg-primary-muted text-primary hover:border-primary-hover hover:bg-primary/25 mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
-                onClick={() => inputArquivo.current?.click()}
-              >
+                onClick={() => inputArquivo.current?.click()} >
                 <Upload size={18} />
                 Upload
               </button>
+
             </div>
           </div>
         </div>
 
         {/* BOTÕES */}
-
         <div className="mt-8 flex items-center justify-end gap-6">
           <Button type="button" variant="outline" size="lg" onClick={() => navigate("/dashboard")}>
             Voltar
           </Button>
 
-          <Button type="submit" variant="primary" size="lg">
-            Solicitar O.S.
-          </Button>
+          <Button type="submit" variant="primary" size="lg"> Solicitar O.S. </Button>
         </div>
+
       </form>
     </main>
   );

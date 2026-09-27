@@ -79,13 +79,6 @@ export default function MinhaConta() {
 
   return (
     <main className="page">
-      <header className="topbar">
-        <strong>Minha conta</strong>
-
-        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
-          Voltar
-        </Button>
-      </header>
 
       <section className="card content account-card flex flex-col gap-5">
         <h1>Minha conta</h1>

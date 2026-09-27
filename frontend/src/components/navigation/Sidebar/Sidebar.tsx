@@ -54,7 +54,7 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
       <div className="min-h-11 overflow-hidden px-2.5 py-5 whitespace-nowrap">
         {!collapsed && (
           <div className="px-3">
-            <strong className="text-subtitle block">Sistema O.S.</strong>
+            <strong className="text-subtitle block">ALTAVE</strong>
 
             <span className="text-text-muted text-small mt-3 block">Gestão operacional</span>
           </div>

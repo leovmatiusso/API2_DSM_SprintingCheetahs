@@ -148,13 +148,6 @@ export default function CadastroTimes() {
 
   return (
     <main className="page">
-      <header className="topbar">
-        <strong>Cadastro de times</strong>
-
-        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
-          Voltar
-        </Button>
-      </header>
 
       <section className="card content flex flex-col gap-5">
         <h1>Novo time</h1>

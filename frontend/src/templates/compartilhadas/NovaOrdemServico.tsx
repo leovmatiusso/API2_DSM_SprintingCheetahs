@@ -1,4 +1,5 @@
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
+import { getCurrentUser } from '@/auth';
 
 import {
   ClipboardList,
@@ -19,8 +20,27 @@ import "@/style/NovaOrdemServico.css";
 
 type TipoOS = "manutencao" | "novo-projeto";
 
+{/* variável dos equipamentos */}
+const EQUIPAMENTOS_DISPONIVEIS = [
+  "Aerostato",
+  "Torre",
+  "Câmera óptica",
+  "Câmera térmica",
+  "Switch",
+  "Roteador",
+  "Cabo de rede",
+  "Conector RJ45",
+  "Patch Cord",
+  "Sensor de movimento",
+];
+
 interface NovaOrdemServicoProps {
   tipo: TipoOS;
+}
+
+interface Equipamento {
+  nome: string;
+  quantidade: number;
 }
 
 interface Anexo {
@@ -31,18 +51,14 @@ interface Anexo {
 
 function Obrigatorio() {
   return (
-    <span
-      className="text-danger ml-0.5 font-light"
-      aria-hidden="true"
-    >
+    <span className="text-danger ml-0.5 font-light"
+      aria-hidden="true" >
       *
     </span>
   );
 }
 
-export default function NovaOrdemServico({
-  tipo,
-}: NovaOrdemServicoProps) {
+export default function NovaOrdemServico() {
   const navigate = useNavigate();
 
   const inputArquivo = useRef<HTMLInputElement>(null);
@@ -58,13 +74,45 @@ export default function NovaOrdemServico({
   const [prioridadeAberta, setPrioridadeAberta] = useState(false);
 
   const [descricao, setDescricao] = useState("");
-  const [itens, setItens] = useState("");
+
+  const [buscaEquipamento, setBuscaEquipamento] = useState("");
+  const [dropdownEquipamentoAberto, setDropdownEquipamentoAberto] = useState(false);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const manutencao = tipo === "manutencao";
+  const user = getCurrentUser();
+
+  const manutencao = user?.role === 'suporte';
+
+  function adicionarEquipamento(nome: string) {
+    setEquipamentos((prev) => {
+      const existente = prev.find((eq) => eq.nome === nome);
+
+      if (existente) {
+        return prev.map((eq) =>
+          eq.nome === nome ? { ...eq, quantidade: eq.quantidade + 1 } : eq,
+        );
+      }
+
+      return [...prev, { nome, quantidade: 1 }];
+    });
+
+    setBuscaEquipamento("");
+    setDropdownEquipamentoAberto(false);
+  }
+
+  function removerEquipamento(nome: string) {
+    setEquipamentos((prev) => prev.filter((eq) => eq.nome !== nome));
+  }
+
+  function equipamentosFiltrados() {
+    return EQUIPAMENTOS_DISPONIVEIS.filter((nome) =>
+      nome.toLowerCase().includes(buscaEquipamento.toLowerCase()),
+    );
+  }
 
   function adicionarArquivos(event: ChangeEvent<HTMLInputElement>) {
     const arquivos = event.target.files;
@@ -145,6 +193,7 @@ export default function NovaOrdemServico({
       prioridade: prioridade.toLowerCase(),
       data_limite: prazo,
       id_time_responsavel: Number(timeResponsavel),
+      equipamentos,
     };
 
     setEnviando(true);
@@ -262,11 +311,8 @@ export default function NovaOrdemServico({
           </div>
 
           {/* PRAZO */}
-
           <div>
-            <Input
-              id="prazo"
-              type="date"
+            <Input id="prazo" type="date"
               value={prazo}
               onChange={(event) =>
                 setPrazo(event.target.value)
@@ -423,81 +469,119 @@ export default function NovaOrdemServico({
           />
         </div>
 
-        {/* ITENS */}
+        {/* EQUIPAMENTOS E ANEXOS */}
 
-        {!manutencao && (
-          <div className="mt-7">
-            <Textarea
-              id="itens"
-              label="Itens inicialmente necessários"
-              value={itens}
-              onChange={(event) =>
-                setItens(event.target.value)
-              }
-              placeholder="Informe os produtos, peças, serviços ou recursos inicialmente necessários..."
-              required
-            />
-          </div>
-        )}
+        <div className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto_1fr]">
+          <div className="flex flex-col gap-4">
+            <div className="relative">
+              <Input
+                id="equipamentos"
+                type="text"
+                label="Equipamentos e materiais"
+                value={buscaEquipamento}
+                onChange={(event) => {
+                  setBuscaEquipamento(event.target.value);
+                  setDropdownEquipamentoAberto(true);
+                }}
+                onFocus={() => setDropdownEquipamentoAberto(true)}
+                onBlur={() =>
+                  setTimeout(() => setDropdownEquipamentoAberto(false), 150)
+                }
+                placeholder="Buscar equipamentos e materiais"
+              />
 
-        {/* ANEXOS */}
-
-        <div className="mt-7 ml-auto w-full md:max-w-[360px]">
-          <div className="text-text-muted mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Link size={19} />
-
-            <span>Anexos</span>
-
-            <span className="font-normal text-slate-400">
-              (opcional)
-            </span>
-          </div>
-
-          {anexos.map((anexo) => (
-            <div
-              key={anexo.id}
-              className="flex min-h-[34px] items-center justify-between py-1.5 text-xs"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span>📄</span>
-
-                <span className="text-text-muted truncate">
-                  {anexo.nome}
-                </span>
-
-                <span className="text-text-muted shrink-0">
-                  {anexo.tamanho}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                className="text-text-muted ml-2 shrink-0 p-1 hover:text-red-500"
-                onClick={() => removerAnexo(anexo.id)}
-              >
-                <X size={15} />
-              </button>
+              {dropdownEquipamentoAberto && (
+                <div className="border-border bg-bg absolute right-0 left-0 z-20 mt-1.5 max-h-56 overflow-y-auto rounded-lg border p-1.5 shadow-lg">
+                  {equipamentosFiltrados().length === 0 ? (
+                    <p className="text-text-muted px-2 py-1.5 text-sm">
+                      Nenhum equipamento encontrado.
+                    </p>
+                  ) : (
+                    equipamentosFiltrados().map((nome) => (
+                      <button
+                        key={nome}
+                        type="button"
+                        onClick={() => adicionarEquipamento(nome)}
+                        className="hover:bg-bg-tertiary text-text flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm"
+                      >
+                        {nome}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-          ))}
 
-          <input
-            ref={inputArquivo}
-            id="arquivopdf"
-            type="file"
-            multiple
-            accept=".pdf,application/pdf"
-            hidden
-            onChange={adicionarArquivos}
-          />
+            <div className="flex flex-wrap gap-2">
+              {equipamentos.map((eq) => (
+                <span
+                  key={eq.nome}
+                  className="bg-primary/15 text-primary flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
+                >
+                  {eq.quantidade}x {eq.nome}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => removerEquipamento(eq.nome)}
+                  />
+                </span>
+              ))}
+            </div>
+          </div>
 
-          <button
-            type="button"
-            className="border-primary bg-primary-muted text-primary hover:border-primary-hover hover:bg-primary/25 mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
-            onClick={() => inputArquivo.current?.click()}
-          >
-            <Upload size={18} />
-            Upload
-          </button>
+          {/* linha que separa o campo de equipamento com anexo */}
+          <div className="border-border hidden w-px border-l md:block" />
+
+          <div>
+            <div className="text-text-muted mb-3 flex items-center gap-2 text-sm font-semibold">
+              <Link size={19} />
+
+              <span>Anexos</span>
+
+              <span className="font-normal text-slate-400">(opcional)</span>
+            </div>
+
+            {anexos.map((anexo) => (
+              <div
+                key={anexo.id}
+                className="flex min-h-[34px] items-center justify-between py-1.5 text-xs"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span>📄</span>
+
+                  <span className="text-text-muted truncate">{anexo.nome}</span>
+
+                  <span className="text-text-muted shrink-0">{anexo.tamanho}</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="text-text-muted ml-2 shrink-0 p-1 hover:text-red-500"
+                  onClick={() => removerAnexo(anexo.id)}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+
+            <input
+              ref={inputArquivo}
+              id="arquivopdf"
+              type="file"
+              multiple
+              accept=".pdf,application/pdf"
+              hidden
+              onChange={adicionarArquivos}
+            />
+
+            <button
+              type="button"
+              className="border-primary bg-primary-muted text-primary hover:border-primary-hover hover:bg-primary/25 mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
+              onClick={() => inputArquivo.current?.click()}
+            >
+              <Upload size={18} />
+              Upload
+            </button>
+          </div>
         </div>
 
         {/* BOTÕES */}

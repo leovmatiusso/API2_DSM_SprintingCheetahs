@@ -8,6 +8,7 @@ import {
   UserRoundPlus,
   CirclePlus,
   LayersPlus,
+  Wrench,
 } from "lucide-react";
 
 import type { SidebarItemConfig } from "./sidebar.types";
@@ -17,12 +18,6 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Dashboard",
     icon: Home,
     path: "/dashboard",
-  },
-
-  {
-    label: "Minha conta",
-    icon: Settings,
-    path: "/minha-conta",
   },
 
   {
@@ -47,10 +42,24 @@ export const menuItems: SidebarItemConfig[] = [
   },
 
   {
+    label: "Projetos",
+    icon: ClipboardList,
+    path: "/projetos-totais",
+    roles: ["comercial"],
+  },
+
+  {
+    label: "Manutenções",
+    icon: Wrench,
+    path: "/manutencoes-totais",
+    roles: ["suporte"],
+  },
+
+  {
     label: "Minhas O.S.",
     icon: ClipboardList,
     path: "/os/minhas",
-    roles: ["comercial", "suporte", "producao", "software", "implantacao"],
+    roles: ["producao", "software", "implantacao"],
   },
 
   {
@@ -60,6 +69,13 @@ export const menuItems: SidebarItemConfig[] = [
     roles: ["comercial"],
   },
 
+  {
+    label: "Novo projeto",
+    icon: CirclePlus,
+    path: "/novo-projeto",
+    roles: ["comercial"],
+  },
+  
   {
     label: "Nova OS",
     icon: FilePlus2,
@@ -116,10 +132,10 @@ export const menuItems: SidebarItemConfig[] = [
     roles: ["superusuario", "gestor"],
   },
 
+
   {
-    label: "Novo projeto",
-    icon: LayersPlus,
-    path: "/novo-projeto",
-    roles: ["comercial"],
+    label: "Minha conta",
+    icon: Settings,
+    path: "/minha-conta",
   },
 ];

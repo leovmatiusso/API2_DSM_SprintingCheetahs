@@ -198,13 +198,6 @@ export default function Usuarios() {
 
   return (
     <main className="page">
-      <header className="topbar">
-        <strong>Gerenciamento de usuários</strong>
-
-        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
-          Voltar
-        </Button>
-      </header>
 
       {editing && (
         <section className="card content">
