@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "@/style/Theme.css"
 
 import {
   ClipboardList,
@@ -39,7 +40,7 @@ export default function Dashboard() {
           <section className="card lg:col-span-6">
             {/* Título do card */}
             <div className="mb-6">
-              <p className="text-text text-2xl">Projetos em andamento</p>
+              <p className="text-text text-2xl font-bold">Projetos em andamento</p>
 
               <strong className="text-text mt-1 block text-4xl font-bold">12</strong>
             </div>
@@ -119,13 +120,13 @@ export default function Dashboard() {
               {/* Status */}
               <div className="space-y-5">
 
-                {/* Status Aguardando */}
+                {/* Status aberta */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
                     <span className="h-3 w-3 shrink-0 rounded-full bg-blue-300"></span>
 
                     <span className="text-sm font-medium">
-                      Aguardando
+                      Aberta
                     </span>
                   </div>
 
@@ -140,19 +141,19 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Status Em agendamento */}
+                {/* Status Em andamento */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-green-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-success-alt"></span>
 
                     <span className="text-sm font-medium">
-                      Em agendamento
+                      Em andamento
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[90%] rounded-full bg-green-300"></div>
+                      <div className="h-full w-[90%] rounded-full bg-success-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -164,7 +165,7 @@ export default function Dashboard() {
                 {/* Status Validação / Testes */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-orange-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-laranja-alt"></span>
 
                     <span className="text-sm font-medium">
                       Validação / Testes
@@ -173,7 +174,7 @@ export default function Dashboard() {
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[32%] rounded-full bg-orange-300"></div>
+                      <div className="h-full w-[32%] rounded-full bg-laranja-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -185,7 +186,7 @@ export default function Dashboard() {
                 {/* Status Concluida */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-pink-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-rosa-alt"></span>
 
                     <span className="text-sm font-medium">
                       Concluída
@@ -194,7 +195,7 @@ export default function Dashboard() {
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[32%] rounded-full bg-pink-300"></div>
+                      <div className="h-full w-[32%] rounded-full bg-rosa-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -207,32 +208,32 @@ export default function Dashboard() {
             </section>
           )}
 
-          {/* Card - Minhas O.S. por equipe */}
+          {/* Card - Minhas O.S. por prioridade */}
           {user.role !== "comercial" && (
             <section className="card lg:col-span-4">
 
               <div className="mb-6">
                 <p className="text-text text-2xl font-bold">
-                  Minhas O.S. por equipe
+                  OS por prioridade
                 </p>
               </div>
 
-              {/* Equipes */}
+              {/* Prioridade */}
               <div className="space-y-5">
 
-                {/* Equipe de Produção */}
+                {/* Baixa */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-blue-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-success-alt"></span>
 
                     <span className="text-sm font-medium">
-                      Produção
+                      Baixa
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[65%] rounded-full bg-blue-300"></div>
+                      <div className="h-full w-[65%] rounded-full bg-success-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -241,19 +242,19 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Equipe de Software */}
+                {/* Média */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-green-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-warning-alt"></span>
 
                     <span className="text-sm font-medium">
-                      Software
+                      Média
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[90%] rounded-full bg-green-300"></div>
+                      <div className="h-full w-[90%] rounded-full bg-warning-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -262,19 +263,19 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Equipe de Monitoramento */}
+                {/* Alta */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-orange-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-laranja-alt"></span>
 
                     <span className="text-sm font-medium">
-                      Monitoramento
+                      Alta
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[32%] rounded-full bg-orange-300"></div>
+                      <div className="h-full w-[32%] rounded-full bg-laranja-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -283,19 +284,19 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Equipe de Implantação */}
+                {/* Crítica */}
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full bg-pink-300"></span>
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-danger-alt"></span>
 
                     <span className="text-sm font-medium">
-                      Implantação
+                      Crítica
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full w-[32%] rounded-full bg-pink-300"></div>
+                      <div className="h-full w-[32%] rounded-full bg-danger-alt"></div>
                     </div>
 
                     <strong className="text-sm">
@@ -345,7 +346,7 @@ export default function Dashboard() {
                     Status
                   </span>
 
-                  <strong className="mt-1 block text-sm font-semibold text-green-600">
+                  <strong className="mt-1 block text-sm font-semibold text-success-alt-inverted">
                     Em andamento
                   </strong>
                 </div>
@@ -356,7 +357,7 @@ export default function Dashboard() {
                     Prioridade
                   </span>
 
-                  <strong className="mt-1 block text-sm font-semibold text-red-500">
+                  <strong className="mt-1 block text-sm font-semibold text-laranja-alt-inverted">
                     Alta
                   </strong>
                 </div>
@@ -392,8 +393,8 @@ export default function Dashboard() {
                     Status
                   </span>
 
-                  <strong className="mt-1 block text-sm font-semibold text-yellow-600">
-                    Pendente
+                  <strong className="mt-1 block text-sm font-semibold text-success-alt-inverted">
+                    Em andamento
                   </strong>
                 </div>
 
@@ -402,7 +403,7 @@ export default function Dashboard() {
                     Prioridade
                   </span>
 
-                  <strong className="mt-1 block text-sm font-semibold text-yellow-600">
+                  <strong className="mt-1 block text-sm font-semibold text-warning-alt-inverted">
                     Média
                   </strong>
                 </div>
@@ -437,8 +438,8 @@ export default function Dashboard() {
                     Status
                   </span>
 
-                  <strong className="mt-1 block text-sm font-semibold text-blue-600">
-                    Em análise
+                  <strong className="mt-1 block text-sm font-semibold text-laranja-alt-inverted">
+                    Testes
                   </strong>
                 </div>
 
@@ -447,7 +448,7 @@ export default function Dashboard() {
                     Prioridade
                   </span>
 
-                  <strong className="mt-1 block text-sm font-semibold text-green-600">
+                  <strong className="mt-1 block text-sm font-semibold text-success-alt-inverted">
                     Baixa
                   </strong>
                 </div>

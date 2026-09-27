@@ -25,6 +25,11 @@
   --color-success-alt-inverted: var(--success-700);
   --color-success-muted: color-mix(in srgb, var(--success-500) 25%, transparent);
 
+  --color-rosa: var(--rosa-500);
+  --color-rosa-alt: var(--rosa-200);
+  --color-rosa-alt-inverted: var(--rosa-700);
+  --color-rosa-muted: color-mix(in srgb, var(--color-rosa) 25%, transparent);
+
   --color-secondary: #e5e7eb;
   --color-secondary-hover: #d5d7dc;
 
@@ -112,17 +117,20 @@
     --color-primary: var(--primary-500);
     --color-primary-hover: var(--primary-700);
 
-    --color-danger-alt: var(--color-rose-700);
-    --color-danger-alt-inverted: var(--color-rose-200);
+    --color-danger-alt: var(--color-rose-800);
+    --color-danger-alt-inverted: var(--color-rose-300);
 
-    --color-laranja-alt: var(--color-orange-700);
+    --color-laranja-alt: var(--color-orange-500);
     --color-laranja-alt-inverted: var(--color-orange-200);
 
-    --color-warning-alt: var(--color-yellow-700);
-    --color-warning-alt-inverted: var(--color-yellow-200);
+    --color-warning-alt: var(--color-yellow-500);
+    --color-warning-alt-inverted: var(--color-yellow-100);
 
-    --color-success-alt: var(--success-700);
-    --color-success-alt-inverted: var(--success-200);
+    --color-success-alt: var(--success-600);
+    --color-success-alt-inverted: var(--success-100);
+
+    --color-rosa-alt: var(--rosa-400);
+    --color-rosa-alt-inverted: var(--rosa-300);
 
     --color-text: var(--color-slate-50);
     --color-text-muted: var(--color-slate-400);

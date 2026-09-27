@@ -77,14 +77,14 @@ export default function ProjetosTotais({ tipo }: ProjetosTotaisProps) {
                     <span className="font-medium text-text">Responsável:</span> {projeto.responsavel}
                     </p>
 
-                    <div className="text-small text-text-muted mb-1 flex items-center gap-1">
+                    <div className="text-small mb-1 flex items-center gap-1">
                         <span className="font-medium text-text">Prioridade:</span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${prioridadeStyles[projeto.prioridade]}`}>
                             {projeto.prioridade}
                         </span>
                     </div>
 
-                    <div className="text-small text-text-muted flex items-center gap-1">
+                    <div className="text-small flex items-center gap-1">
                         <span className="font-medium text-text">Status:</span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[projeto.status]}`}>
                             {projeto.status}
