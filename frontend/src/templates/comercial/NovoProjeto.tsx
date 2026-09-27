@@ -12,6 +12,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import { getToken } from "@/auth";
+
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -152,19 +154,21 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getToken();
 
     const payload = {
       os_titulo: titulo,
       os_descricao: descricao,
       prioridade: prioridade.toLowerCase(),
+      os_cliente: projeto,
+      data_limite: dataVencimento || dataAssinatura,
       id_time_responsavel: Number(responsavel),
     };
 
     setEnviando(true);
 
     try {
-      const resposta = await fetch(`${API_URL}/api/os`, {
+      const resposta = await fetch(`${API_URL}/os`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

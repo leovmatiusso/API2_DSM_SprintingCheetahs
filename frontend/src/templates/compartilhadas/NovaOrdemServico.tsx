@@ -10,6 +10,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import { getToken } from "@/auth";
+
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import Input from "@/components/ui/Input";
@@ -137,7 +139,7 @@ export default function NovaOrdemServico({
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getToken();
 
     const payload = {
       os_titulo: titulo,
@@ -150,7 +152,7 @@ export default function NovaOrdemServico({
     setEnviando(true);
 
     try {
-      const resposta = await fetch(`${API_URL}/api/os`, {
+      const resposta = await fetch(`${API_URL}/os`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

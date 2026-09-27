@@ -1,31 +1,28 @@
 import type { LoginResponse, Role, Time, User } from "./types";
+import { getToken, logout as clearSession } from "./auth";
 
-import { getToken } from "./auth";
-
-const API_URL = "http://localhost:3001/api";
+const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001/api").replace(/\/$/, "");
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-
-  headers.set("Content-Type", "application/json");
-
-  const token = getToken();
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
 
   let data: any = null;
-
   try {
     data = await response.json();
   } catch {
     data = null;
+  }
+
+  if (response.status === 401) {
+    clearSession();
   }
 
   if (!response.ok) {
@@ -35,71 +32,31 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-// =====================================================
-// LOGIN
-// =====================================================
-
 export function login(email: string, password: string): Promise<LoginResponse> {
   return request<LoginResponse>("/login", {
     method: "POST",
-    body: JSON.stringify({
-      email,
-      password,
-    }),
+    body: JSON.stringify({ email, password }),
   });
 }
-
-// =====================================================
-// LOGOUT
-// =====================================================
 
 export function logout(): Promise<void> {
-  return request<void>("/logout", {
-    method: "POST",
-  });
+  return request<void>("/logout", { method: "POST" });
 }
 
-// =====================================================
-// MINHA CONTA
-// =====================================================
-
-export function getAccount(): Promise<{
-  user: User;
-}> {
-  return request<{
-    user: User;
-  }>("/account");
+export function getAccount(): Promise<{ user: User }> {
+  return request<{ user: User }>("/account");
 }
-
-// =====================================================
-// ALTERAR SENHA
-// =====================================================
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   return request<void>("/change-password", {
     method: "PUT",
-    body: JSON.stringify({
-      currentPassword,
-      newPassword,
-    }),
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
 
-// =====================================================
-// USUÁRIOS
-// =====================================================
-
-export function getUsers(): Promise<{
-  users: User[];
-}> {
-  return request<{
-    users: User[];
-  }>("/users");
+export function getUsers(): Promise<{ users: User[] }> {
+  return request<{ users: User[] }>("/users");
 }
-
-// =====================================================
-// CADASTRAR USUÁRIO
-// =====================================================
 
 export function createUser(data: {
   name: string;
@@ -107,20 +64,12 @@ export function createUser(data: {
   password: string;
   role: Role;
   time_id?: string | null;
-}): Promise<{
-  user: User;
-}> {
-  return request<{
-    user: User;
-  }>("/users", {
+}): Promise<{ user: User }> {
+  return request<{ user: User }>("/users", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
-
-// =====================================================
-// EDITAR USUÁRIO
-// =====================================================
 
 export function updateUser(
   id: string,
@@ -132,62 +81,32 @@ export function updateUser(
     active: boolean;
     time_id: string | null;
   }>,
-): Promise<{
-  user: User;
-}> {
-  return request<{
-    user: User;
-  }>(`/users/${encodeURIComponent(id)}`, {
+): Promise<{ user: User }> {
+  return request<{ user: User }>(`/users/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
-// =====================================================
-// EXCLUIR USUÁRIO
-// =====================================================
-
 export function deleteUser(id: string): Promise<void> {
-  return request<void>(`/users/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return request<void>(`/users/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-// =====================================================
-// TIMES
-// =====================================================
-
-export function getTimes(): Promise<{
-  times: Time[];
-}> {
-  return request<{
-    times: Time[];
-  }>("/times");
+export function getTimes(): Promise<{ times: Time[] }> {
+  return request<{ times: Time[] }>("/times");
 }
-
-// =====================================================
-// CADASTRAR TIME
-// =====================================================
 
 export function createTime(data: {
   nome_time: string;
   departamento: string;
   responsavel_id: string | null;
   usuarios_ids: string[];
-}): Promise<{
-  time: Time;
-}> {
-  return request<{
-    time: Time;
-  }>("/times", {
+}): Promise<{ time: Time }> {
+  return request<{ time: Time }>("/times", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
-
-// =====================================================
-// EDITAR TIME
-// =====================================================
 
 export function updateTime(
   id: string,
@@ -197,23 +116,33 @@ export function updateTime(
     responsavel_id: string | null;
     usuarios_ids: string[];
   },
-): Promise<{
-  time: Time;
-}> {
-  return request<{
-    time: Time;
-  }>(`/times/${encodeURIComponent(id)}`, {
+): Promise<{ time: Time }> {
+  return request<{ time: Time }>(`/times/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
-// =====================================================
-// EXCLUIR TIME
-// =====================================================
-
 export function deleteTime(id: string): Promise<void> {
-  return request<void>(`/times/${encodeURIComponent(id)}`, {
-    method: "DELETE",
+  return request<void>(`/times/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function createOrdemServico(data: {
+  os_titulo: string;
+  os_descricao: string;
+  prioridade: "baixa" | "media" | "alta" | "critica";
+  os_cliente: string;
+  data_limite: string;
+  id_time_responsavel: string | number;
+}): Promise<{ message: string; os: { os_id: number; os_status: string } }> {
+  return request("/os", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
+
+export function getOrdensServico(): Promise<{ os: unknown[] }> {
+  return request<{ os: unknown[] }>("/os");
+}
+
+export { API_URL };
