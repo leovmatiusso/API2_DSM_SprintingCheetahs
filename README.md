@@ -13,6 +13,7 @@
   <a href="#metodologia">Metodologia</a> |
   <a href="#dor">DoR</a> | 
   <a href="#dod">DoD</a> | 
+  <a href="#cronograma">Cronograma</a>
   <a href="#equipe">Equipe</a>
 </p>
 
@@ -44,18 +45,27 @@
 
 ## 👨🏻‍💻 Tecnologias Utilizadas <a id="tecnologias"></a>
 
-<div>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/figma/figma-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/vscode/vscode-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/css3/css3-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/jira/jira-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/javascript/javascript-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/react/react-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/nodejs/nodejs-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/typescript/typescript-original.svg" width="40" height="40"/>
-  <img src="https://github.com/devicons/devicon/blob/master/icons/express/express-original.svg" width="40" height="40"/>
-  <img src="https://img.icons8.com/8E8E8E/ios-filled/50/github.png" alt="github" width="40" height="40"/>
-</div>
+<p align="center"> 
+  <img src="https://img.shields.io/badge/figma-%23F24E1E.svg?style=for-the-badge&logo=figma&logoColor=white" alt="Figma">
+  <img src="https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind">
+  <img src="https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5">
+  <img src="https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3">
+  <br>
+  
+  <img src="https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E" alt="JS">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt= "TypeScript">
+  <img src="https://img.shields.io/badge/node.js-339933?style=for-the-badge&logo=Node.js&logoColor=white" alt="Node">
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React">
+  <img src="https://img.shields.io/badge/express.js-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/" alt="Express">
+  <br> 
+  
+  <img src="https://img.shields.io/badge/Amazon_AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS">
+  <img src="https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=mariadb&logoColor=white" alt="MariaDB">
+  <img src="https://img.shields.io/badge/Visual%20Studio%20Code-0078d7.svg?style=for-the-badge&logo=visual-studio-code&logoColor=white" alt="VS Code">
+  <img src="https://img.shields.io/badge/jira-%230A0FFF.svg?style=for-the-badge&logo=jirasoftware&logoColor=white" alt="Jira">
+  <img src="https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white" alt="Discord">
+  
+</p>
 
 ---
 
@@ -127,6 +137,19 @@
 - **Bugs:** Sem erros críticos conhecidos
 
 ---
+
+## 📅 Cronograma<a id="cronograma"></a>
+O projeto está dividido em três Sprints, seguindo a metodologia ágil Scrum. O progresso atual é atualizado ao final de cada ciclo.
+
+<details><summary>ℹ️ Legenda</summary>
+&nbsp;&nbsp;📅 Planejado <br> &nbsp;&nbsp;🕒 Em andamento <br> &nbsp;&nbsp;✔️ Concluída
+</details>
+
+| Sprint | Período | Documentação | Status |
+| :---: | :---: | :---: | :---: |
+| **01** | 07/09 à 27/09 | [📄 Acessar](docs/mvp/mvp-sprint1.md) | ✔️ |
+| **02** | 05/10 à 25/10 | - | 📅 |
+| **03** | 02/11 à 22/11 | - | 📅 |
 
 ## Contribuição
 
