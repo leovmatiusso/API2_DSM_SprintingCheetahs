@@ -4,7 +4,7 @@
 ### 🎯 Objetivo do MVP
 O foco principal dessa Sprint foi a construção da base de funcionamento do sistema, por isso foram definidas como meta as US2, US5 e US6, as quais se tratam sobre o cadastro de novos usuários, abertura de novos projetos e abertura de novas manutenções, respectivamente.
 
-> <a href="">Clique aqui para ver o vídeo da Sprint!</a>
+> <a href="https://youtu.be/RlV-Jg2PDZ8">Clique aqui para ver o vídeo da Sprint!</a>
 
 ### 👥 Personas
 - **Equipe Comercial:** Responsável pela criação de novos projetos e OS vinculadas a um projeto 
