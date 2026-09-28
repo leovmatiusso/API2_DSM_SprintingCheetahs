@@ -133,25 +133,6 @@ export default function Cadastro() {
 
   return (
     <main className="page">
-      <header className="topbar">
-        <div>
-          <strong>Cadastro de usuário</strong>
-
-          <span className="role-badge">
-            {user.role === "superusuario" ? "Superusuário" : "Gestor"}
-          </span>
-        </div>
-
-        <div className="nav-actions">
-          <Button variant="secondary" onClick={() => navigate("/minha-conta")}>
-            Minha conta
-          </Button>
-
-          <Button variant="secondary" onClick={sair}>
-            Sair
-          </Button>
-        </div>
-      </header>
 
       <section className="card content flex flex-col gap-5">
         <h1>Novo usuário</h1>

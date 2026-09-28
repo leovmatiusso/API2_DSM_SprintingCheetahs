@@ -1,4 +1,10 @@
-import { ChangeEvent, FormEvent, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   ClipboardList,
@@ -12,13 +18,16 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-import { getToken } from "@/auth";
+import {
+  createOrdemServico,
+  createProjeto,
+  getTimes,
+  getTimesParaProjeto,
+} from "@/api";
 
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-
-// import "@/style/NovoProjeto.css";
 
 type TipoOS = "manutencao" | "novo-projeto";
 
@@ -26,9 +35,6 @@ interface NovoProjetoProps {
   tipo: TipoOS;
 }
 
-{
-  /* interfaces que definem o tipo dos objetos aceitos pelo form */
-}
 interface Equipamento {
   nome: string;
   quantidade: number;
@@ -38,96 +44,257 @@ interface Anexo {
   id: number;
   nome: string;
   tamanho: string;
+  arquivo: File;
+}
+
+interface Time {
+  id: string;
+  nome_time: string;
 }
 
 function Obrigatorio() {
   return (
-    <span className="text-danger ml-0.5 font-light" aria-hidden="true">
+    <span
+      className="text-danger ml-0.5 font-light"
+      aria-hidden="true"
+    >
       *
     </span>
   );
 }
 
-export default function NovoProjeto({ tipo }: NovoProjetoProps) {
+const EQUIPAMENTOS_DISPONIVEIS = [
+  "Aerostato",
+  "Torre",
+  "Câmera óptica",
+  "Câmera térmica",
+  "Switch",
+  "Roteador",
+  "Cabo de rede",
+  "Conector RJ45",
+  "Patch Cord",
+  "Sensor de movimento",
+];
+
+export default function NovoProjeto({
+  tipo,
+}: NovoProjetoProps) {
   const navigate = useNavigate();
 
-  const inputArquivo = useRef<HTMLInputElement>(null);
+  const inputArquivo =
+    useRef<HTMLInputElement>(null);
 
   const [projeto, setProjeto] = useState("");
-  const [equipamento, setEquipamento] = useState("");
   const [titulo, setTitulo] = useState("");
-  const [dataAssinatura, setDataAssinatura] = useState("");
-  const [dataVencimento, setDataVencimento] = useState("");
-  const [responsavel, setResponsavel] = useState("");
-  const [vendedor, setVendedor] = useState("");
+  const [dataAssinatura, setDataAssinatura] =
+    useState("");
+  const [dataVencimento, setDataVencimento] =
+    useState("");
+  const [responsavel, setResponsavel] =
+    useState("");
+  const [vendedor, setVendedor] =
+    useState("");
 
-  const [prioridade, setPrioridade] = useState("Baixa");
+  const [prioridade, setPrioridade] =
+    useState("Baixa");
 
-  const [prioridadeAberta, setPrioridadeAberta] = useState(false);
+  const [prioridadeAberta, setPrioridadeAberta] =
+    useState(false);
 
-  const [descricao, setDescricao] = useState("");
-  const [itens, setItens] = useState("");
+  const [buscaEquipamento, setBuscaEquipamento] =
+    useState("");
 
-  const [buscaEquipamento, setBuscaEquipamento] = useState("");
-  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [equipamentos, setEquipamentos] =
+    useState<Equipamento[]>([]);
 
-  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [
+    dropdownEquipamentoAberto,
+    setDropdownEquipamentoAberto,
+  ] = useState(false);
 
-  {
-    /* função de remover equipamento */
-  }
+  const [anexos, setAnexos] =
+    useState<Anexo[]>([]);
+
+  const [times, setTimes] =
+    useState<Time[]>([]);
+
+  const [carregandoTimes, setCarregandoTimes] =
+    useState(true);
+
+  const [enviando, setEnviando] =
+    useState(false);
+
+  const [erro, setErro] =
+    useState<string | null>(null);
+
+  const manutencao =
+    tipo === "manutencao";
+
+  useEffect(() => {
+    async function carregarTimes() {
+      setErro(null);
+
+      try {
+        if (manutencao) {
+          const resposta = await getTimes();
+          setTimes(
+            resposta.times.map((time) => ({
+              id: String(time.id),
+              nome_time: time.nome_time,
+            })),
+          );
+        } else {
+          const resposta = await getTimesParaProjeto();
+          setTimes(
+            resposta.times.map((time) => ({
+              id: String(time.id_time),
+              nome_time: time.nome_time,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erro ao carregar times:",
+          error,
+        );
+
+        setErro(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os times.",
+        );
+      } finally {
+        setCarregandoTimes(false);
+      }
+    }
+
+    carregarTimes();
+  }, []);
+
   function removerEquipamento(nome: string) {
-    setEquipamentos((prev) => prev.filter((eq) => eq.nome !== nome));
+    setEquipamentos((prev) =>
+      prev.filter(
+        (equipamento) =>
+          equipamento.nome !== nome,
+      ),
+    );
   }
 
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  function adicionarEquipamento(nome: string) {
+    setEquipamentos((prev) => {
+      const existente = prev.find(
+        (equipamento) =>
+          equipamento.nome === nome,
+      );
 
-  const manutencao = tipo === "manutencao";
+      if (existente) {
+        return prev.map((equipamento) =>
+          equipamento.nome === nome
+            ? {
+                ...equipamento,
+                quantidade:
+                  equipamento.quantidade + 1,
+              }
+            : equipamento,
+        );
+      }
 
-  function adicionarArquivos(event: ChangeEvent<HTMLInputElement>) {
+      return [
+        ...prev,
+        {
+          nome,
+          quantidade: 1,
+        },
+      ];
+    });
+
+    setBuscaEquipamento("");
+    setDropdownEquipamentoAberto(false);
+  }
+
+  function equipamentosFiltrados() {
+    return EQUIPAMENTOS_DISPONIVEIS.filter(
+      (nome) =>
+        nome
+          .toLowerCase()
+          .includes(
+            buscaEquipamento.toLowerCase(),
+          ),
+    );
+  }
+
+  function adicionarArquivos(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
     const arquivos = event.target.files;
 
     if (!arquivos) {
       return;
     }
 
-    const arquivosPDF = Array.from(arquivos).filter(
-      (arquivo) => arquivo.type === "application/pdf",
+    const arquivosPDF = Array.from(
+      arquivos,
+    ).filter(
+      (arquivo) =>
+        arquivo.type === "application/pdf",
     );
 
-    const arquivosInvalidos = Array.from(arquivos).filter(
-      (arquivo) => arquivo.type !== "application/pdf",
+    const arquivosInvalidos = Array.from(
+      arquivos,
+    ).filter(
+      (arquivo) =>
+        arquivo.type !== "application/pdf",
     );
 
     if (arquivosInvalidos.length > 0) {
-      alert("Apenas arquivos PDF são permitidos.");
+      alert(
+        "Apenas arquivos PDF são permitidos.",
+      );
     }
 
-    const novosAnexos = arquivosPDF.map((arquivo, index) => ({
-      id: Date.now() + index,
-      nome: arquivo.name,
-      tamanho: formatarTamanho(arquivo.size),
-    }));
+    const novosAnexos = arquivosPDF.map(
+      (arquivo, index) => ({
+        id: Date.now() + index,
+        nome: arquivo.name,
+        tamanho: formatarTamanho(
+          arquivo.size,
+        ),
+        arquivo,
+      }),
+    );
 
-    setAnexos((anterior) => [...anterior, ...novosAnexos]);
+    setAnexos((anterior) => [
+      ...anterior,
+      ...novosAnexos,
+    ]);
 
     event.target.value = "";
   }
 
   function removerAnexo(id: number) {
-    setAnexos((anterior) => anterior.filter((anexo) => anexo.id !== id));
+    setAnexos((anterior) =>
+      anterior.filter(
+        (anexo) => anexo.id !== id,
+      ),
+    );
   }
 
   function formatarTamanho(bytes: number) {
     if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(
+        bytes / 1024
+      ).toFixed(1)} KB`;
     }
 
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(
+      bytes /
+      (1024 * 1024)
+    ).toFixed(1)} MB`;
   }
 
-  function selecionarPrioridade(valor: string) {
+  function selecionarPrioridade(
+    valor: string,
+  ) {
     setPrioridade(valor);
     setPrioridadeAberta(false);
   }
@@ -144,61 +311,150 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
     return prioridade;
   }
 
-  async function enviarFormulario(event: FormEvent) {
+  async function enviarFormulario(
+    event: FormEvent,
+  ) {
     event.preventDefault();
 
-    setErro(null);
-
-    if (!responsavel) {
-      setErro("Selecione o time responsável.");
+    if (enviando) {
       return;
     }
 
-    const token = getToken();
+    setErro(null);
 
-    const payload = {
-      os_titulo: titulo,
-      os_descricao: descricao,
-      prioridade: prioridade.toLowerCase(),
-      os_cliente: projeto,
-      data_limite: dataVencimento || dataAssinatura,
-      id_time_responsavel: Number(responsavel),
+    if (!titulo.trim()) {
+      setErro(
+        "Informe o título do projeto.",
+      );
+      return;
+    }
+
+    if (!responsavel) {
+      setErro(
+        "Selecione o time responsável.",
+      );
+      return;
+    }
+
+    if (!manutencao && !vendedor.trim()) {
+      setErro("Informe o vendedor cadastrado.");
+      return;
+    }
+
+    if (!dataAssinatura) {
+      setErro(
+        "Informe a data de assinatura.",
+      );
+      return;
+    }
+
+    if (!dataVencimento) {
+      setErro(
+        "Informe a data de vencimento.",
+      );
+      return;
+    }
+
+    if (!projeto) {
+      setErro(
+        "Selecione o tipo de sistema.",
+      );
+      return;
+    }
+
+    const tiposSistema: Record<string, string> = {
+      "1": "Sistema de Torres",
+      "2": "Sistema de Embarcação",
+      "3": "Sistema de Sonda",
     };
+
+    if (!manutencao && !tiposSistema[projeto]) {
+      setErro("Selecione um tipo de sistema válido.");
+      return;
+    }
 
     setEnviando(true);
 
     try {
-      const resposta = await fetch(`${API_URL}/os`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
+      if (manutencao) {
+        const prioridadeBanco = prioridade.toLowerCase() as
+          | "baixa"
+          | "media"
+          | "alta"
+          | "critica";
+        const descricaoOS = `Solicitação de novo projeto: ${titulo.trim()}`;
 
-      const dados = await resposta.json();
+        const resposta = await createOrdemServico({
+          os_titulo: titulo.trim(),
+          os_descricao: descricaoOS,
+          prioridade: prioridadeBanco,
+          data_limite: dataVencimento,
+          id_time_responsavel: responsavel,
+        });
 
-      if (!resposta.ok) {
-        setErro(dados.message ?? "Não foi possível abrir a ordem de serviço.");
-        return;
+        alert(resposta.message || "Ordem de serviço aberta com sucesso!");
+      } else {
+        const anexosPayload = await Promise.all(
+          anexos.map(
+            (anexo) =>
+              new Promise<{
+                nome_anexo: string;
+                anexo_tipo: string;
+                anexo_tamanho: number;
+                conteudo_arquivo_base64: string;
+              }>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const resultado = String(reader.result ?? "");
+                  const separador = resultado.indexOf(",");
+                  resolve({
+                    nome_anexo: anexo.arquivo.name,
+                    anexo_tipo: anexo.arquivo.type || "application/pdf",
+                    anexo_tamanho: anexo.arquivo.size,
+                    conteudo_arquivo_base64:
+                      separador >= 0 ? resultado.slice(separador + 1) : resultado,
+                  });
+                };
+                reader.onerror = () => reject(new Error(`Não foi possível ler ${anexo.nome}.`));
+                reader.readAsDataURL(anexo.arquivo);
+              }),
+          ),
+        );
+
+        const resposta = await createProjeto({
+          nome: titulo.trim(),
+          data_assinatura_contrato: dataAssinatura,
+          data_vencimento_contrato: dataVencimento,
+          tipo_sistema: tiposSistema[projeto],
+          id_time_responsavel: Number(responsavel),
+          vendedor_nome: vendedor.trim(),
+          equipamentos: equipamentos.map(({ nome, quantidade }) => ({
+            nome_equipamento: nome,
+            quantidade,
+          })),
+          anexos: anexosPayload,
+        });
+
+        alert(resposta.message || "Projeto criado com sucesso!");
       }
 
       navigate("/dashboard");
-    } catch {
-      setErro("Não foi possível conectar ao servidor. Tente novamente.");
+    } catch (error) {
+      console.error(
+        manutencao ? "Erro ao abrir ordem de serviço:" : "Erro ao criar projeto:",
+        error,
+      );
+
+      setErro(
+        error instanceof Error
+          ? error.message
+          : manutencao
+            ? "Não foi possível abrir a ordem de serviço."
+            : "Não foi possível criar o projeto.",
+      );
     } finally {
       setEnviando(false);
     }
-  }
-
-  {
-    /*
-    Front-end apenas.
-    
-    O envio real poderá ser conectado
-    ao back-end posteriormente.
-    */
   }
 
   return (
@@ -227,10 +483,23 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               </p>
             </div>
           </div>
+
           <p className="text-text-muted mt-4 text-xs">
-            Campos marcados com <span className="text-red-500">*</span> são obrigatórios.
+            Campos marcados com{" "}
+            <span className="text-red-500">
+              *
+            </span>{" "}
+            são obrigatórios.
           </p>
         </div>
+
+        {/* ERRO */}
+
+        {erro && (
+          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {erro}
+          </div>
+        )}
 
         {/* CAMPOS */}
 
@@ -242,7 +511,11 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               id="titulo"
               label="Título do Projeto"
               value={titulo}
-              onChange={(event) => setTitulo(event.target.value)}
+              onChange={(event) =>
+                setTitulo(
+                  event.target.value,
+                )
+              }
               placeholder={
                 !manutencao
                   ? "Ex.: Manutenção de equipamento"
@@ -252,28 +525,56 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
             />
           </div>
 
-          {/*RESPONSÁVEL*/}
+          {/* RESPONSÁVEL */}
 
           <div>
-            <Input
+            <label className="text-text-muted mb-2 block text-sm font-semibold">
+              Time responsável
+              <Obrigatorio />
+            </label>
+
+            <select
               id="responsavel"
-              label="Responsável"
               value={responsavel}
-              onChange={(event) => setResponsavel(event.target.value)}
-              placeholder={"Ex.: João Silva"}
+              onChange={(event) =>
+                setResponsavel(
+                  event.target.value,
+                )
+              }
+              disabled={carregandoTimes}
               required
-            />
+              className="border-border bg-bg text-text h-11 w-full rounded-lg border px-3 outline-none"
+            >
+              <option value="">
+                {carregandoTimes
+                  ? "Carregando times..."
+                  : "Selecione o time responsável"}
+              </option>
+
+              {times.map((time) => (
+                <option
+                  key={time.id}
+                  value={time.id}
+                >
+                  {time.nome_time}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/*VENDEDOR*/}
+          {/* VENDEDOR */}
 
           <div>
             <Input
               id="vendedor"
               label="Vendedor"
               value={vendedor}
-              onChange={(event) => setResponsavel(event.target.value)}
-              placeholder={"Ex.: João Silva"}
+              onChange={(event) =>
+                setVendedor(
+                  event.target.value,
+                )
+              }
+              placeholder="Ex.: João Silva"
               required
             />
           </div>
@@ -282,10 +583,14 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
 
           <div>
             <Input
-              id="prazo"
+              id="data-assinatura"
               type="date"
               value={dataAssinatura}
-              onChange={(event) => setDataAssinatura(event.target.value)}
+              onChange={(event) =>
+                setDataAssinatura(
+                  event.target.value,
+                )
+              }
               required
               iconRight={CalendarArrowUp}
               label="Data de assinatura"
@@ -296,10 +601,14 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
 
           <div>
             <Input
-              id="prazo"
+              id="data-vencimento"
               type="date"
               value={dataVencimento}
-              onChange={(event) => setDataVencimento(event.target.value)}
+              onChange={(event) =>
+                setDataVencimento(
+                  event.target.value,
+                )
+              }
               required
               iconRight={CalendarArrowDown}
               label="Data de vencimento"
@@ -318,47 +627,80 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               <button
                 type="button"
                 className="prioridade-select border-border hover:border-border-hover flex h-11 w-full cursor-pointer items-center justify-between rounded-lg border px-3 transition outline-none"
-                onClick={() => setPrioridadeAberta(!prioridadeAberta)}
+                onClick={() =>
+                  setPrioridadeAberta(
+                    !prioridadeAberta,
+                  )
+                }
               >
-                <span className={`badge prioridade-${prioridade.toLowerCase()} `}>
+                <span
+                  className={`badge prioridade-${prioridade.toLowerCase()}`}
+                >
                   {nomePrioridade()}
                 </span>
 
-                <ChevronDown size={18} className="text-text-muted" />
+                <ChevronDown
+                  size={18}
+                  className="text-text-muted"
+                />
               </button>
 
               {prioridadeAberta && (
                 <div className="prioridade-menu border-border absolute right-0 left-0 z-20 mt-1.5 rounded-lg border p-1.5 shadow-lg">
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Baixa")}
+                    onClick={() =>
+                      selecionarPrioridade(
+                        "Baixa",
+                      )
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-baixa">Baixa</span>
+                    <span className="badge prioridade-baixa">
+                      Baixa
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Media")}
+                    onClick={() =>
+                      selecionarPrioridade(
+                        "Media",
+                      )
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-media">Média</span>
+                    <span className="badge prioridade-media">
+                      Média
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Alta")}
+                    onClick={() =>
+                      selecionarPrioridade(
+                        "Alta",
+                      )
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-alta">Alta</span>
+                    <span className="badge prioridade-alta">
+                      Alta
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => selecionarPrioridade("Critica")}
+                    onClick={() =>
+                      selecionarPrioridade(
+                        "Critica",
+                      )
+                    }
                     className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
                   >
-                    <span className="badge prioridade-critica">Crítica</span>
+                    <span className="badge prioridade-critica">
+                      Crítica
+                    </span>
                   </button>
                 </div>
               )}
@@ -366,22 +708,34 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
           </div>
 
           {/* TIPO DE SISTEMA */}
-          
+
           <div>
             <Select
               id="tipo-sistema"
               label="Tipo de sistema"
               value={projeto}
-              onChange={(event) => setProjeto(event.target.value)}
+              onChange={(event) =>
+                setProjeto(
+                  event.target.value,
+                )
+              }
               required
             >
               <option value="" hidden>
                 Selecione o tipo de sistema
               </option>
 
-              <option value="1">Tipo de sistema 1</option>
-              <option value="2">Tipo de sistema 2</option>
-              <option value="3">Tipo de sistema 3</option>
+              <option value="1">
+                Sistema de Torres
+              </option>
+
+              <option value="2">
+                Sistema de Embarcação
+              </option>
+
+              <option value="3">
+                Sistema de Sonda
+              </option>
             </Select>
           </div>
 
@@ -389,31 +743,90 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
 
           <div className="col-span-4 mt-8 grid grid-cols-[1fr_auto_1fr] gap-6">
             <div className="flex flex-col gap-4">
-              <Input
-                type="text"
-                value={buscaEquipamento}
-                onChange={(e) => setBuscaEquipamento(e.target.value)}
-                placeholder="Buscar equipamentos e materiais"
-                label="Equipamentos e materiais"
-              />
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={buscaEquipamento}
+                  onChange={(event) => {
+                    setBuscaEquipamento(
+                      event.target.value,
+                    );
+
+                    setDropdownEquipamentoAberto(
+                      true,
+                    );
+                  }}
+                  onFocus={() =>
+                    setDropdownEquipamentoAberto(
+                      true,
+                    )
+                  }
+                  onBlur={() =>
+                    setTimeout(
+                      () =>
+                        setDropdownEquipamentoAberto(
+                          false,
+                        ),
+                      150,
+                    )
+                  }
+                  placeholder="Buscar equipamentos e materiais"
+                  label="Equipamentos e materiais"
+                />
+
+                {dropdownEquipamentoAberto && (
+                  <div className="border-border bg-bg absolute right-0 left-0 z-20 mt-1.5 max-h-56 overflow-y-auto rounded-lg border p-1.5 shadow-lg">
+                    {equipamentosFiltrados()
+                      .length === 0 ? (
+                      <p className="text-text-muted px-2 py-1.5 text-sm">
+                        Nenhum equipamento encontrado.
+                      </p>
+                    ) : (
+                      equipamentosFiltrados().map(
+                        (nome) => (
+                          <button
+                            key={nome}
+                            type="button"
+                            onClick={() =>
+                              adicionarEquipamento(
+                                nome,
+                              )
+                            }
+                            className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-text"
+                          >
+                            {nome}
+                          </button>
+                        ),
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex flex-wrap gap-2">
-                {equipamentos.map((eq) => (
-                  <span
-                    key={eq.nome}
-                    className="bg-primary/15 text-primary flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
-                  >
-                    {eq.quantidade}x {eq.nome}
-                    <X
-                      className="h-3 w-3 cursor-pointer"
-                      onClick={() => removerEquipamento(eq.nome)}
-                    />
-                  </span>
-                ))}
+                {equipamentos.map(
+                  (equipamento) => (
+                    <span
+                      key={equipamento.nome}
+                      className="bg-primary/15 text-primary flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
+                    >
+                      {equipamento.quantidade}x{" "}
+                      {equipamento.nome}
+
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() =>
+                          removerEquipamento(
+                            equipamento.nome,
+                          )
+                        }
+                      />
+                    </span>
+                  ),
+                )}
               </div>
             </div>
 
-            {/* linha que separa o campo de equipamento com anexo */}
             <div className="border-border w-px border-l" />
 
             <div className="ml-auto h-full w-full">
@@ -421,7 +834,10 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
                 <Link size={19} />
 
                 <span>Anexos</span>
-                <span className="font-normal text-slate-400">(opcional)</span>
+
+                <span className="font-normal text-slate-400">
+                  (opcional)
+                </span>
               </div>
 
               {anexos.map((anexo) => (
@@ -432,15 +848,23 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
                   <div className="flex min-w-0 items-center gap-2">
                     <span>📄</span>
 
-                    <span className="text-text-muted truncate">{anexo.nome}</span>
+                    <span className="text-text-muted truncate">
+                      {anexo.nome}
+                    </span>
 
-                    <span className="text-text-muted shrink-0">{anexo.tamanho}</span>
+                    <span className="text-text-muted shrink-0">
+                      {anexo.tamanho}
+                    </span>
                   </div>
 
                   <button
                     type="button"
                     className="text-text-muted ml-2 shrink-0 p-1 hover:text-red-500"
-                    onClick={() => removerAnexo(anexo.id)}
+                    onClick={() =>
+                      removerAnexo(
+                        anexo.id,
+                      )
+                    }
                   >
                     <X size={15} />
                   </button>
@@ -460,7 +884,9 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
               <button
                 type="button"
                 className="border-primary bg-primary-muted text-primary hover:border-primary-hover hover:bg-primary/25 mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
-                onClick={() => inputArquivo.current?.click()}
+                onClick={() =>
+                  inputArquivo.current?.click()
+                }
               >
                 <Upload size={18} />
                 Upload
@@ -472,12 +898,25 @@ export default function NovoProjeto({ tipo }: NovoProjetoProps) {
         {/* BOTÕES */}
 
         <div className="mt-8 flex items-center justify-end gap-6">
-          <Button type="button" variant="outline" size="lg" onClick={() => navigate("/dashboard")}>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={() =>
+              navigate("/dashboard")
+            }
+          >
             Voltar
           </Button>
 
-          <Button type="submit" variant="primary" size="lg">
-            Solicitar O.S.
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+          >
+            {enviando
+              ? "Enviando..."
+              : "Solicitar O.S."}
           </Button>
         </div>
       </form>

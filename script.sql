@@ -90,7 +90,6 @@ CREATE TABLE os (
     os_id INT PRIMARY KEY AUTO_INCREMENT,
     os_titulo VARCHAR(150) NOT NULL,
     os_descricao TEXT NOT NULL,
-    os_cliente VARCHAR(150) NOT NULL,
     os_status ENUM(
         'aberta',
         'em andamento',
@@ -259,9 +258,9 @@ INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id) VALUES
 ('Software', 'software@empresa.com', 'software', 'scrypt:e0fbf81ea30fb0310350d12fc6e0858b:7dc391979d9f6500ee85685b7ba3229a1928bdbb6bd4cb03ff158a2949b695755918dd4c58a8e132809010cb44a660bd50c31e6b0f2ab8d40c2c7d5ad7296805', TRUE, NULL),
 ('Implantação', 'implantacao@empresa.com', 'implantacao', 'scrypt:f79381f899e0a9b58754f1b02fd5b8aa:83f75865934992466e1b8292036a9b77d26823541a59a686ea54d6d32d8a89bc891af6059d32989c4f315befc8981ac0ea57ba7778da739690b1520aaa959366', TRUE, NULL);
 
-INSERT INTO time (nome_time, email_time, departamento, responsavel_id) VALUES
-('Software', NULL, 'Software', 6),
-('Comercial', NULL, 'Comercial', 3);
+INSERT INTO time (nome_time, email_time, departamento) VALUES
+('Software', NULL, 'Software'),
+('Comercial', NULL, 'Comercial');
 
 UPDATE usuarios SET time_id = 1 WHERE id_usuario = 6;
 UPDATE usuarios SET time_id = 2 WHERE id_usuario = 3;

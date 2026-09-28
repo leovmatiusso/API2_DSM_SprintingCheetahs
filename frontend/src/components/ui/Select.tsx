@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 
 interface SelectProps extends ComponentPropsWithoutRef<"select"> {
   label?: string;
+  textSize?: "xs" | "sm" | "base" | "lg" | "xl";
 }
 
 export default function Select({
@@ -11,6 +12,7 @@ export default function Select({
   value,
   className = "",
   children,
+  textSize = "sm",
   ...props
 }: SelectProps) {
   const isEmpty = value === "";
@@ -20,7 +22,7 @@ export default function Select({
       {label && (
         <label
           htmlFor={props.id}
-          className="text-text-muted mb-2 block text-sm font-semibold"
+          className={`text-text-muted mb-2 block text-${textSize} font-semibold`}
         >
           {label}
 
@@ -44,7 +46,7 @@ export default function Select({
           bg-bg
           h-11 w-full rounded-lg
           border border-border
-          px-3 text-sm
+          px-3 text-${textSize}
           outline-none transition
           focus:border-primary
           focus:ring-2 focus:ring-primary

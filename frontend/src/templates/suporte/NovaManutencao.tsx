@@ -1,10 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import {
   ClipboardList,
-  Clock,
-  CircleAlert,
-  Wrench,
-  Users,
   Paperclip,
   Upload,
   X,
@@ -12,21 +8,32 @@ import {
 } from "lucide-react";
 
 import { getCurrentUser, logout } from "@/auth";
+import { createManutencao } from "@/api";
 
 import Button from "@/components/ui/Button";
 
-{
-  /* imports para o formulário */
-}
+{  /* imports para o formulário */}
 import { FormEvent, useEffect, useState } from "react";
 
 import "@/style/NovaManutencao.css";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
-{
-  /* variáveis para os campos */
-}
+{/* variável dos equipamentos */}
+const EQUIPAMENTOS_DISPONIVEIS = [
+  "Aerostato",
+  "Torre",
+  "Câmera óptica",
+  "Câmera térmica",
+  "Switch",
+  "Roteador",
+  "Cabo de rede",
+  "Conector RJ45",
+  "Patch Cord",
+  "Sensor de movimento",
+];
+
+{  /* variáveis para os campos */}
 const tiposManutencao = [
   { value: "preventiva", label: "Preventiva" },
   { value: "corretiva", label: "Corretiva" },
@@ -80,6 +87,7 @@ export default function NovaManutencao() {
 
   const [buscaEquipamento, setBuscaEquipamento] = useState("");
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [dropdownEquipamentoAberto, setDropdownEquipamentoAberto] = useState(false);
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
 
@@ -90,9 +98,31 @@ export default function NovaManutencao() {
     setEquipamentos((prev) => prev.filter((eq) => eq.nome !== nome));
   }
 
-  {
-    /* função de upload do arquivo */
+  {/* função de adicionar equipamento */}
+  function adicionarEquipamento(nome: string) {
+    setEquipamentos((prev) => {
+      const existente = prev.find((eq) => eq.nome === nome);
+
+      if (existente) {
+        return prev.map((eq) =>
+          eq.nome === nome ? { ...eq, quantidade: eq.quantidade + 1 } : eq,
+        );
+      }
+
+      return [...prev, { nome, quantidade: 1 }];
+    });
+
+    setBuscaEquipamento("");
+    setDropdownEquipamentoAberto(false);
   }
+
+  function equipamentosFiltrados() {
+    return EQUIPAMENTOS_DISPONIVEIS.filter((nome) =>
+      nome.toLowerCase().includes(buscaEquipamento.toLowerCase()),
+    );
+  }
+
+  {/* função de upload do arquivo */}
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files) return;
@@ -107,28 +137,81 @@ export default function NovaManutencao() {
     e.target.value = "";
   }
 
-  {
-    /* função para remover anexo */
-  }
+  {/* função para remover anexo */}
   function removerAnexo(nome: string) {
     setAnexos((prev) => prev.filter((a) => a.nome !== nome));
   }
 
-  {
-    /* função para submeter o form */
-  }
-  function handleSubmit(e: FormEvent) {
+  {/* função para submeter o form */}
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const payload = {
-      tipoManutencao,
-      responsavel,
-      dataInicio,
-      prioridade,
-      descricao,
-      equipamentos,
-      anexos: anexos.map((a) => a.arquivo),
-    };
+    if (!tipoManutencao || !responsavel.trim() || !dataInicio || !prioridade || !descricao.trim()) {
+      alert("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    try {
+      const anexosPayload = await Promise.all(
+        anexos.map(
+          (anexo) =>
+            new Promise<{
+              nome_anexo: string;
+              anexo_tipo: string;
+              anexo_tamanho: number;
+              conteudo_arquivo_base64: string;
+            }>((resolve, reject) => {
+              const reader = new FileReader();
+
+              reader.onload = () => {
+                const resultado = String(reader.result ?? "");
+                const separador = resultado.indexOf(",");
+
+                resolve({
+                  nome_anexo: anexo.arquivo.name,
+                  anexo_tipo: anexo.arquivo.type || "application/octet-stream",
+                  anexo_tamanho: anexo.arquivo.size,
+                  conteudo_arquivo_base64:
+                    separador >= 0 ? resultado.slice(separador + 1) : resultado,
+                });
+              };
+
+              reader.onerror = () => {
+                reject(new Error(`Não foi possível ler o arquivo ${anexo.nome}.`));
+              };
+
+              reader.readAsDataURL(anexo.arquivo);
+            }),
+        ),
+      );
+
+      await createManutencao({
+        tipo_manutencao: tipoManutencao as
+          | "preventiva"
+          | "corretiva"
+          | "adaptativa"
+          | "evolutiva",
+        responsavel_nome: responsavel.trim(),
+        data_inicio_problema: dataInicio,
+        prioridade: prioridade as "baixa" | "media" | "alta" | "critica",
+        descricao_situacao: descricao.trim(),
+        equipamentos: equipamentos.map(({ nome, quantidade }) => ({
+          nome_equipamento: nome,
+          quantidade,
+        })),
+        anexos: anexosPayload,
+      });
+
+      alert("Manutenção criada com sucesso!");
+      navigate(-1);
+    } catch (error) {
+      console.error("Erro ao criar manutenção:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar a manutenção.",
+      );
+    }
   }
 
   return (
@@ -138,11 +221,13 @@ export default function NovaManutencao() {
           <form onSubmit={handleSubmit}>
             {/* Título */}
             <div className="mb-8 flex items-start gap-4">
-              <div className="bg-primary/15 flex h-12 w-12 items-center justify-center rounded-full">
-                <ClipboardList className="text-primary size-6" />
+
+              <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+                <ClipboardList className="text-primary" size={30} />
               </div>
+
               <div>
-                <h1 className="text-2xl font-semibold">Resumo</h1>
+                <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]"> Resumo </h1>
                 <p className="muted text-sm">
                   Crie uma nova manutenção e atribua OS a ela após criação
                 </p>
@@ -249,13 +334,41 @@ export default function NovaManutencao() {
             {/* Campo de equipamento e anexos */}
             <div className="grid grid-cols-[1fr_auto_1fr] gap-6">
               <div className="flex flex-col gap-4">
-                <Input
-                  type="text"
-                  label="Equipamentos e materiais"
-                  value={buscaEquipamento}
-                  onChange={(e) => setBuscaEquipamento(e.target.value)}
-                  placeholder="Buscar equipamentos e materiais"
-                />
+                <div className="relative">
+                  <Input
+                    type="text"
+                    label="Equipamentos e materiais"
+                    value={buscaEquipamento}
+                    onChange={(e) => {
+                      setBuscaEquipamento(e.target.value);
+                      setDropdownEquipamentoAberto(true);
+                    }}
+                    onFocus={() => setDropdownEquipamentoAberto(true)}
+                    onBlur={() => setTimeout(() => setDropdownEquipamentoAberto(false), 150)}
+                    placeholder="Buscar equipamentos e materiais"
+                  />
+
+                  {dropdownEquipamentoAberto && (
+                    <div className="border-border bg-bg absolute right-0 left-0 z-20 mt-1.5 max-h-56 overflow-y-auto rounded-lg border p-1.5 shadow-lg">
+                      {equipamentosFiltrados().length === 0 ? (
+                        <p className="text-text-muted px-2 py-1.5 text-sm">
+                          Nenhum equipamento encontrado.
+                        </p>
+                      ) : (
+                        equipamentosFiltrados().map((nome) => (
+                          <button
+                            key={nome}
+                            type="button"
+                            onClick={() => adicionarEquipamento(nome)}
+                            className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-text"
+                          >
+                            {nome}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap gap-2">
                   {equipamentos.map((eq) => (

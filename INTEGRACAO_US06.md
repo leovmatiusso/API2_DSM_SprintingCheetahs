@@ -56,7 +56,6 @@ Na AWS, o banco pode ser criado em Amazon RDS for MySQL. O backend deve receber 
 - Login, usuários e alteração de senha consultam e gravam no MySQL.
 - Usuários e times deixaram de ser armazenados em arrays em memória.
 - CRUD de times mantém os vínculos entre usuários e responsáveis.
-- O.S. usa o campo `os_cliente` também no banco, alinhando schema, API e formulário.
 - Sessões continuam temporárias em memória; os dados de negócio ficam persistidos no banco.
 - Token usado pelas telas de O.S. passa a ser o mesmo token salvo pelo módulo de autenticação.
 - `VITE_API_URL` e variáveis do backend ficam configuráveis por ambiente.

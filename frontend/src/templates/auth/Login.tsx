@@ -87,7 +87,6 @@ export default function Login() {
             autoComplete="username"
             required
             variant="pill"
-            textSize="lg"
           />
 
           <PasswordInput
@@ -98,7 +97,6 @@ export default function Login() {
             placeholder="Digite sua senha"
             required
             variant="pill"
-            textSize="lg"
           />
           </div>
 
@@ -113,8 +111,6 @@ export default function Login() {
               <span className="select-none">Contas para teste — senha: </span>
               123456
             </strong>
-
-            <span className="text-xl">Se clicar nos emails loga 🙂</span>
 
             <span
               className="cursor-pointer underline underline-offset-1 hover:font-semibold"

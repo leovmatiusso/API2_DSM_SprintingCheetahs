@@ -28,60 +28,6 @@ export default function Dashboard() {
 
   return (
     <main className="bg-bg-secondary text-text min-h-screen p-6">
-      {/* Cabeçalho */}
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <strong className="text-xl">Sistema de O.S.</strong>
-
-          <span className="ml-3 rounded-full bg-red-100 px-3 py-1 text-sm text-red-700">
-            Gestor
-          </span>
-        </div>
-
-        {/* Menu do usuário */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuAberto(!menuAberto)}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-gray-100"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-700">
-              <User size={18} />
-            </div>
-
-            <span className="text-sm font-medium">{user.name}</span>
-
-            <ChevronDown
-              size={17}
-              className={`transition-transform ${
-                menuAberto ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          {/* Dropdown */}
-          {menuAberto && (
-            <div className="absolute right-0 z-10 mt-2 w-44 rounded-lg border border-gray-300 bg-bg p-1 shadow-md">
-              <button
-                type="button"
-                onClick={() => navigate("/minha-conta")}
-                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-gray-100"
-              >
-                Minha conta
-              </button>
-
-              <button
-                type="button"
-                onClick={sair}
-                className="w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-gray-100"
-              >
-                Sair
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-
       {/* Conteúdo */}
       <section>
         <p className="text-text-muted mb-1 text-sm">Painel inicial</p>

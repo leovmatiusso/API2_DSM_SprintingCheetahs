@@ -25,28 +25,6 @@ export default function Modulo({
   }
   return (
     <main className={`page ${pageClassName}`.trim()}>
-      <header className="topbar">
-        <div>
-          <strong>Sistema de O.S.</strong>
-          <span className="role-badge">{user.role}</span>
-        </div>
-        <nav className="nav-actions">
-          <Button variant="secondary" onClick={() => navigate("/dashboard")}>
-            Dashboard
-          </Button>
-          <Button variant="secondary" onClick={() => navigate("/minha-conta")}>
-            Minha conta
-          </Button>
-          {user.role === "superusuario" && (
-            <Button variant="secondary" onClick={() => navigate("/usuarios")}>
-              Usuários
-            </Button>
-          )}
-          <Button variant="secondary" onClick={sair}>
-            Sair
-          </Button>
-        </nav>
-      </header>
       <section className="card content">
         <div className="module-heading">
           <div>

@@ -28,7 +28,7 @@
 
 .login-card h1 {
   margin-bottom: 8px;
-  color: #2563eb !important;
+  color: #3E69C5 !important;
 }
 
 .login-card label {
@@ -202,7 +202,7 @@ input:-webkit-autofill:active {
   padding: 12px;
   border-radius: 25px;
   background:
-    linear-gradient(90deg,#0c508b,#4facfe) !important;
+    linear-gradient(90deg,#271F83,#4facfe) !important;
   color: #ffffff !important;
   font-weight: bold;
   border: none;
