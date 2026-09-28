@@ -1,0 +1,26 @@
+@reference "./Theme.css";
+
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.dashboard-actions small {
+  font-weight: 400;
+}
+
+.dashboard-section-title {
+  margin-top: 32px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.menu-card {
+  @apply bg-transparent text-text border border-border dark:hover:bg-bg-tertiary shadow-lg/5 rounded-xl gap-2 p-8 grid text-left cursor-pointer;
+}

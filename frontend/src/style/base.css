@@ -1,0 +1,143 @@
+@import "./Theme.css";
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--color-bg-secondary);
+}
+
+body {
+  min-height: 100vh;
+
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.card {
+  @apply bg-bg rounded-xl p-7 ring-1 ring-border;
+}
+
+.page {
+  min-height: 100vh;
+
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.topbar {
+  @apply bg-bg border-b border-border flex justify-between items-center gap-4 px-6 py-4;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.role-badge {
+  @apply ml-2.5 rounded-full bg-secondary text-xs px-2 py-1 text-text;
+}
+
+.content {
+  max-width: 1100px;
+  margin: 40px auto;
+}
+
+.input-label {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-weight: 700;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+}
+
+input[type="date"].date-empty {
+  color: var(--color-text-muted);
+}
+
+input[type="date"].date-empty::-webkit-datetime-edit {
+  color: var(--color-text-muted);
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  color: inherit;
+}
+
+select.select-empty {
+  color: var(--color-text-muted);
+}
+
+select option {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+select option[value=""] {
+  color: var(--color-text-muted);
+}
+
+h1 {
+  margin-top: 0;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+input.no-dark {
+  background-color: white;
+}
+
+.password-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.error,
+.success,
+.info {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.info {
+  @apply text-primary bg-primary/15;
+}
+
+.muted {
+  color: #6b7280;
+}

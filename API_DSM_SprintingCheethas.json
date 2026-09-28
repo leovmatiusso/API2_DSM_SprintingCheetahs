@@ -1,0 +1,19 @@
+{
+  "name": "API2_DSM_SprintingCheethas",
+  "project": "Sistema de Ordem de Serviço",
+  "structure": {
+    "backend": "backend",
+    "frontend": "frontend",
+    "templates": "frontend/src/templates",
+    "styles": "frontend/src/style"
+  },
+  "entrypoints": {
+    "backend": "backend/src/server.ts",
+    "frontend": "frontend/src/main.tsx"
+  },
+  "notes": [
+    "Os package.json permanecem com esse nome porque npm exige esse arquivo para instalação e execução normal.",
+    "Os arquivos de página foram movidos de pages para templates.",
+    "Cada página possui seu CSS separado dentro de frontend/src/style."
+  ]
+}
