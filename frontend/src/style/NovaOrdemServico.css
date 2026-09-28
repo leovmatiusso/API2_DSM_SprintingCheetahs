@@ -1,0 +1,122 @@
+@reference "./Theme.css";
+
+/* =========================================
+   CARD PRINCIPAL
+========================================= */
+
+.nova-os-card {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+
+/* =========================================
+   CAMPOS
+========================================= */
+
+.nova-os-input {
+  background: var(--color-bg);
+  color: var(--color-text);
+  height: 44px;
+  font-family: inherit;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.nova-os-input:focus {
+  border-color: var(--primary-500);
+
+  box-shadow:
+    0 0 0 2px rgba(75, 120, 221, 0.15);
+}
+
+
+/* Placeholder */
+
+.nova-os-input::placeholder {
+  color: #94a3b8;
+}
+
+
+/* Select */
+
+.nova-os-input option {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+
+/* =========================================
+   SELETOR DE PRIORIDADE
+========================================= */
+
+.prioridade-select {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.prioridade-select:hover {
+  background: var(--color-bg);
+}
+
+
+/* =========================================
+   MENU DE PRIORIDADE
+========================================= */
+
+.prioridade-menu {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+
+/* =========================================
+   PRIORIDADE
+========================================= */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 65px;
+
+  padding: 5px 10px;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+
+/* Baixa */
+
+.prioridade-baixa {
+  @apply bg-success-alt text-success-alt-inverted;
+}
+
+
+/* Média */
+
+.prioridade-media {
+  @apply bg-warning-alt text-warning-alt-inverted;
+}
+
+
+/* Alta */
+
+.prioridade-alta {
+  @apply bg-laranja-alt text-laranja-alt-inverted;
+}
+
+
+/* Crítica */
+
+.prioridade-critica {
+  @apply bg-danger-alt text-danger-alt-inverted;
+}

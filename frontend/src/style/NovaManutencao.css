@@ -1,0 +1,55 @@
+@reference "./Theme.css";
+
+/* SELETOR DE PRIORIDADE */
+.prioridade-select {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.prioridade-select:hover {
+    background: var(--color-bg);
+}
+
+/* MENU DE PRIORIDADE */
+.prioridade-menu {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border-color: var(--color-border);
+}
+
+/* BADGE */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 65px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+/* Baixa */
+
+.prioridade-baixa {
+    @apply bg-success-alt text-success-alt-inverted;
+}
+
+/* Média */
+
+.prioridade-media {
+    @apply bg-warning-alt text-warning-alt-inverted;
+}
+
+/* Alta */
+
+.prioridade-alta {
+    @apply bg-laranja-alt text-laranja-alt-inverted;
+}
+
+/* Crítica */
+
+.prioridade-critica {
+    @apply bg-danger-alt text-danger-alt-inverted;
+}
