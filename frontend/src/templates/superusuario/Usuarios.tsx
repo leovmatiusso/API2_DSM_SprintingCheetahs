@@ -1,7 +1,6 @@
 import "@/style/Usuarios.css";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Check,
   ChevronDown,
@@ -25,6 +24,7 @@ import type { Role, User } from "@/types";
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import Cadastro from "../compartilhadas/Cadastro";
 
 const roles: {
   value: Role;
@@ -40,7 +40,6 @@ const roles: {
 ];
 
 export default function Usuarios() {
-  const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const isSuperusuario = currentUser?.role === "superusuario";
 
@@ -56,6 +55,7 @@ export default function Usuarios() {
   const [roleFilter, setRoleFilter] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mostrarCadastro, setMostrarCadastro] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -217,6 +217,18 @@ export default function Usuarios() {
     filteredUsers.length > 0 &&
     filteredUsers.every((user) => selectedUsers.includes(user.id));
 
+  if (mostrarCadastro) {
+    return (
+      <Cadastro
+        onVoltar={() => setMostrarCadastro(false)}
+        onCadastrado={async () => {
+          setMostrarCadastro(false);
+          await load();
+        }}
+      />
+    );
+  }
+
   return (
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
@@ -241,7 +253,7 @@ export default function Usuarios() {
             type="button"
             variant="primary"
             size="lg"
-            onClick={() => navigate("/cadastro")}
+            onClick={() => setMostrarCadastro(true)}
           >
             <span className="flex items-center gap-2">
               <Plus size={19} />
