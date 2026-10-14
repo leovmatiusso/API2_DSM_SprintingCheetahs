@@ -32,8 +32,6 @@ import Button from "@/components/ui/Button";
 
 import "@/style/NovaOrdemServico.css";
 
-type TipoOS = "manutencao" | "novo-projeto";
-
 const EQUIPAMENTOS_DISPONIVEIS = [
   "Aerostato",
   "Torre",
@@ -46,10 +44,6 @@ const EQUIPAMENTOS_DISPONIVEIS = [
   "Patch Cord",
   "Sensor de movimento",
 ];
-
-interface NovaOrdemServicoProps {
-  tipo: TipoOS;
-}
 
 interface Equipamento {
   nome: string;
@@ -73,9 +67,7 @@ function Obrigatorio() {
   );
 }
 
-export default function NovaOrdemServico(
-  { tipo }: NovaOrdemServicoProps,
-) {
+export default function NovaOrdemServico() {
   const navigate = useNavigate();
 
   const inputArquivo = useRef<HTMLInputElement>(null);

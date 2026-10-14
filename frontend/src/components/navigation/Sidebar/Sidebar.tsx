@@ -17,7 +17,11 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
   const user = getCurrentUser();
 
   const visibleItems = menuItems
-    .filter((item) => !item.roles || (user && item.roles.includes(user.role)))
+    .filter(
+      (item) =>
+        (!item.roles || (user && item.roles.includes(user.role))) &&
+        (!item.excludedRoles || !user || !item.excludedRoles.includes(user.role)),
+    )
     .map((item) => {
       if (item.label === "Dashboard" && user?.role === "gestor") {
         return {
