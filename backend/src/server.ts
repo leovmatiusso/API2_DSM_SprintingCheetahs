@@ -11,6 +11,7 @@ import type { OrdemServico } from "./ordemservico.js";
 import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter } from "./projetos.js";
+import { createManutencoesRouter } from "./manutencoes.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -78,21 +79,6 @@ type OSRow = RowDataPacket & {
   id_criador: number;
   id_time_responsavel: number | null;
   data_criacao: string;
-};
-
-type ManutencaoPayload = {
-  tipo_manutencao?: "corretiva" | "preventiva" | "evolutiva" | "adaptativa";
-  responsavel_nome?: string;
-  data_inicio_problema?: string;
-  descricao_situacao?: string;
-  prioridade?: "baixa" | "media" | "alta" | "critica";
-  equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
-  anexos?: {
-    nome_anexo?: string;
-    anexo_tipo?: string;
-    anexo_tamanho?: number;
-    conteudo_arquivo_base64?: string;
-  }[];
 };
 
 // =====================================================
@@ -869,175 +855,9 @@ app.post(
 );
 
 // =====================================================
-// MANUTENCAO
+// MANUTENÇÕES (rotas em manutencoes.ts)
 // =====================================================
-
-app.post("/api/manutencoes", requireRole("suporte"), async (req, res) => {
-  const {
-    tipo_manutencao: tipoManutencao,
-    responsavel_nome: responsavel,
-    data_inicio_problema: dataInicio,
-    prioridade,
-    descricao_situacao: descricao,
-    equipamentos,
-    anexos,
-  } = (req.body ?? {}) as ManutencaoPayload;
-
-  const tiposValidos = ["preventiva", "corretiva", "adaptativa", "evolutiva"];
-  const prioridadesValidas = ["baixa", "media", "alta", "critica"];
-
-  if (
-    !tipoManutencao ||
-    !responsavel?.trim() ||
-    !dataInicio ||
-    !prioridade ||
-    !descricao?.trim()
-  ) {
-    return res.status(400).json({
-      message: "Tipo de manutenção, responsável, data de início, prioridade e descrição são obrigatórios.",
-    });
-  }
-
-  if (!tiposValidos.includes(tipoManutencao)) {
-    return res.status(400).json({ message: "Tipo de manutenção inválido." });
-  }
-
-  if (!prioridadesValidas.includes(prioridade)) {
-    return res.status(400).json({ message: "Prioridade inválida." });
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataInicio)) {
-    return res.status(400).json({ message: "Data de início inválida." });
-  }
-
-  try {
-    const [responsaveis] = await pool.execute<UserRow[]>(
-      `SELECT id_usuario, nome, email, cargo, senha_hash, ativo, time_id
-         FROM usuarios
-        WHERE LOWER(nome) = LOWER(?)
-           OR LOWER(email) = LOWER(?)
-        LIMIT 1`,
-      [responsavel.trim(), responsavel.trim()],
-    );
-
-    if (!responsaveis.length) {
-      return res.status(400).json({
-        message: "Responsável não encontrado. Informe o nome ou email de um usuário cadastrado.",
-      });
-    }
-
-    const responsavelUsuario = responsaveis[0];
-    if (!Boolean(responsavelUsuario.ativo)) {
-      return res.status(400).json({ message: "O responsável informado está inativo." });
-    }
-
-    const connection = await pool.getConnection();
-
-    try {
-      await connection.beginTransaction();
-
-      const [result] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO manutencoes
-          (data_inicio_problema, tipo_manutencao, descricao_situacao, status, prioridade, responsavel)
-        VALUES (?, ?, ?, 'aberta', ?, ?)`,
-        [
-          dataInicio,
-          tipoManutencao,
-          descricao.trim(),
-          prioridade,
-          responsavelUsuario.nome,
-        ],
-      );
-
-      const manutencaoId = result.insertId;
-
-      if (Array.isArray(equipamentos)) {
-        for (const equipamento of equipamentos) {
-          const nome = equipamento?.nome_equipamento?.trim();
-          const quantidade = Number(equipamento?.quantidade);
-
-          if (!nome) continue;
-
-          if (!Number.isInteger(quantidade) || quantidade <= 0) {
-            throw new Error(`Quantidade inválida para o equipamento "${nome}".`);
-          }
-
-          const [equipamentoRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT equipamento_id
-               FROM equipamentos
-              WHERE LOWER(nome_equipamento) = LOWER(?)
-              LIMIT 1`,
-            [nome],
-          );
-
-          let equipamentoId: number;
-
-          if (equipamentoRows.length) {
-            equipamentoId = Number(equipamentoRows[0].equipamento_id);
-          } else {
-            const [novoEquipamento] = await connection.execute<ResultSetHeader>(
-              `INSERT INTO equipamentos (nome_equipamento) VALUES (?)`,
-              [nome],
-            );
-            equipamentoId = novoEquipamento.insertId;
-          }
-
-          await connection.execute(
-            `INSERT INTO item_equipamento_manutencao
-              (manutencao_id, equipamento_id, quantidade)
-             VALUES (?, ?, ?)`,
-            [manutencaoId, equipamentoId, quantidade],
-          );
-        }
-      }
-
-      if (Array.isArray(anexos)) {
-        for (const anexo of anexos) {
-          if (!anexo?.nome_anexo || !anexo?.conteudo_arquivo_base64) continue;
-
-          const conteudo = Buffer.from(anexo.conteudo_arquivo_base64, "base64");
-
-          await connection.execute(
-            `INSERT INTO anexo
-              (os_id, nome_anexo, anexo_tipo, anexo_tamanho, manutencao_id, projeto_id, conteudo_arquivo)
-             VALUES (NULL, ?, ?, ?, ?, NULL, ?)`,
-            [
-              anexo.nome_anexo,
-              anexo.anexo_tipo || "application/octet-stream",
-              anexo.anexo_tamanho || conteudo.length,
-              manutencaoId,
-              conteudo,
-            ],
-          );
-        }
-      }
-
-      await connection.commit();
-
-      return res.status(201).json({
-        message: "Manutenção criada com sucesso!",
-        manutencao: {
-          manutencao_id: manutencaoId,
-          status: "aberta",
-        },
-      });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-} catch (error) {
-  console.error("ERRO COMPLETO AO CRIAR MANUTENÇÃO:", error);
-
-  return res.status(500).json({
-    message: error instanceof Error
-      ? error.message
-      : "Não foi possível criar a manutenção.",
-  });
-}
-});
-
+app.use("/api/manutencoes", createManutencoesRouter(requireRole));
 
 // =====================================================
 // ERROS E START
