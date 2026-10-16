@@ -1,6 +1,7 @@
 -- =====================================================
 -- API2 - Banco de dados para MySQL / AWS RDS
 -- Execute em uma instância MySQL vazia.
+-- ATENÇÃO: este script apaga e recria todas as tabelas.
 -- =====================================================
 
 CREATE DATABASE IF NOT EXISTS API2
@@ -116,6 +117,8 @@ CREATE TABLE os (
 
 -- =====================================================
 -- PROJETOS
+-- responsavel_id = vendedor responsável (equipe comercial)
+-- time_id        = time responsável (define quem enxerga o projeto)
 -- =====================================================
 
 CREATE TABLE projetos (
@@ -127,19 +130,29 @@ CREATE TABLE projetos (
     responsavel_id INT NULL,
     vendedor_id INT NULL,
     tipo_sistema VARCHAR(100) NOT NULL,
+    time_id INT NULL,
+    prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
+    descricao TEXT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_projeto_responsavel (responsavel_id),
     INDEX idx_projeto_vendedor (vendedor_id),
+    INDEX idx_projeto_time (time_id),
     CONSTRAINT fk_projeto_responsavel
         FOREIGN KEY (responsavel_id) REFERENCES usuarios(id_usuario)
         ON DELETE SET NULL,
     CONSTRAINT fk_projeto_vendedor
         FOREIGN KEY (vendedor_id) REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_projeto_time
+        FOREIGN KEY (time_id) REFERENCES time(id_time)
         ON DELETE SET NULL
+        ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- =====================================================
 -- MANUTENÇÕES
+-- responsavel_id = responsável (equipe de suporte)
+-- time_id        = time responsável (define quem enxerga a manutenção)
 -- =====================================================
 
 CREATE TABLE manutencoes (
@@ -152,15 +165,21 @@ CREATE TABLE manutencoes (
     projeto_id INT NULL,
     resumo VARCHAR(255) NULL,
     responsavel_id INT NULL,
+    time_id INT NULL,
     prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
     INDEX idx_manutencao_projeto (projeto_id),
     INDEX idx_manutencao_responsavel (responsavel_id),
+    INDEX idx_manutencao_time (time_id),
     CONSTRAINT fk_manutencao_projeto
         FOREIGN KEY (projeto_id) REFERENCES projetos(projeto_id)
         ON DELETE SET NULL,
     CONSTRAINT fk_manutencao_responsavel
         FOREIGN KEY (responsavel_id) REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_manutencao_time
+        FOREIGN KEY (time_id) REFERENCES time(id_time)
         ON DELETE SET NULL
+        ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- =====================================================
@@ -243,23 +262,6 @@ CREATE TABLE item_equipamento_manutencao (
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Migração: projetos passam a guardar time responsável, prioridade e descrição.
-ALTER TABLE projetos
-    ADD COLUMN time_id INT NULL AFTER tipo_sistema,
-    ADD COLUMN prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media' AFTER time_id,
-    ADD COLUMN descricao TEXT NULL AFTER prioridade,
-    ADD INDEX idx_projeto_time (time_id),
-    ADD CONSTRAINT fk_projeto_time
-        FOREIGN KEY (time_id) REFERENCES time(id_time)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE;
-
--- Projetos antigos: associa ao time do responsável (líder do time), quando houver.
-UPDATE projetos p
-   JOIN time t ON t.responsavel_id = p.responsavel_id
-   SET p.time_id = t.id_time
- WHERE p.time_id IS NULL;
-
 -- =====================================================
 -- DADOS INICIAIS PARA DESENVOLVIMENTO/TESTE
 -- Senha de todas as contas abaixo: 123456
@@ -277,10 +279,12 @@ INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id) VALUES
 
 INSERT INTO time (nome_time, email_time, departamento) VALUES
 ('Software', NULL, 'Software'),
-('Comercial', NULL, 'Comercial');
+('Comercial', NULL, 'Comercial'),
+('Suporte', NULL, 'Suporte');
 
 UPDATE usuarios SET time_id = 1 WHERE id_usuario = 6;
 UPDATE usuarios SET time_id = 2 WHERE id_usuario = 3;
+UPDATE usuarios SET time_id = 3 WHERE id_usuario = 4;
 
 INSERT INTO equipamentos (nome_equipamento) VALUES
 ('aeróstato'),
