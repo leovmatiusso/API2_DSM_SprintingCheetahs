@@ -7,6 +7,7 @@ import MinhaConta from "@/templates/compartilhadas/MinhaConta";
 import MinhasOS from "@/templates/compartilhadas/MinhasOS";
 import NovaOrdemServico from "@/templates/compartilhadas/NovaOrdemServico";
 import PedidoEspecifico from "@/templates/compartilhadas/PedidoEspecifico";
+import Projetos from "@/templates/compartilhadas/Projetos";
 
 const user = getCurrentUser();
 
@@ -20,8 +21,11 @@ export const compartilhadasRoutes = (
     <Route path="/os/nova-os" element={<NovaOrdemServico />} />
   </Route>
   
+  <Route element={<ProtectedRoute excludedRoles={["superusuario"]} />}>
+    <Route path="/projetos-totais" element={<Projetos />} />
+  </Route>
+
   <Route element={<ProtectedRoute allowedRoles={["comercial", "suporte"]} />}>
-    <Route path="/projeto/exemplo" element={<PedidoEspecifico />} />
     <Route path="/manutencao/exemplo" element={<PedidoEspecifico />} />
   </Route>
   

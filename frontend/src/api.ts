@@ -202,6 +202,8 @@ export interface ProjetoPayload {
   tipo_sistema: string;
   id_time_responsavel: number;
   vendedor_nome: string;
+  prioridade: "baixa" | "media" | "alta" | "critica";
+  descricao?: string;
   equipamentos: { nome_equipamento: string; quantidade: number }[];
   anexos: {
     nome_anexo: string;
@@ -217,6 +219,12 @@ export function getTimesParaProjeto(): Promise<{
   return request("/projetos/times");
 }
 
+export function getVendedores(): Promise<{
+  vendedores: { id_usuario: number; nome: string }[];
+}> {
+  return request("/projetos/vendedores");
+}
+
 export function createProjeto(data: ProjetoPayload): Promise<{
   message: string;
   projeto: { projeto_id: number };
@@ -225,6 +233,79 @@ export function createProjeto(data: ProjetoPayload): Promise<{
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export interface ProjetoAnexo {
+  id: string;
+  nome: string;
+  tipo: string;
+  tamanho: number;
+}
+
+export interface Projeto {
+  id: string;
+  nome: string;
+  tipo_sistema: string;
+  prioridade: "baixa" | "media" | "alta" | "critica";
+  descricao: string;
+  data_assinatura_contrato: string | null;
+  data_vencimento_contrato: string | null;
+  responsavel: string | null;
+  vendedor: string | null;
+  time: { id: string; nome: string } | null;
+  membros_time: string[];
+  equipamentos: { nome: string; quantidade: number }[];
+  anexos: ProjetoAnexo[];
+}
+
+export function getProjetos(): Promise<{ projetos: Projeto[] }> {
+  return request("/projetos");
+}
+
+// Baixa o anexo com o token de sessão e abre em nova aba (PDF/imagem)
+// ou dispara o download (demais tipos).
+export async function abrirAnexoProjeto(
+  projetoId: string,
+  anexo: ProjetoAnexo,
+): Promise<void> {
+  const token = getToken();
+  const response = await fetch(
+    `${API_URL}/projetos/${encodeURIComponent(projetoId)}/anexos/${encodeURIComponent(anexo.id)}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
+
+  if (!response.ok) {
+    let mensagem = "Não foi possível abrir o anexo.";
+    try {
+      mensagem = (await response.json())?.message ?? mensagem;
+    } catch {
+      /* resposta sem JSON */
+    }
+    throw new Error(mensagem);
+  }
+
+  const bruto = await response.blob();
+  const visualizavel =
+    anexo.tipo === "application/pdf" || /^image\/(png|jpe?g|gif|webp)$/.test(anexo.tipo);
+  // Só PDF/imagem são abertos inline; qualquer outro tipo vira download,
+  // evitando executar HTML/JS enviado como anexo.
+  const blob = new Blob([bruto], {
+    type: visualizavel ? anexo.tipo : "application/octet-stream",
+  });
+  const url = URL.createObjectURL(blob);
+
+  if (visualizavel) {
+    window.open(url, "_blank", "noopener");
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = anexo.nome;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export { API_URL };

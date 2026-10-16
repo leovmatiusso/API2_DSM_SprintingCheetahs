@@ -23,10 +23,12 @@ import {
   createProjeto,
   getTimes,
   getTimesParaProjeto,
+  getVendedores,
 } from "@/api";
 
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
+import Textarea from "@/components/ui/Textarea";
 import Button from "@/components/ui/Button";
 
 type TipoOS = "manutencao" | "novo-projeto";
@@ -95,6 +97,9 @@ export default function NovoProjeto({
   const [vendedor, setVendedor] =
     useState("");
 
+  const [descricao, setDescricao] =
+    useState("");
+
   const [prioridade, setPrioridade] =
     useState("Baixa");
 
@@ -120,6 +125,9 @@ export default function NovoProjeto({
 
   const [carregandoTimes, setCarregandoTimes] =
     useState(true);
+
+  const [vendedores, setVendedores] =
+    useState<{ id_usuario: number; nome: string }[]>([]);
 
   const [enviando, setEnviando] =
     useState(false);
@@ -151,6 +159,9 @@ export default function NovoProjeto({
               nome_time: time.nome_time,
             })),
           );
+
+          const respostaVendedores = await getVendedores();
+          setVendedores(respostaVendedores.vendedores);
         }
       } catch (error) {
         console.error(
@@ -428,6 +439,12 @@ export default function NovoProjeto({
           tipo_sistema: tiposSistema[projeto],
           id_time_responsavel: Number(responsavel),
           vendedor_nome: vendedor.trim(),
+          prioridade: prioridade.toLowerCase() as
+            | "baixa"
+            | "media"
+            | "alta"
+            | "critica",
+          descricao: descricao.trim(),
           equipamentos: equipamentos.map(({ nome, quantidade }) => ({
             nome_equipamento: nome,
             quantidade,
@@ -438,7 +455,7 @@ export default function NovoProjeto({
         alert(resposta.message || "Projeto criado com sucesso!");
       }
 
-      navigate("/dashboard");
+      navigate(manutencao ? "/dashboard" : "/projetos-totais");
     } catch (error) {
       console.error(
         manutencao ? "Erro ao abrir ordem de serviço:" : "Erro ao criar projeto:",
@@ -565,18 +582,36 @@ export default function NovoProjeto({
           {/* VENDEDOR */}
 
           <div>
-            <Input
+            <label className="text-text-muted mb-2 block text-sm font-semibold">
+              Vendedor
+              <Obrigatorio />
+            </label>
+
+            <select
               id="vendedor"
-              label="Vendedor"
               value={vendedor}
               onChange={(event) =>
-                setVendedor(
-                  event.target.value,
-                )
+                setVendedor(event.target.value)
               }
-              placeholder="Ex.: João Silva"
+              disabled={carregandoTimes}
               required
-            />
+              className="border-border bg-bg text-text h-11 w-full rounded-lg border px-3 outline-none"
+            >
+              <option value="">
+                {carregandoTimes
+                  ? "Carregando vendedores..."
+                  : "Selecione o vendedor"}
+              </option>
+
+              {vendedores.map((v) => (
+                <option
+                  key={v.id_usuario}
+                  value={v.nome}
+                >
+                  {v.nome}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* DATA DE ASSINATURA */}
@@ -738,6 +773,23 @@ export default function NovoProjeto({
               </option>
             </Select>
           </div>
+
+          {/* DESCRIÇÃO */}
+
+          {!manutencao && (
+            <div className="md:col-span-2 xl:col-span-4">
+              <Textarea
+                id="descricao"
+                label="Descrição"
+                value={descricao}
+                onChange={(event) =>
+                  setDescricao(event.target.value)
+                }
+                maxLength={5000}
+                placeholder="Descreva o projeto"
+              />
+            </div>
+          )}
 
           {/* EQUIPAMENTOS E ANEXOS */}
 

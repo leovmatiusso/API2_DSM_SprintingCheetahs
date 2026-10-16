@@ -45,7 +45,7 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Projetos",
     icon: ClipboardList,
     path: "/projetos-totais",
-    roles: ["comercial"],
+    excludedRoles: ["superusuario"],
   },
 
   {
