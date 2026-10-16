@@ -7,8 +7,12 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import { getCurrentUser, logout } from "@/auth";
-import { createManutencao } from "@/api";
+import { getCurrentUser } from "@/auth";
+import {
+  createManutencao,
+  getResponsaveisManutencao,
+  getTimesParaManutencao,
+} from "@/api";
 
 import Button from "@/components/ui/Button";
 
@@ -67,18 +71,13 @@ export default function NovaManutencao() {
 
   const user = getCurrentUser();
 
-  if (!user) return null;
-
-  function sair() {
-    logout();
-    navigate("/login", { replace: true });
-  }
-
   {
     /* variaveis dos campos do form */
   }
+  const [resumo, setResumo] = useState("");
   const [tipoManutencao, setTipoManutencao] = useState("");
   const [responsavel, setResponsavel] = useState("");
+  const [timeId, setTimeId] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [prioridade, setPrioridade] = useState("");
   const [prioridadeAberta, setPrioridadeAberta] = useState(false);
@@ -90,6 +89,37 @@ export default function NovaManutencao() {
   const [dropdownEquipamentoAberto, setDropdownEquipamentoAberto] = useState(false);
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
+
+  const [times, setTimes] = useState<{ id_time: number; nome_time: string }[]>([]);
+  const [responsaveis, setResponsaveis] = useState<{ id_usuario: number; nome: string }[]>([]);
+  const [carregandoListas, setCarregandoListas] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    async function carregarListas() {
+      try {
+        const [respostaTimes, respostaResponsaveis] = await Promise.all([
+          getTimesParaManutencao(),
+          getResponsaveisManutencao(),
+        ]);
+        setTimes(respostaTimes.times);
+        setResponsaveis(respostaResponsaveis.responsaveis);
+      } catch (error) {
+        console.error("Erro ao carregar listas:", error);
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar times e responsáveis.",
+        );
+      } finally {
+        setCarregandoListas(false);
+      }
+    }
+
+    carregarListas();
+  }, []);
+
+  if (!user) return null;
 
   {
     /* função de remover equipamento */
@@ -146,10 +176,22 @@ export default function NovaManutencao() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    if (!tipoManutencao || !responsavel.trim() || !dataInicio || !prioridade || !descricao.trim()) {
+    if (enviando) return;
+
+    if (
+      !resumo.trim() ||
+      !tipoManutencao ||
+      !responsavel.trim() ||
+      !timeId ||
+      !dataInicio ||
+      !prioridade ||
+      !descricao.trim()
+    ) {
       alert("Preencha todos os campos obrigatórios.");
       return;
     }
+
+    setEnviando(true);
 
     try {
       const anexosPayload = await Promise.all(
@@ -186,12 +228,14 @@ export default function NovaManutencao() {
       );
 
       await createManutencao({
+        resumo: resumo.trim(),
         tipo_manutencao: tipoManutencao as
           | "preventiva"
           | "corretiva"
           | "adaptativa"
           | "evolutiva",
         responsavel_nome: responsavel.trim(),
+        id_time_responsavel: Number(timeId),
         data_inicio_problema: dataInicio,
         prioridade: prioridade as "baixa" | "media" | "alta" | "critica",
         descricao_situacao: descricao.trim(),
@@ -203,7 +247,7 @@ export default function NovaManutencao() {
       });
 
       alert("Manutenção criada com sucesso!");
-      navigate(-1);
+      navigate("/manutencoes-totais");
     } catch (error) {
       console.error("Erro ao criar manutenção:", error);
       alert(
@@ -211,6 +255,8 @@ export default function NovaManutencao() {
           ? error.message
           : "Não foi possível criar a manutenção.",
       );
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -227,7 +273,7 @@ export default function NovaManutencao() {
               </div>
 
               <div>
-                <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]"> Resumo </h1>
+                <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]"> Nova manutenção </h1>
                 <p className="muted text-sm">
                   Crie uma nova manutenção e atribua OS a ela após criação
                 </p>
@@ -235,7 +281,16 @@ export default function NovaManutencao() {
             </div>
 
             {/* Campos principais */}
-            <div className="mb-8 grid grid-cols-4 gap-4">
+            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Input
+                label="Resumo"
+                type="text"
+                value={resumo}
+                onChange={(e) => setResumo(e.target.value)}
+                placeholder="Resumo da manutenção"
+                maxLength={255}
+              />
+
               <Select
                 label="Tipo de Manutenção"
                 value={tipoManutencao}
@@ -251,13 +306,37 @@ export default function NovaManutencao() {
                 ))}
               </Select>
 
-              <Input
+              <Select
                 label="Responsável"
-                type="text"
                 value={responsavel}
                 onChange={(e) => setResponsavel(e.target.value)}
-                placeholder="Nome do responsável"
-              />
+                disabled={carregandoListas}
+              >
+                <option value="">
+                  {carregandoListas ? "Carregando..." : "Selecione o responsável"}
+                </option>
+                {responsaveis.map((r) => (
+                  <option key={r.id_usuario} value={r.nome}>
+                    {r.nome}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                label="Time responsável"
+                value={timeId}
+                onChange={(e) => setTimeId(e.target.value)}
+                disabled={carregandoListas}
+              >
+                <option value="">
+                  {carregandoListas ? "Carregando..." : "Selecione o time"}
+                </option>
+                {times.map((t) => (
+                  <option key={t.id_time} value={String(t.id_time)}>
+                    {t.nome_time}
+                  </option>
+                ))}
+              </Select>
 
               <Input
                 label="Data de início do problema "
@@ -318,6 +397,7 @@ export default function NovaManutencao() {
                     onChange={(e) => setDescricao(e.target.value)}
                     placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
                     rows={5}
+                    maxLength={5000}
                     className="bg-bg text-text font-normal border-border placeholder:text-text-muted focus:border-primary focus:ring-primary min-h-33 w-full resize-y rounded-lg border p-3.5 text-sm leading-6 transition outline-none read-only:opacity-70 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                   <button
@@ -426,7 +506,7 @@ export default function NovaManutencao() {
                 Voltar
               </Button>
               <Button type="submit" variant="primary">
-                Criar manutenção
+                {enviando ? "Enviando..." : "Criar manutenção"}
               </Button>
             </div>
           </form>

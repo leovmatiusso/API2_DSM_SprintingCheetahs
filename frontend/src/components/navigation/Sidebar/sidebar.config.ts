@@ -52,7 +52,7 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Manutenções",
     icon: Wrench,
     path: "/manutencoes-totais",
-    roles: ["suporte"],
+    excludedRoles: ["superusuario"],
   },
 
   {

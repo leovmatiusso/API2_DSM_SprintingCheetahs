@@ -195,6 +195,68 @@ export function getOrdensServico(): Promise<{
   return request<{ os: unknown[] }>("/os");
 }
 
+// =====================================================
+// ANEXOS (abrir PDF/imagem em nova aba ou baixar)
+// =====================================================
+
+export interface ProjetoAnexo {
+  id: string;
+  nome: string;
+  tipo: string;
+  tamanho: number;
+}
+
+export type ManutencaoAnexo = ProjetoAnexo;
+
+// Baixa o anexo com o token de sessão e abre em nova aba (PDF/imagem)
+// ou dispara o download (demais tipos).
+async function abrirAnexoPorCaminho(
+  caminho: string,
+  anexo: ProjetoAnexo,
+): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${API_URL}${caminho}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) {
+    let mensagem = "Não foi possível abrir o anexo.";
+    try {
+      mensagem = (await response.json())?.message ?? mensagem;
+    } catch {
+      /* resposta sem JSON */
+    }
+    throw new Error(mensagem);
+  }
+
+  const bruto = await response.blob();
+  const visualizavel =
+    anexo.tipo === "application/pdf" || /^image\/(png|jpe?g|gif|webp)$/.test(anexo.tipo);
+  // Só PDF/imagem são abertos inline; qualquer outro tipo vira download,
+  // evitando executar HTML/JS enviado como anexo.
+  const blob = new Blob([bruto], {
+    type: visualizavel ? anexo.tipo : "application/octet-stream",
+  });
+  const url = URL.createObjectURL(blob);
+
+  if (visualizavel) {
+    window.open(url, "_blank", "noopener");
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = anexo.nome;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+// =====================================================
+// PROJETOS
+// =====================================================
+
 export interface ProjetoPayload {
   nome: string;
   data_assinatura_contrato: string;
@@ -235,13 +297,6 @@ export function createProjeto(data: ProjetoPayload): Promise<{
   });
 }
 
-export interface ProjetoAnexo {
-  id: string;
-  nome: string;
-  tipo: string;
-  tamanho: number;
-}
-
 export interface Projeto {
   id: string;
   nome: string;
@@ -262,55 +317,25 @@ export function getProjetos(): Promise<{ projetos: Projeto[] }> {
   return request("/projetos");
 }
 
-// Baixa o anexo com o token de sessão e abre em nova aba (PDF/imagem)
-// ou dispara o download (demais tipos).
-export async function abrirAnexoProjeto(
+export function abrirAnexoProjeto(
   projetoId: string,
   anexo: ProjetoAnexo,
 ): Promise<void> {
-  const token = getToken();
-  const response = await fetch(
-    `${API_URL}/projetos/${encodeURIComponent(projetoId)}/anexos/${encodeURIComponent(anexo.id)}`,
-    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  return abrirAnexoPorCaminho(
+    `/projetos/${encodeURIComponent(projetoId)}/anexos/${encodeURIComponent(anexo.id)}`,
+    anexo,
   );
-
-  if (!response.ok) {
-    let mensagem = "Não foi possível abrir o anexo.";
-    try {
-      mensagem = (await response.json())?.message ?? mensagem;
-    } catch {
-      /* resposta sem JSON */
-    }
-    throw new Error(mensagem);
-  }
-
-  const bruto = await response.blob();
-  const visualizavel =
-    anexo.tipo === "application/pdf" || /^image\/(png|jpe?g|gif|webp)$/.test(anexo.tipo);
-  // Só PDF/imagem são abertos inline; qualquer outro tipo vira download,
-  // evitando executar HTML/JS enviado como anexo.
-  const blob = new Blob([bruto], {
-    type: visualizavel ? anexo.tipo : "application/octet-stream",
-  });
-  const url = URL.createObjectURL(blob);
-
-  if (visualizavel) {
-    window.open(url, "_blank", "noopener");
-  } else {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = anexo.nome;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  }
-
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export { API_URL };
 
+// =====================================================
+// MANUTENÇÕES
+// =====================================================
+
 export interface ManutencaoPayload {
+  resumo: string;
+
   tipo_manutencao:
     | "preventiva"
     | "corretiva"
@@ -318,6 +343,8 @@ export interface ManutencaoPayload {
     | "evolutiva";
 
   responsavel_nome: string;
+
+  id_time_responsavel: number;
 
   data_inicio_problema: string;
 
@@ -342,6 +369,18 @@ export interface ManutencaoPayload {
   }[];
 }
 
+export function getTimesParaManutencao(): Promise<{
+  times: { id_time: number; nome_time: string }[];
+}> {
+  return request("/manutencoes/times");
+}
+
+export function getResponsaveisManutencao(): Promise<{
+  responsaveis: { id_usuario: number; nome: string }[];
+}> {
+  return request("/manutencoes/responsaveis");
+}
+
 export function createManutencao(
   data: ManutencaoPayload,
 ): Promise<{
@@ -355,4 +394,32 @@ export function createManutencao(
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export interface Manutencao {
+  id: string;
+  resumo: string;
+  tipo_manutencao: "preventiva" | "corretiva" | "adaptativa" | "evolutiva";
+  prioridade: "baixa" | "media" | "alta" | "critica";
+  status: string;
+  descricao: string;
+  data_inicio_problema: string | null;
+  responsavel: string | null;
+  time: { id: string; nome: string } | null;
+  equipamentos: { nome: string; quantidade: number }[];
+  anexos: ManutencaoAnexo[];
+}
+
+export function getManutencoes(): Promise<{ manutencoes: Manutencao[] }> {
+  return request("/manutencoes");
+}
+
+export function abrirAnexoManutencao(
+  manutencaoId: string,
+  anexo: ManutencaoAnexo,
+): Promise<void> {
+  return abrirAnexoPorCaminho(
+    `/manutencoes/${encodeURIComponent(manutencaoId)}/anexos/${encodeURIComponent(anexo.id)}`,
+    anexo,
+  );
 }
