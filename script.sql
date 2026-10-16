@@ -243,6 +243,23 @@ CREATE TABLE item_equipamento_manutencao (
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Migração: projetos passam a guardar time responsável, prioridade e descrição.
+ALTER TABLE projetos
+    ADD COLUMN time_id INT NULL AFTER tipo_sistema,
+    ADD COLUMN prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media' AFTER time_id,
+    ADD COLUMN descricao TEXT NULL AFTER prioridade,
+    ADD INDEX idx_projeto_time (time_id),
+    ADD CONSTRAINT fk_projeto_time
+        FOREIGN KEY (time_id) REFERENCES time(id_time)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE;
+
+-- Projetos antigos: associa ao time do responsável (líder do time), quando houver.
+UPDATE projetos p
+   JOIN time t ON t.responsavel_id = p.responsavel_id
+   SET p.time_id = t.id_time
+ WHERE p.time_id IS NULL;
+
 -- =====================================================
 -- DADOS INICIAIS PARA DESENVOLVIMENTO/TESTE
 -- Senha de todas as contas abaixo: 123456
