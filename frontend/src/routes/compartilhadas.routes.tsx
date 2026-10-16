@@ -4,8 +4,6 @@ import { getCurrentUser } from "@/auth";
 
 import Dashboard from "@/templates/compartilhadas/Dashboard";
 import MinhaConta from "@/templates/compartilhadas/MinhaConta";
-import Cadastro from "@/templates/compartilhadas/Cadastro";
-import CadastroTimes from "@/templates/compartilhadas/CadastroTimes";
 import MinhasOS from "@/templates/compartilhadas/MinhasOS";
 import NovaOrdemServico from "@/templates/compartilhadas/NovaOrdemServico";
 import PedidoEspecifico from "@/templates/compartilhadas/PedidoEspecifico";
@@ -18,13 +16,8 @@ export const compartilhadasRoutes = (
   
   <Route path="/minha-conta" element={<MinhaConta />} />
   
-  <Route element={<ProtectedRoute allowedRoles={["comercial", "suporte"]} />}>
-  <Route path="/os/nova-os" element={<NovaOrdemServico />} />
-  </Route>
-  
-  <Route element={<ProtectedRoute allowedRoles={["superusuario", "gestor"]} />}>
-  <Route path="/cadastro" element={<Cadastro />} />
-  <Route path="/cadastro-times" element={<CadastroTimes />} />
+  <Route element={<ProtectedRoute excludedRoles={["superusuario"]} />}>
+    <Route path="/os/nova-os" element={<NovaOrdemServico />} />
   </Route>
   
   <Route element={<ProtectedRoute allowedRoles={["comercial", "suporte"]} />}>

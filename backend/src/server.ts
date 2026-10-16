@@ -256,6 +256,27 @@ function requireRole(...roles: Role[]) {
   };
 }
 
+function requireNotRole(...roles: Role[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = await getAuthenticatedUser(req);
+      if (!user) {
+        return res.status(401).json({ message: "Sessão inválida ou expirada." });
+      }
+
+      if (roles.includes(user.role)) {
+        return res.status(403).json({ message: "Você não possui permissão para esta operação." });
+      }
+
+      res.locals.user = user;
+      next();
+    } catch (error) {
+      console.error(error);
+      return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
+    }
+  };
+}
+
 // =====================================================
 // HEALTH
 // =====================================================
@@ -914,7 +935,7 @@ app.post("/api/projetos", requireRole("comercial"), async (req, res) => {
 
 app.post(
   "/api/os",
-  requireAuth,
+  requireNotRole("superusuario"),
   async (req, res) => {
     const {
       os_titulo,

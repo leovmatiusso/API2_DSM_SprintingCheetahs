@@ -2,7 +2,6 @@ import "@/style/Usuarios.css";
 import "@/style/Times.css";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Check,
   ClipboardList,
@@ -22,6 +21,7 @@ import type { Role, Time, User } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CadastroTimes from "../compartilhadas/CadastroTimes";
 
 const equipes: {
   value: Role;
@@ -36,7 +36,6 @@ const equipes: {
 ];
 
 export default function Times() {
-  const navigate = useNavigate();
   const currentUser = getCurrentUser();
 
   const isAllowed =
@@ -61,6 +60,7 @@ export default function Times() {
   const [departamento, setDepartamento] = useState("");
   const [responsavelId, setResponsavelId] = useState("");
   const [pessoasVinculadas, setPessoasVinculadas] = useState<string[]>([]);
+  const [mostrarTime, setMostrarTime] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -213,6 +213,18 @@ export default function Times() {
     filteredTimes.length > 0 &&
     filteredTimes.every((time) => selectedTimes.includes(time.id));
 
+  if (mostrarTime) {
+    return (
+      <CadastroTimes
+        onVoltar={() => setMostrarTime(false)}
+        onCadastrado={async () => {
+          setMostrarTime(false);
+          await load();
+        }}
+      />
+    );
+  }
+
   return (
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
@@ -237,7 +249,7 @@ export default function Times() {
             type="button"
             variant="primary"
             size="lg"
-            onClick={() => navigate("/cadastro-times")}
+            onClick={() => setMostrarTime(true)}
           >
             <span className="flex items-center gap-2">
               <Plus size={19} />

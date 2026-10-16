@@ -66,7 +66,7 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Nova O.S.",
     icon: FilePlus2,
     path: "/os/nova-os",
-    roles: ["comercial"],
+    excludedRoles: ["superusuario"],
   },
 
   {
@@ -74,13 +74,6 @@ export const menuItems: SidebarItemConfig[] = [
     icon: CirclePlus,
     path: "/novo-projeto",
     roles: ["comercial"],
-  },
-  
-  {
-    label: "Nova OS",
-    icon: FilePlus2,
-    path: "/os/nova-os",
-    roles: ["suporte"],
   },
 
   {
@@ -117,21 +110,6 @@ export const menuItems: SidebarItemConfig[] = [
     path: "/relatorios",
     roles: ["gestor"],
   },
-
-  {
-    label: "Cadastrar",
-    icon: UserRoundPlus,
-    path: "/cadastro",
-    roles: ["superusuario", "gestor"],
-  },
-
-  {
-    label: "Cadastrar Times",
-    icon: UserRoundPlus,
-    path: "/cadastro-times",
-    roles: ["superusuario", "gestor"],
-  },
-
 
   {
     label: "Minha conta",
