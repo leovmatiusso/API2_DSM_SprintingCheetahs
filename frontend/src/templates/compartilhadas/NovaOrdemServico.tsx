@@ -54,6 +54,7 @@ interface Anexo {
   id: number;
   nome: string;
   tamanho: string;
+  arquivo: File;
 }
 
 function Obrigatorio() {
@@ -197,6 +198,7 @@ export default function NovaOrdemServico() {
         id: Date.now() + index,
         nome: arquivo.name,
         tamanho: formatarTamanho(arquivo.size),
+        arquivo,
       }),
     );
 
@@ -259,6 +261,34 @@ export default function NovaOrdemServico() {
     setEnviando(true);
 
     try {
+      const anexosPayload = await Promise.all(
+        anexos.map(
+          (anexo) =>
+            new Promise<{
+              nome_anexo: string;
+              anexo_tipo: string;
+              anexo_tamanho: number;
+              conteudo_arquivo_base64: string;
+            }>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const resultado = String(reader.result ?? "");
+                const separador = resultado.indexOf(",");
+                resolve({
+                  nome_anexo: anexo.arquivo.name,
+                  anexo_tipo: anexo.arquivo.type || "application/pdf",
+                  anexo_tamanho: anexo.arquivo.size,
+                  conteudo_arquivo_base64:
+                    separador >= 0 ? resultado.slice(separador + 1) : resultado,
+                });
+              };
+              reader.onerror = () =>
+                reject(new Error(`Não foi possível ler ${anexo.nome}.`));
+              reader.readAsDataURL(anexo.arquivo);
+            }),
+        ),
+      );
+
       await createOrdemServico({
         os_titulo: titulo,
         os_descricao: descricao,
@@ -270,9 +300,14 @@ export default function NovaOrdemServico() {
             | "critica",
         data_limite: prazo,
         id_time_responsavel: timeResponsavel,
+        equipamentos: equipamentos.map(({ nome, quantidade }) => ({
+          nome_equipamento: nome,
+          quantidade,
+        })),
+        anexos: anexosPayload,
       });
 
-      navigate("/dashboard");
+      navigate("/os/disponiveis");
     } catch (error) {
       console.error(error);
 

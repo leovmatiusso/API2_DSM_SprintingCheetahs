@@ -176,6 +176,13 @@ export function createOrdemServico(data: {
   prioridade: "baixa" | "media" | "alta" | "critica";
   data_limite: string;
   id_time_responsavel: string | number;
+  equipamentos?: { nome_equipamento: string; quantidade: number }[];
+  anexos?: {
+    nome_anexo: string;
+    anexo_tipo: string;
+    anexo_tamanho: number;
+    conteudo_arquivo_base64: string;
+  }[];
 }): Promise<{
   message: string;
   os: {
@@ -420,6 +427,51 @@ export function abrirAnexoManutencao(
 ): Promise<void> {
   return abrirAnexoPorCaminho(
     `/manutencoes/${encodeURIComponent(manutencaoId)}/anexos/${encodeURIComponent(anexo.id)}`,
+    anexo,
+  );
+}
+
+// =====================================================
+// ORDENS DE SERVIÇO (listagem e detalhe)
+// =====================================================
+
+export type OrdemStatus =
+  | "aberta"
+  | "em andamento"
+  | "concluida"
+  | "teste"
+  | "bloqueado"
+  | "review";
+
+export interface OrdemServicoResumo {
+  id: string;
+  titulo: string;
+  descricao: string;
+  status: OrdemStatus;
+  prioridade: "baixa" | "media" | "alta" | "critica";
+  data_limite: string | null;
+  data_criacao: string | null;
+  criador: string | null;
+  departamento: string | null;
+  time: { id: string; nome: string } | null;
+}
+
+export interface OrdemServicoDetalhe extends OrdemServicoResumo {
+  equipamentos: { nome: string; quantidade: number }[];
+  anexos: ProjetoAnexo[];
+}
+
+export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
+  return request("/os");
+}
+
+export function getOrdem(id: string): Promise<{ ordem: OrdemServicoDetalhe }> {
+  return request(`/os/${encodeURIComponent(id)}`);
+}
+
+export function abrirAnexoOS(osId: string, anexo: ProjetoAnexo): Promise<void> {
+  return abrirAnexoPorCaminho(
+    `/os/${encodeURIComponent(osId)}/anexos/${encodeURIComponent(anexo.id)}`,
     anexo,
   );
 }

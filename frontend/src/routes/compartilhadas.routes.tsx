@@ -8,6 +8,8 @@ import NovaOrdemServico from "@/templates/compartilhadas/NovaOrdemServico";
 import PedidoEspecifico from "@/templates/compartilhadas/PedidoEspecifico";
 import Projetos from "@/templates/compartilhadas/Projetos";
 import Manutencoes from "@/templates/compartilhadas/Manutencoes";
+import OrdensServico from "@/templates/compartilhadas/OrdensServico";
+import OrdemServicoDetalhe from "@/templates/compartilhadas/OrdemServicoDetalhe";
 
 export const compartilhadasRoutes = (
   <>
@@ -24,6 +26,8 @@ export const compartilhadasRoutes = (
     <Route element={<ProtectedRoute excludedRoles={["superusuario"]} />}>
       <Route path="/projetos-totais" element={<Projetos />} />
       <Route path="/manutencoes-totais" element={<Manutencoes />} />
+      <Route path="/os/disponiveis" element={<OrdensServico />} />
+      <Route path="/os/disponiveis/:osId" element={<OrdemServicoDetalhe />} />
     </Route>
 
     <Route element={<ProtectedRoute allowedRoles={["comercial", "suporte"]} />}>

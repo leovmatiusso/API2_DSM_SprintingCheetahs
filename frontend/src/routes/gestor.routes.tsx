@@ -10,23 +10,6 @@ export const gestorRoutes = (
     <Route path="/dashboard/gestor" element={<Dashboard />} />
 
     <Route
-      path="/os/disponiveis"
-      element={
-        <Modulo
-          title="Ordens de Serviço disponíveis"
-          description="Tela de gestão das O.S. que aguardam análise, priorização ou encaminhamento."
-          items={[
-            "Visualizar O.S. abertas",
-            "Filtrar por status, prioridade, cliente e tipo",
-            "Alterar prioridade",
-            "Atribuir O.S. à Produção, Software ou Implantação",
-            "Acompanhar O.S. atrasadas",
-          ]}
-        />
-      }
-    />
-
-    <Route
       path="/projetos"
       element={
         <Modulo

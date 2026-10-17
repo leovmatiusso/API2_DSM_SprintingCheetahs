@@ -38,7 +38,7 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Ordens disponíveis",
     icon: ClipboardList,
     path: "/os/disponiveis",
-    roles: ["gestor"],
+    excludedRoles: ["superusuario"],
   },
 
   {
