@@ -24,10 +24,10 @@ export const STATUS_LABEL: Record<OrdemServicoResumo["status"], string> = {
 };
 
 export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
-  aberta: "bg-bg-tertiary text-text-muted",
-  "em andamento": "bg-primary-muted text-primary",
-  concluida: "bg-success-alt text-success-alt-inverted",
-  teste: "bg-primary-muted text-primary",
+  aberta: "bg-blue-100 text-blue-800",
+  "em andamento": "bg-green-300 text-black",
+  concluida: "bg-pink-300 text-black",
+  teste: "bg-orange-300 text-black",
   bloqueado: "bg-danger-alt text-danger-alt-inverted",
   review: "bg-warning-alt text-warning-alt-inverted",
 };

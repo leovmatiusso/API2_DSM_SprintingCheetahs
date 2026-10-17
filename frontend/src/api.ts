@@ -465,6 +465,35 @@ export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
   return request("/os");
 }
 
+export interface DashboardResumo {
+  projetos: number;
+  ordens: {
+    abertas: number;
+    andamento: number;
+    alerta: number;
+    concluidas: number;
+    total: number;
+    emTeste: number;
+    porDepartamento: {
+      producao: number;
+      software: number;
+      monitoramento: number;
+      implantacao: number;
+    };
+    recentes: OrdemServicoResumo[];
+  };
+  manutencoes: {
+    total: number;
+    abertas: number;
+    andamento: number;
+    alerta: number;
+  };
+}
+
+export function getDashboardResumo(): Promise<DashboardResumo> {
+  return request("/dashboard");
+}
+
 export function getOrdem(id: string): Promise<{ ordem: OrdemServicoDetalhe }> {
   return request(`/os/${encodeURIComponent(id)}`);
 }

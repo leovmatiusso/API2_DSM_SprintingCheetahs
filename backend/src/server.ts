@@ -12,6 +12,7 @@ import type { Time } from "./times.js";
 import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
+import { createDashboardRouter } from "./dashboard.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -768,6 +769,11 @@ app.use("/api/os", createOrdensRouter(requireRole));
 // MANUTENÇÕES (rotas em manutencoes.ts)
 // =====================================================
 app.use("/api/manutencoes", createManutencoesRouter(requireRole));
+
+// =====================================================
+// DASHBOARD
+// =====================================================
+app.use("/api/dashboard", createDashboardRouter(requireRole));
 
 // =====================================================
 // ERROS E START
