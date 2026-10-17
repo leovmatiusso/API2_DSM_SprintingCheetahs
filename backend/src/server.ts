@@ -7,11 +7,11 @@ import dotenv from "dotenv";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
-import type { OrdemServico } from "./ordemservico.js";
 import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
+import { createOrdensRouter } from "./ordens.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -762,97 +762,7 @@ app.use("/api/projetos", createProjetosRouter(requireRole));
 // ORDENS DE SERVIÇO
 // =====================================================
 
-app.post(
-  "/api/os",
-  requireNotRole("superusuario"),
-  async (req, res) => {
-    const {
-      os_titulo,
-      os_descricao,
-      prioridade,
-      data_limite,
-      id_time_responsavel
-    } =
-      req.body as Partial<OrdemServico>;
-
-    if (
-      !os_titulo ||
-      !os_descricao ||
-      !prioridade ||
-      !data_limite ||
-      !id_time_responsavel
-    ) {
-      return res.status(400).json({
-        message:
-          "Titulo e cliente sao obrigatórios, por favor preencha!!!"
-      });
-    }
-
-    try {
-      const [
-        result
-      ] =
-        await pool.execute(
-          `INSERT INTO os
-        (
-          os_titulo,
-          os_descricao,
-          os_status,
-          prioridade,
-          data_limite,
-          id_criador,
-          id_time_responsavel
-        )
-       VALUES (
-          ?,
-          ?,
-          'aberta',
-          ?,
-          ?,
-          ?,
-          ?
-       )`,
-          [
-            os_titulo,
-            os_descricao,
-            prioridade,
-            data_limite,
-            (
-              res.locals
-                .user as User
-            ).id,
-            id_time_responsavel
-          ]
-        );
-
-      const insertId =
-        (
-          result as ResultSetHeader
-        ).insertId;
-
-      return res.status(201).json({
-        message:
-          "Ordem de serviço aberta com sucesso!",
-
-        os: {
-          os_id:
-            insertId,
-
-          os_status:
-            "aberta"
-        }
-      });
-      } catch (error) {
-          console.error("ERRO AO ABRIR OS:", error);
-      
-          return res.status(500).json({
-              message: error instanceof Error
-                  ? error.message
-                  : "Erro ao abrir a ordem de serviço."
-          });
-      }
-  }
-);
+app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================
 // MANUTENÇÕES (rotas em manutencoes.ts)
