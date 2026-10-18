@@ -8,6 +8,8 @@ import {
 
 import {
   createOrdemServico,
+  getManutencao,
+  getProjeto,
   getTimes,
 } from "@/api";
 
@@ -23,7 +25,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
@@ -71,6 +73,19 @@ function Obrigatorio() {
 export default function NovaOrdemServico() {
   const navigate = useNavigate();
 
+  // A O.S. só pode ser criada a partir de um projeto ou de uma manutenção:
+  // /os/nova-os?projeto=ID  ou  /os/nova-os?manutencao=ID
+  const [searchParams] = useSearchParams();
+  const projetoOrigemId = searchParams.get("projeto");
+  const manutencaoOrigemId = searchParams.get("manutencao");
+  const origemValida = Boolean(projetoOrigemId) !== Boolean(manutencaoOrigemId);
+  const origemPath = projetoOrigemId
+    ? `/projetos-totais/${projetoOrigemId}`
+    : manutencaoOrigemId
+      ? `/manutencoes-totais/${manutencaoOrigemId}`
+      : "/dashboard";
+  const [origemNome, setOrigemNome] = useState<string | null>(null);
+
   const inputArquivo = useRef<HTMLInputElement>(null);
   const [projeto, setProjeto] = useState("");
   const [equipamento, setEquipamento] = useState("");
@@ -105,6 +120,37 @@ export default function NovaOrdemServico() {
   const user = getCurrentUser();
 
   const manutencao = user?.role === "suporte";
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarOrigem() {
+      try {
+        if (projetoOrigemId) {
+          const { projeto } = await getProjeto(projetoOrigemId);
+          if (ativo) setOrigemNome(`Projeto: ${projeto.nome}`);
+        } else if (manutencaoOrigemId) {
+          const { manutencao } = await getManutencao(manutencaoOrigemId);
+          if (ativo) {
+            setOrigemNome(`Manutenção: ${manutencao.resumo || `#${manutencao.id}`}`);
+          }
+        }
+      } catch (error) {
+        if (ativo) {
+          setErro(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar o projeto/manutenção.",
+          );
+        }
+      }
+    }
+
+    carregarOrigem();
+    return () => {
+      ativo = false;
+    };
+  }, [projetoOrigemId, manutencaoOrigemId]);
 
   useEffect(() => {
     async function carregarTimes() {
@@ -253,6 +299,11 @@ export default function NovaOrdemServico() {
 
     setErro(null);
 
+    if (!origemValida) {
+      setErro("Abra a O.S. a partir de um projeto ou de uma manutenção.");
+      return;
+    }
+
     if (!timeResponsavel) {
       setErro("Selecione o time responsável.");
       return;
@@ -300,6 +351,8 @@ export default function NovaOrdemServico() {
             | "critica",
         data_limite: prazo,
         id_time_responsavel: timeResponsavel,
+        projeto_id: projetoOrigemId ?? undefined,
+        manutencao_id: manutencaoOrigemId ?? undefined,
         equipamentos: equipamentos.map(({ nome, quantidade }) => ({
           nome_equipamento: nome,
           quantidade,
@@ -307,7 +360,7 @@ export default function NovaOrdemServico() {
         anexos: anexosPayload,
       });
 
-      navigate("/os/disponiveis");
+      navigate(origemPath);
     } catch (error) {
       console.error(error);
 
@@ -319,6 +372,26 @@ export default function NovaOrdemServico() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  if (!origemValida) {
+    return (
+      <main className="page nova-os-page min-h-full p-5 md:p-8">
+        <div className="nova-os-card border-border mx-auto w-full max-w-[1140px] rounded-xl border p-6 shadow-sm md:p-9">
+          <h1 className="text-text m-0 mb-3 text-2xl font-bold">
+            Nova Ordem de Serviço
+          </h1>
+          <p className="text-text-muted mb-6 text-sm">
+            Uma O.S. só pode ser criada a partir de um projeto ou de uma
+            manutenção existente. Abra o projeto ou a manutenção desejada e
+            clique em &quot;Nova O.S.&quot;.
+          </p>
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            Voltar
+          </Button>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -341,6 +414,12 @@ export default function NovaOrdemServico() {
               </h1>
             </div>
           </div>
+
+          {origemNome && (
+            <p className="text-text mt-4 mb-0 text-sm font-semibold">
+              Vinculada a — {origemNome}
+            </p>
+          )}
 
           <p className="text-text-muted mt-4 text-xs">
             Campos marcados com{" "}
@@ -702,7 +781,7 @@ export default function NovaOrdemServico() {
             variant="outline"
             size="lg"
             onClick={() =>
-              navigate("/dashboard")
+              navigate(origemPath)
             }
           >
             Voltar

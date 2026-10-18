@@ -1,7 +1,6 @@
 import {
   BarChart3,
   ClipboardList,
-  FilePlus2,
   Home,
   Settings,
   Users,
@@ -53,20 +52,6 @@ export const menuItems: SidebarItemConfig[] = [
     icon: Wrench,
     path: "/manutencoes-totais",
     excludedRoles: ["superusuario", "comercial"],
-  },
-
-  {
-    label: "Minhas O.S.",
-    icon: ClipboardList,
-    path: "/os/minhas",
-    roles: ["producao", "software", "implantacao"],
-  },
-
-  {
-    label: "Nova O.S.",
-    icon: FilePlus2,
-    path: "/os/nova-os",
-    excludedRoles: ["superusuario"],
   },
 
   {

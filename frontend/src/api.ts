@@ -176,6 +176,9 @@ export function createOrdemServico(data: {
   prioridade: "baixa" | "media" | "alta" | "critica";
   data_limite: string;
   id_time_responsavel: string | number;
+  // exatamente um dos dois deve ser informado
+  projeto_id?: string;
+  manutencao_id?: string;
   equipamentos?: { nome_equipamento: string; quantidade: number }[];
   anexos?: {
     nome_anexo: string;
@@ -268,24 +271,18 @@ export interface ProjetoPayload {
   nome: string;
   data_assinatura_contrato: string;
   data_vencimento_contrato: string;
+  data_limite: string;
   tipo_sistema: string;
-  id_time_responsavel: number;
   vendedor_nome: string;
   prioridade: "baixa" | "media" | "alta" | "critica";
   descricao?: string;
-  equipamentos: { nome_equipamento: string; quantidade: number }[];
+  equipamentos?: { nome_equipamento: string; quantidade: number }[];
   anexos: {
     nome_anexo: string;
     anexo_tipo: string;
     anexo_tamanho: number;
     conteudo_arquivo_base64: string;
   }[];
-}
-
-export function getTimesParaProjeto(): Promise<{
-  times: { id_time: number; nome_time: string }[];
-}> {
-  return request("/projetos/times");
 }
 
 export function getVendedores(): Promise<{
@@ -304,24 +301,36 @@ export function createProjeto(data: ProjetoPayload): Promise<{
   });
 }
 
-export interface Projeto {
+export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
+
+// Dados do ticket (listagem)
+export interface ProjetoResumo {
   id: string;
   nome: string;
-  tipo_sistema: string;
   prioridade: "baixa" | "media" | "alta" | "critica";
+  responsavel: string | null;
+  status: StatusItem;
+}
+
+// Dados da tela expandida
+export interface Projeto extends ProjetoResumo {
+  tipo_sistema: string;
   descricao: string;
   data_assinatura_contrato: string | null;
   data_vencimento_contrato: string | null;
-  responsavel: string | null;
+  data_limite: string | null;
   vendedor: string | null;
-  time: { id: string; nome: string } | null;
-  membros_time: string[];
   equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
+  ordens: OrdemServicoResumo[];
 }
 
-export function getProjetos(): Promise<{ projetos: Projeto[] }> {
+export function getProjetos(): Promise<{ projetos: ProjetoResumo[] }> {
   return request("/projetos");
+}
+
+export function getProjeto(id: string): Promise<{ projeto: Projeto }> {
+  return request(`/projetos/${encodeURIComponent(id)}`);
 }
 
 export function abrirAnexoProjeto(
@@ -349,9 +358,9 @@ export interface ManutencaoPayload {
     | "adaptativa"
     | "evolutiva";
 
-  responsavel_nome: string;
+  projeto_id?: string | null;
 
-  id_time_responsavel: number;
+  data_limite: string;
 
   data_inicio_problema: string;
 
@@ -363,7 +372,7 @@ export interface ManutencaoPayload {
 
   descricao_situacao: string;
 
-  equipamentos: {
+  equipamentos?: {
     nome_equipamento: string;
     quantidade: number;
   }[];
@@ -376,16 +385,10 @@ export interface ManutencaoPayload {
   }[];
 }
 
-export function getTimesParaManutencao(): Promise<{
-  times: { id_time: number; nome_time: string }[];
+export function getProjetosParaManutencao(): Promise<{
+  projetos: { id_projeto: number; nome: string }[];
 }> {
-  return request("/manutencoes/times");
-}
-
-export function getResponsaveisManutencao(): Promise<{
-  responsaveis: { id_usuario: number; nome: string }[];
-}> {
-  return request("/manutencoes/responsaveis");
+  return request("/manutencoes/projetos");
 }
 
 export function createManutencao(
@@ -403,22 +406,33 @@ export function createManutencao(
   });
 }
 
-export interface Manutencao {
+// Dados do ticket (listagem)
+export interface ManutencaoResumo {
   id: string;
   resumo: string;
-  tipo_manutencao: "preventiva" | "corretiva" | "adaptativa" | "evolutiva";
   prioridade: "baixa" | "media" | "alta" | "critica";
-  status: string;
-  descricao: string;
-  data_inicio_problema: string | null;
   responsavel: string | null;
-  time: { id: string; nome: string } | null;
-  equipamentos: { nome: string; quantidade: number }[];
-  anexos: ManutencaoAnexo[];
+  status: StatusItem;
 }
 
-export function getManutencoes(): Promise<{ manutencoes: Manutencao[] }> {
+// Dados da tela expandida
+export interface Manutencao extends ManutencaoResumo {
+  tipo_manutencao: "preventiva" | "corretiva" | "adaptativa" | "evolutiva";
+  descricao: string;
+  data_inicio_problema: string | null;
+  data_limite: string | null;
+  projeto: { id: string; nome: string } | null;
+  equipamentos: { nome: string; quantidade: number }[];
+  anexos: ManutencaoAnexo[];
+  ordens: OrdemServicoResumo[];
+}
+
+export function getManutencoes(): Promise<{ manutencoes: ManutencaoResumo[] }> {
   return request("/manutencoes");
+}
+
+export function getManutencao(id: string): Promise<{ manutencao: Manutencao }> {
+  return request(`/manutencoes/${encodeURIComponent(id)}`);
 }
 
 export function abrirAnexoManutencao(
@@ -453,10 +467,20 @@ export interface OrdemServicoResumo {
   data_criacao: string | null;
   criador: string | null;
   departamento: string | null;
+  projeto_id: string | null;
+  manutencao_id: string | null;
   time: { id: string; nome: string } | null;
 }
 
+export interface PedidoPai {
+  tipo: "projeto" | "manutencao";
+  id: string;
+  titulo: string;
+  data_limite: string | null;
+}
+
 export interface OrdemServicoDetalhe extends OrdemServicoResumo {
+  pedido_pai: PedidoPai | null;
   equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
 }

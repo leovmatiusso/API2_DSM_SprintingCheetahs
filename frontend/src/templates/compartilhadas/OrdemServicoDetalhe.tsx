@@ -84,7 +84,7 @@ export default function OrdemServicoDetalhe() {
             <p className="text-danger mb-4 text-sm" role="alert">
               {erro ?? "Ordem de serviço não encontrada."}
             </p>
-            <Button variant="outline" onClick={() => navigate("/os/disponiveis")}>
+            <Button variant="outline" onClick={() => navigate(-1)}>
               Voltar
             </Button>
           </div>
@@ -126,6 +126,9 @@ export default function OrdemServicoDetalhe() {
                 >
                   {PRIORIDADE_LABEL[ordem.prioridade] ?? ordem.prioridade}
                 </span>
+              </CampoCaixa>
+              <CampoCaixa rotulo="Prazo">
+                <span className="text-text text-sm">{formatarData(ordem.data_limite)}</span>
               </CampoCaixa>
             </div>
 
@@ -219,12 +222,18 @@ export default function OrdemServicoDetalhe() {
                   </p>
                   <p className="text-text m-0">
                     <span className="font-semibold">Data limite:</span>{" "}
-                    {formatarData(ordem.data_limite)}
+                    {ordem.pedido_pai?.data_limite
+                      ? formatarData(ordem.pedido_pai.data_limite)
+                      : "-"}
+                  </p>
+                  <p className="text-text m-0">
+                    <span className="font-semibold">Pedido pai:</span>{" "}
+                    {ordem.pedido_pai?.titulo ?? "-"}
                   </p>
                 </div>
               </div>
 
-              <Button variant="outline" size="lg" onClick={() => navigate("/os/disponiveis")}>
+              <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                 Voltar
               </Button>
             </div>

@@ -1,4 +1,4 @@
-import type { OrdemServicoResumo } from "@/api";
+import type { OrdemServicoResumo, StatusItem } from "@/api";
 
 export const PRIORIDADE_LABEL: Record<OrdemServicoResumo["prioridade"], string> = {
   baixa: "Baixa",
@@ -30,6 +30,21 @@ export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
   teste: "bg-primary-muted text-primary",
   bloqueado: "bg-danger-alt text-danger-alt-inverted",
   review: "bg-warning-alt text-warning-alt-inverted",
+};
+
+// Status de projeto/manutenção (derivado das O.S.)
+export const STATUS_ITEM_LABEL: Record<StatusItem, string> = {
+  nao_iniciado: "Não iniciado",
+  em_andamento: "Em andamento",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+};
+
+export const STATUS_ITEM_CLASSE: Record<StatusItem, string> = {
+  nao_iniciado: "bg-bg-tertiary text-text-muted",
+  em_andamento: "bg-success-alt text-success-alt-inverted",
+  concluido: "bg-primary-muted text-primary",
+  cancelado: "bg-danger-alt text-danger-alt-inverted",
 };
 
 export function formatarData(data: string | null): string {
