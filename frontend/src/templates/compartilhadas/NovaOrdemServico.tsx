@@ -339,12 +339,6 @@ export default function NovaOrdemServico() {
               <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]">
                 Nova Ordem de Serviço
               </h1>
-
-              <p className="text-text-muted text-sm leading-6">
-                {manutencao
-                  ? "Abra uma nova solicitação de manutenção para que o gestor possa direcioná-la à equipe responsável."
-                  : "Abra uma nova solicitação de OS para que o gestor possa direcioná-la à equipe responsável."}
-              </p>
             </div>
           </div>
 

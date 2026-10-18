@@ -8,6 +8,7 @@ import {
 
 import {
   ClipboardList,
+  CirclePlus,
   Link,
   Upload,
   X,
@@ -485,7 +486,7 @@ export default function NovoProjeto({
         <div className="mb-8">
           <div className="flex items-center gap-4">
             <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
-              <ClipboardList size={30} />
+              <CirclePlus size={30} />
             </div>
 
             <div>
@@ -535,8 +536,8 @@ export default function NovoProjeto({
               }
               placeholder={
                 !manutencao
-                  ? "Ex.: Manutenção de equipamento"
-                  : "Ex.: Desenvolvimento de novo equipamento"
+                  ? "Ex.: Desenvolvimento de novo equipamento"
+                  : "Ex.: Manutenção de equipamento"
               }
               required
             />

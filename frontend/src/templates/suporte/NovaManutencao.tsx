@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import {
   ClipboardList,
+  CirclePlus,
   Paperclip,
   Upload,
   X,
@@ -269,7 +270,7 @@ export default function NovaManutencao() {
             <div className="mb-8 flex items-start gap-4">
 
               <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
-                <ClipboardList className="text-primary" size={30} />
+                <CirclePlus className="text-primary" size={30} />
               </div>
 
               <div>

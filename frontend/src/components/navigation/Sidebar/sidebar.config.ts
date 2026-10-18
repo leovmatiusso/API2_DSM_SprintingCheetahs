@@ -45,14 +45,14 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Projetos",
     icon: ClipboardList,
     path: "/projetos-totais",
-    excludedRoles: ["superusuario"],
+    excludedRoles: ["superusuario", "suporte"],
   },
 
   {
     label: "Manutenções",
     icon: Wrench,
     path: "/manutencoes-totais",
-    excludedRoles: ["superusuario"],
+    excludedRoles: ["superusuario", "comercial"],
   },
 
   {
