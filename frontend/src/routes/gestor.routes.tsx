@@ -1,7 +1,7 @@
 import { Route } from "react-router-dom";
 
 import Modulo from "@/templates/Modulo";
-import Dashboard from "@/templates/gestor/dashboard";
+import Dashboard from "@/templates/gestor/Dashboard";
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 
