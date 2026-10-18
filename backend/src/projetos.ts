@@ -4,14 +4,15 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
+import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
 
-// Perfis que enxergam todos os projetos. Os demais (exceto superusuário)
-// só enxergam projetos cujo "time responsável" é o seu próprio time.
+// Perfis que enxergam todos os projetos. Produção, software e implantação
+// só enxergam projetos que tenham ao menos uma O.S. direcionada ao seu time.
+// Suporte não acessa projetos.
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
   "comercial",
-  "suporte",
   "producao",
   "software",
   "implantacao",
@@ -26,10 +27,15 @@ function veTodos(user: User): boolean {
   return PERFIS_VEEM_TODOS.includes(user.role);
 }
 
-function podeVerProjeto(user: User, timeIdDoProjeto: number | null): boolean {
-  if (veTodos(user)) return true;
-  if (timeIdDoProjeto === null || user.time_id === null) return false;
-  return String(timeIdDoProjeto) === String(user.time_id);
+// Condição SQL (alias "p" = tabela projetos) com os projetos que o usuário pode ver.
+function filtroProjeto(user: User): { sql: string; params: number[] } {
+  if (veTodos(user)) return { sql: "1 = 1", params: [] };
+  if (user.time_id === null) return { sql: "1 = 0", params: [] };
+  return {
+    sql: `EXISTS (SELECT 1 FROM os ox
+                   WHERE ox.projeto_id = p.projeto_id AND ox.id_time_responsavel = ?)`,
+    params: [Number(user.time_id)],
+  };
 }
 
 function dataValida(data: string): boolean {
@@ -38,23 +44,36 @@ function dataValida(data: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
 }
 
+const SELECT_PROJETO = `
+  SELECT p.projeto_id,
+         p.nome,
+         p.tipo_sistema,
+         p.prioridade,
+         p.descricao,
+         DATE_FORMAT(p.data_limite, '%Y-%m-%d') AS data_limite,
+         resp.nome AS responsavel_nome,
+         vend.nome AS vendedor_nome,
+         DATE_FORMAT(p.data_assinatura_contrato, '%Y-%m-%d') AS data_assinatura_contrato,
+         DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato,
+         (SELECT COUNT(*) FROM os o WHERE o.projeto_id = p.projeto_id) AS total_os,
+         (SELECT COUNT(*) FROM os o
+           WHERE o.projeto_id = p.projeto_id AND o.os_status <> 'concluida') AS os_nao_concluidas
+    FROM projetos p
+    LEFT JOIN usuarios resp ON resp.id_usuario = p.responsavel_id
+    LEFT JOIN usuarios vend ON vend.id_usuario = p.vendedor_id`;
+
+function mapProjetoResumo(p: RowDataPacket) {
+  return {
+    id: String(p.projeto_id),
+    nome: p.nome as string,
+    prioridade: p.prioridade as string,
+    responsavel: ((p.responsavel_nome ?? p.vendedor_nome) as string | null) ?? null,
+    status: statusDoItem(Number(p.total_os), Number(p.os_nao_concluidas)),
+  };
+}
+
 export function createProjetosRouter(requireRole: RequireRole): Router {
   const router = Router();
-
-  // ---------------------------------------------------
-  // Times disponíveis no formulário "Novo projeto"
-  // ---------------------------------------------------
-  router.get("/times", requireRole("comercial"), async (_req, res) => {
-    try {
-      const [times] = await pool.execute<(RowDataPacket & { id_time: number; nome_time: string })[]>(
-        "SELECT id_time, nome_time FROM time ORDER BY nome_time",
-      );
-      return res.json({ times });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Não foi possível carregar os times." });
-    }
-  });
 
   // ---------------------------------------------------
   // Vendedores (usuários ativos da equipe comercial) para o formulário
@@ -72,105 +91,23 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
   });
 
   // ---------------------------------------------------
-  // Listagem (aba "Projetos")
-  // gestor e comercial: todos | demais: apenas os do seu time
+  // Listagem (aba "Projetos") - dados resumidos para os tickets
+  // gestor e comercial: todos | demais: só projetos com O.S. do seu time
   // ---------------------------------------------------
   router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
-      const params: (string | number)[] = [];
-      let filtro = "";
-
-      if (!veTodos(user)) {
-        if (user.time_id === null) return res.json({ projetos: [] });
-        filtro = "WHERE p.time_id = ?";
-        params.push(Number(user.time_id));
-      }
+      const filtro = filtroProjeto(user);
 
       const [projetos] = await pool.execute<RowDataPacket[]>(
-        `SELECT p.projeto_id,
-                p.nome,
-                p.tipo_sistema,
-                p.prioridade,
-                p.descricao,
-                p.time_id,
-                t.nome_time,
-                resp.nome AS responsavel_nome,
-                vend.nome AS vendedor_nome,
-                DATE_FORMAT(p.data_assinatura_contrato, '%Y-%m-%d') AS data_assinatura_contrato,
-                DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato
-           FROM projetos p
-           LEFT JOIN time t ON t.id_time = p.time_id
-           LEFT JOIN usuarios resp ON resp.id_usuario = p.responsavel_id
-           LEFT JOIN usuarios vend ON vend.id_usuario = p.vendedor_id
-           ${filtro}
+        `${SELECT_PROJETO}
+          WHERE ${filtro.sql}
           ORDER BY p.data_criacao DESC, p.projeto_id DESC`,
-        params,
+        filtro.params,
       );
 
-      if (!projetos.length) return res.json({ projetos: [] });
-
-      const projetoIds = projetos.map((p) => p.projeto_id as number);
-      const timeIds = [
-        ...new Set(projetos.map((p) => p.time_id as number | null).filter((id): id is number => id !== null)),
-      ];
-
-      const [equipamentos] = await pool.query<RowDataPacket[]>(
-        `SELECT i.projeto_id, e.nome_equipamento, i.quantidade
-           FROM item_equipamento_projeto i
-           JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
-          WHERE i.projeto_id IN (?)
-          ORDER BY e.nome_equipamento`,
-        [projetoIds],
-      );
-
-      const [anexos] = await pool.query<RowDataPacket[]>(
-        `SELECT anexo_id, projeto_id, nome_anexo, anexo_tipo, anexo_tamanho
-           FROM anexo
-          WHERE projeto_id IN (?)
-          ORDER BY anexo_id`,
-        [projetoIds],
-      );
-
-      const membros = timeIds.length
-        ? (
-            await pool.query<RowDataPacket[]>(
-              `SELECT time_id, nome
-                 FROM usuarios
-                WHERE time_id IN (?) AND ativo = TRUE
-                ORDER BY nome`,
-              [timeIds],
-            )
-          )[0]
-        : [];
-
-      return res.json({
-        projetos: projetos.map((p) => ({
-          id: String(p.projeto_id),
-          nome: p.nome,
-          tipo_sistema: p.tipo_sistema,
-          prioridade: p.prioridade,
-          descricao: p.descricao ?? "",
-          data_assinatura_contrato: p.data_assinatura_contrato,
-          data_vencimento_contrato: p.data_vencimento_contrato,
-          responsavel: p.responsavel_nome ?? null,
-          vendedor: p.vendedor_nome ?? null,
-          time: p.time_id === null ? null : { id: String(p.time_id), nome: p.nome_time },
-          membros_time: membros.filter((m) => m.time_id === p.time_id).map((m) => m.nome as string),
-          equipamentos: equipamentos
-            .filter((e) => e.projeto_id === p.projeto_id)
-            .map((e) => ({ nome: e.nome_equipamento as string, quantidade: Number(e.quantidade) })),
-          anexos: anexos
-            .filter((a) => a.projeto_id === p.projeto_id)
-            .map((a) => ({
-              id: String(a.anexo_id),
-              nome: a.nome_anexo as string,
-              tipo: a.anexo_tipo as string,
-              tamanho: Number(a.anexo_tamanho ?? 0),
-            })),
-        })),
-      });
+      return res.json({ projetos: projetos.map(mapProjetoResumo) });
     } catch (error) {
       console.error("Erro ao listar projetos:", error);
       return res.status(500).json({ message: "Não foi possível carregar os projetos." });
@@ -178,25 +115,100 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
   });
 
   // ---------------------------------------------------
-  // Download de anexo (mesma regra de acesso da listagem)
+  // Detalhe do projeto (tela expandida) + O.S. do projeto
+  // gestor e comercial veem todas as O.S. | demais: só as do seu time
+  // ---------------------------------------------------
+  router.get("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
+    const projetoId = String(req.params.projetoId);
+
+    if (!/^\d+$/.test(projetoId)) {
+      return res.status(404).json({ message: "Projeto não encontrado." });
+    }
+
+    try {
+      const filtro = filtroProjeto(user);
+
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `${SELECT_PROJETO} WHERE p.projeto_id = ? AND ${filtro.sql} LIMIT 1`,
+        [projetoId, ...filtro.params],
+      );
+      const p = rows[0];
+      if (!p) return res.status(404).json({ message: "Projeto não encontrado." });
+
+      const [equipamentos] = await pool.execute<RowDataPacket[]>(
+        `SELECT e.nome_equipamento, i.quantidade
+           FROM item_equipamento_projeto i
+           JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
+          WHERE i.projeto_id = ?
+          ORDER BY e.nome_equipamento`,
+        [projetoId],
+      );
+
+      const [anexos] = await pool.execute<RowDataPacket[]>(
+        `SELECT anexo_id, nome_anexo, anexo_tipo, anexo_tamanho
+           FROM anexo
+          WHERE projeto_id = ?
+          ORDER BY anexo_id`,
+        [projetoId],
+      );
+
+      const filtroOS = filtroVisibilidadeOS(user);
+      const [ordens] = await pool.execute<RowDataPacket[]>(
+        `${SELECT_OS}
+          WHERE o.projeto_id = ? AND (${filtroOS.sql})
+          ORDER BY o.data_criacao DESC, o.os_id DESC`,
+        [projetoId, ...filtroOS.params],
+      );
+
+      return res.json({
+        projeto: {
+          ...mapProjetoResumo(p),
+          tipo_sistema: p.tipo_sistema as string,
+          descricao: (p.descricao as string | null) ?? "",
+          data_assinatura_contrato: p.data_assinatura_contrato as string | null,
+          data_vencimento_contrato: p.data_vencimento_contrato as string | null,
+          data_limite: (p.data_limite as string | null) ?? null,
+          vendedor: (p.vendedor_nome as string | null) ?? null,
+          equipamentos: equipamentos.map((e) => ({
+            nome: e.nome_equipamento as string,
+            quantidade: Number(e.quantidade),
+          })),
+          anexos: anexos.map((a) => ({
+            id: String(a.anexo_id),
+            nome: a.nome_anexo as string,
+            tipo: a.anexo_tipo as string,
+            tamanho: Number(a.anexo_tamanho ?? 0),
+          })),
+          ordens: ordens.map(mapOS),
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao carregar projeto:", error);
+      return res.status(500).json({ message: "Não foi possível carregar o projeto." });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Download de anexo (mesma regra de acesso do detalhe)
   // ---------------------------------------------------
   router.get("/:projetoId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
 
     try {
+      const filtro = filtroProjeto(user);
+
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo, p.time_id
+        `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo
            FROM anexo a
            JOIN projetos p ON p.projeto_id = a.projeto_id
-          WHERE a.anexo_id = ? AND a.projeto_id = ?
+          WHERE a.anexo_id = ? AND a.projeto_id = ? AND ${filtro.sql}
           LIMIT 1`,
-        [req.params.anexoId, req.params.projetoId],
+        [String(req.params.anexoId), String(req.params.projetoId), ...filtro.params],
       );
 
       const anexo = rows[0];
-      if (!anexo || !podeVerProjeto(user, anexo.time_id as number | null)) {
-        return res.status(404).json({ message: "Anexo não encontrado." });
-      }
+      if (!anexo) return res.status(404).json({ message: "Anexo não encontrado." });
 
       res.setHeader("Content-Type", anexo.anexo_tipo || "application/octet-stream");
       res.setHeader("X-Content-Type-Options", "nosniff");
@@ -219,8 +231,8 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
       nome,
       data_assinatura_contrato,
       data_vencimento_contrato,
+      data_limite,
       tipo_sistema,
-      id_time_responsavel,
       vendedor_nome,
       prioridade,
       descricao,
@@ -230,8 +242,8 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
       nome?: string;
       data_assinatura_contrato?: string;
       data_vencimento_contrato?: string;
+      data_limite?: string;
       tipo_sistema?: string;
-      id_time_responsavel?: string | number;
       vendedor_nome?: string;
       prioridade?: string;
       descricao?: string;
@@ -255,11 +267,14 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     ) {
       return res.status(400).json({ message: "Informe datas válidas para assinatura e vencimento." });
     }
+    if (!data_limite || !dataValida(data_limite)) {
+      return res.status(400).json({ message: "Informe uma data limite válida." });
+    }
     if (!tipo_sistema?.trim() || tipo_sistema.trim().length > 100) {
       return res.status(400).json({ message: "Informe o tipo de sistema." });
     }
-    if (!id_time_responsavel || !vendedor_nome?.trim()) {
-      return res.status(400).json({ message: "Time responsável e vendedor são obrigatórios." });
+    if (!vendedor_nome?.trim()) {
+      return res.status(400).json({ message: "O vendedor responsável é obrigatório." });
     }
     const prioridadeFinal = (prioridade ?? "media").toLowerCase() as Prioridade;
     if (!PRIORIDADES.includes(prioridadeFinal)) {
@@ -273,13 +288,6 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     }
 
     try {
-      const [times] = await pool.execute<RowDataPacket[]>(
-        "SELECT id_time, responsavel_id FROM time WHERE id_time = ? LIMIT 1",
-        [String(id_time_responsavel)],
-      );
-      const time = times[0];
-      if (!time) return res.status(400).json({ message: "Time responsável inválido." });
-
       const [vendedores] = await pool.execute<RowDataPacket[]>(
         `SELECT id_usuario, ativo
            FROM usuarios
@@ -332,17 +340,17 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
         await connection.beginTransaction();
         const [result] = await connection.execute<ResultSetHeader>(
           `INSERT INTO projetos
-            (nome, data_assinatura_contrato, data_vencimento_contrato, responsavel_id, vendedor_id,
-             tipo_sistema, time_id, prioridade, descricao)
+            (nome, data_assinatura_contrato, data_vencimento_contrato, data_limite,
+             responsavel_id, vendedor_id, tipo_sistema, prioridade, descricao)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             nome.trim(),
             data_assinatura_contrato,
             data_vencimento_contrato,
+            data_limite,
             vendedores[0].id_usuario,
             vendedores[0].id_usuario,
             tipo_sistema.trim(),
-            time.id_time,
             prioridadeFinal,
             descricao?.trim() || null,
           ],

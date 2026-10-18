@@ -388,6 +388,9 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
   if (!validRoles.includes(role)) return res.status(400).json({ message: "Perfil inválido." });
   if (password.length < 6) return res.status(400).json({ message: "A senha deve possuir pelo menos 6 caracteres." });
 
+  // Comercial e suporte não pertencem a times
+  const timeIdFinal = PERFIS_SEM_TIME.includes(role) ? null : time_id || null;
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -401,10 +404,10 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
       return res.status(409).json({ message: "Este email já está cadastrado." });
     }
 
-    if (time_id) {
+    if (timeIdFinal) {
       const [timeRows] = await connection.execute<RowDataPacket[]>(
         "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
-        [time_id],
+        [timeIdFinal],
       );
       if (!timeRows.length) {
         await connection.rollback();
@@ -416,7 +419,7 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
     const [result] = await connection.execute<ResultSetHeader>(
       `INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id)
        VALUES (?, ?, ?, ?, TRUE, ?)`,
-      [name.trim(), email.trim().toLowerCase(), role, passwordHash, time_id || null],
+      [name.trim(), email.trim().toLowerCase(), role, passwordHash, timeIdFinal],
     );
 
     await connection.commit();
@@ -490,7 +493,12 @@ app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
       }
     }
 
-    const newTimeId = time_id === undefined ? current.time_id : time_id;
+    const novoCargo = role === undefined ? (current.cargo as Role) : role;
+    const newTimeId = PERFIS_SEM_TIME.includes(novoCargo)
+      ? null
+      : time_id === undefined
+        ? current.time_id
+        : time_id;
     const newHash = password === undefined ? current.senha_hash : await hashPassword(password);
 
     await connection.execute(
@@ -508,7 +516,7 @@ app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
       ],
     );
 
-    if (time_id !== undefined && String(current.time_id ?? "") !== String(time_id ?? "")) {
+    if (String(current.time_id ?? "") !== String(newTimeId ?? "")) {
       if (current.time_id !== null) {
         await connection.execute(
           "UPDATE time SET responsavel_id = NULL WHERE id_time = ? AND responsavel_id = ?",
@@ -592,6 +600,10 @@ app.get("/api/times", requireAuth, async (_req, res) => {
   }
 });
 
+// Comercial e suporte não pertencem a times: enxergam projetos/manutenções
+// diretamente. Só produção, software e implantação são alocados em times.
+const PERFIS_SEM_TIME: Role[] = ["comercial", "suporte"];
+
 async function validateTimePayload(
   nome_time: string | undefined,
   departamento: string | undefined,
@@ -614,10 +626,13 @@ async function validateTimePayload(
   if (ids.length) {
     const placeholders = ids.map(() => "?").join(",");
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT id_usuario FROM usuarios WHERE id_usuario IN (${placeholders})`,
+      `SELECT id_usuario, cargo FROM usuarios WHERE id_usuario IN (${placeholders})`,
       ids,
     );
     if (rows.length !== ids.length) return "Uma ou mais pessoas vinculadas são inválidas.";
+    if (rows.some((row) => PERFIS_SEM_TIME.includes(row.cargo as Role))) {
+      return "Usuários das equipes Comercial e Suporte não podem ser alocados em times.";
+    }
   }
 
   const [duplicates] = await pool.execute<RowDataPacket[]>(

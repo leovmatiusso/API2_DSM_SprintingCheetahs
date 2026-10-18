@@ -4,14 +4,15 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
+import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
 
-// Perfis que enxergam todas as manutenções. Os demais (exceto superusuário)
-// só enxergam manutenções cujo "time responsável" é o seu próprio time.
+// Perfis que enxergam todas as manutenções. Produção, software e implantação
+// só enxergam manutenções que tenham ao menos uma O.S. direcionada ao seu time.
+// Comercial não acessa manutenções.
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte"];
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
   "suporte",
-  "comercial",
   "producao",
   "software",
   "implantacao",
@@ -28,10 +29,15 @@ function veTodos(user: User): boolean {
   return PERFIS_VEEM_TODOS.includes(user.role);
 }
 
-function podeVerManutencao(user: User, timeIdDaManutencao: number | null): boolean {
-  if (veTodos(user)) return true;
-  if (timeIdDaManutencao === null || user.time_id === null) return false;
-  return String(timeIdDaManutencao) === String(user.time_id);
+// Condição SQL (alias "m" = tabela manutencoes) com as manutenções que o usuário pode ver.
+function filtroManutencao(user: User): { sql: string; params: number[] } {
+  if (veTodos(user)) return { sql: "1 = 1", params: [] };
+  if (user.time_id === null) return { sql: "1 = 0", params: [] };
+  return {
+    sql: `EXISTS (SELECT 1 FROM os ox
+                   WHERE ox.manutencao_id = m.manutencao_id AND ox.id_time_responsavel = ?)`,
+    params: [Number(user.time_id)],
+  };
 }
 
 function dataValida(data: string): boolean {
@@ -40,120 +46,74 @@ function dataValida(data: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
 }
 
+const SELECT_MANUTENCAO = `
+  SELECT m.manutencao_id,
+         m.resumo,
+         m.tipo_manutencao,
+         m.prioridade,
+         m.status AS status_manutencao,
+         m.descricao_situacao,
+         m.projeto_id,
+         pr.nome AS projeto_nome,
+         DATE_FORMAT(m.data_limite, '%Y-%m-%d') AS data_limite,
+         resp.nome AS responsavel_nome,
+         DATE_FORMAT(m.data_inicio_problema, '%Y-%m-%d') AS data_inicio_problema,
+         (SELECT COUNT(*) FROM os o WHERE o.manutencao_id = m.manutencao_id) AS total_os,
+         (SELECT COUNT(*) FROM os o
+           WHERE o.manutencao_id = m.manutencao_id AND o.os_status <> 'concluida') AS os_nao_concluidas
+    FROM manutencoes m
+    LEFT JOIN usuarios resp ON resp.id_usuario = m.responsavel_id
+    LEFT JOIN projetos pr ON pr.projeto_id = m.projeto_id`;
+
+function mapManutencaoResumo(m: RowDataPacket) {
+  return {
+    id: String(m.manutencao_id),
+    resumo: (m.resumo as string | null) ?? "",
+    prioridade: m.prioridade as string,
+    responsavel: (m.responsavel_nome as string | null) ?? null,
+    status:
+      m.status_manutencao === "cancelada"
+        ? "cancelado"
+        : statusDoItem(Number(m.total_os), Number(m.os_nao_concluidas)),
+  };
+}
+
 export function createManutencoesRouter(requireRole: RequireRole): Router {
   const router = Router();
 
   // ---------------------------------------------------
-  // Times disponíveis no formulário "Nova manutenção"
+  // Projetos disponíveis para vincular a uma nova manutenção
   // ---------------------------------------------------
-  router.get("/times", requireRole("suporte"), async (_req, res) => {
+  router.get("/projetos", requireRole("suporte"), async (_req, res) => {
     try {
-      const [times] = await pool.execute<(RowDataPacket & { id_time: number; nome_time: string })[]>(
-        "SELECT id_time, nome_time FROM time ORDER BY nome_time",
+      const [projetos] = await pool.execute<(RowDataPacket & { id_projeto: number; nome: string })[]>(
+        "SELECT projeto_id AS id_projeto, nome FROM projetos ORDER BY nome",
       );
-      return res.json({ times });
+      return res.json({ projetos });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ message: "Não foi possível carregar os times." });
+      return res.status(500).json({ message: "Não foi possível carregar os projetos." });
     }
   });
 
   // ---------------------------------------------------
-  // Responsáveis (usuários ativos da equipe de suporte)
-  // ---------------------------------------------------
-  router.get("/responsaveis", requireRole("suporte"), async (_req, res) => {
-    try {
-      const [responsaveis] = await pool.execute<(RowDataPacket & { id_usuario: number; nome: string })[]>(
-        "SELECT id_usuario, nome FROM usuarios WHERE cargo = 'suporte' AND ativo = TRUE ORDER BY nome",
-      );
-      return res.json({ responsaveis });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Não foi possível carregar os responsáveis." });
-    }
-  });
-
-  // ---------------------------------------------------
-  // Listagem (aba "Manutenções")
-  // gestor e suporte: todas | demais: apenas as do seu time
+  // Listagem (aba "Manutenções") - dados resumidos para os tickets
+  // gestor e suporte: todas | demais: só manutenções com O.S. do seu time
   // ---------------------------------------------------
   router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
-      const params: (string | number)[] = [];
-      let filtro = "";
-
-      if (!veTodos(user)) {
-        if (user.time_id === null) return res.json({ manutencoes: [] });
-        filtro = "WHERE m.time_id = ?";
-        params.push(Number(user.time_id));
-      }
+      const filtro = filtroManutencao(user);
 
       const [manutencoes] = await pool.execute<RowDataPacket[]>(
-        `SELECT m.manutencao_id,
-                m.resumo,
-                m.tipo_manutencao,
-                m.prioridade,
-                m.status,
-                m.descricao_situacao,
-                m.time_id,
-                t.nome_time,
-                resp.nome AS responsavel_nome,
-                DATE_FORMAT(m.data_inicio_problema, '%Y-%m-%d') AS data_inicio_problema
-           FROM manutencoes m
-           LEFT JOIN time t ON t.id_time = m.time_id
-           LEFT JOIN usuarios resp ON resp.id_usuario = m.responsavel_id
-           ${filtro}
+        `${SELECT_MANUTENCAO}
+          WHERE ${filtro.sql}
           ORDER BY m.data_criacao DESC, m.manutencao_id DESC`,
-        params,
+        filtro.params,
       );
 
-      if (!manutencoes.length) return res.json({ manutencoes: [] });
-
-      const ids = manutencoes.map((m) => m.manutencao_id as number);
-
-      const [equipamentos] = await pool.query<RowDataPacket[]>(
-        `SELECT i.manutencao_id, e.nome_equipamento, i.quantidade
-           FROM item_equipamento_manutencao i
-           JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
-          WHERE i.manutencao_id IN (?)
-          ORDER BY e.nome_equipamento`,
-        [ids],
-      );
-
-      const [anexos] = await pool.query<RowDataPacket[]>(
-        `SELECT anexo_id, manutencao_id, nome_anexo, anexo_tipo, anexo_tamanho
-           FROM anexo
-          WHERE manutencao_id IN (?)
-          ORDER BY anexo_id`,
-        [ids],
-      );
-
-      return res.json({
-        manutencoes: manutencoes.map((m) => ({
-          id: String(m.manutencao_id),
-          resumo: m.resumo ?? "",
-          tipo_manutencao: m.tipo_manutencao,
-          prioridade: m.prioridade,
-          status: m.status,
-          descricao: m.descricao_situacao ?? "",
-          data_inicio_problema: m.data_inicio_problema,
-          responsavel: m.responsavel_nome ?? null,
-          time: m.time_id === null ? null : { id: String(m.time_id), nome: m.nome_time },
-          equipamentos: equipamentos
-            .filter((e) => e.manutencao_id === m.manutencao_id)
-            .map((e) => ({ nome: e.nome_equipamento as string, quantidade: Number(e.quantidade) })),
-          anexos: anexos
-            .filter((a) => a.manutencao_id === m.manutencao_id)
-            .map((a) => ({
-              id: String(a.anexo_id),
-              nome: a.nome_anexo as string,
-              tipo: a.anexo_tipo as string,
-              tamanho: Number(a.anexo_tamanho ?? 0),
-            })),
-        })),
-      });
+      return res.json({ manutencoes: manutencoes.map(mapManutencaoResumo) });
     } catch (error) {
       console.error("Erro ao listar manutenções:", error);
       return res.status(500).json({ message: "Não foi possível carregar as manutenções." });
@@ -161,25 +121,102 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
   });
 
   // ---------------------------------------------------
-  // Download de anexo (mesma regra de acesso da listagem)
+  // Detalhe da manutenção (tela expandida) + O.S. da manutenção
+  // gestor e suporte veem todas as O.S. | demais: só as do seu time
+  // ---------------------------------------------------
+  router.get("/:manutencaoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
+    const manutencaoId = String(req.params.manutencaoId);
+
+    if (!/^\d+$/.test(manutencaoId)) {
+      return res.status(404).json({ message: "Manutenção não encontrada." });
+    }
+
+    try {
+      const filtro = filtroManutencao(user);
+
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `${SELECT_MANUTENCAO} WHERE m.manutencao_id = ? AND ${filtro.sql} LIMIT 1`,
+        [manutencaoId, ...filtro.params],
+      );
+      const m = rows[0];
+      if (!m) return res.status(404).json({ message: "Manutenção não encontrada." });
+
+      const [equipamentos] = await pool.execute<RowDataPacket[]>(
+        `SELECT e.nome_equipamento, i.quantidade
+           FROM item_equipamento_manutencao i
+           JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
+          WHERE i.manutencao_id = ?
+          ORDER BY e.nome_equipamento`,
+        [manutencaoId],
+      );
+
+      const [anexos] = await pool.execute<RowDataPacket[]>(
+        `SELECT anexo_id, nome_anexo, anexo_tipo, anexo_tamanho
+           FROM anexo
+          WHERE manutencao_id = ?
+          ORDER BY anexo_id`,
+        [manutencaoId],
+      );
+
+      const filtroOS = filtroVisibilidadeOS(user);
+      const [ordens] = await pool.execute<RowDataPacket[]>(
+        `${SELECT_OS}
+          WHERE o.manutencao_id = ? AND (${filtroOS.sql})
+          ORDER BY o.data_criacao DESC, o.os_id DESC`,
+        [manutencaoId, ...filtroOS.params],
+      );
+
+      return res.json({
+        manutencao: {
+          ...mapManutencaoResumo(m),
+          tipo_manutencao: m.tipo_manutencao as string,
+          data_limite: (m.data_limite as string | null) ?? null,
+          projeto:
+            m.projeto_id === null
+              ? null
+              : { id: String(m.projeto_id), nome: m.projeto_nome as string },
+          descricao: (m.descricao_situacao as string | null) ?? "",
+          data_inicio_problema: m.data_inicio_problema as string | null,
+          equipamentos: equipamentos.map((e) => ({
+            nome: e.nome_equipamento as string,
+            quantidade: Number(e.quantidade),
+          })),
+          anexos: anexos.map((a) => ({
+            id: String(a.anexo_id),
+            nome: a.nome_anexo as string,
+            tipo: a.anexo_tipo as string,
+            tamanho: Number(a.anexo_tamanho ?? 0),
+          })),
+          ordens: ordens.map(mapOS),
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao carregar manutenção:", error);
+      return res.status(500).json({ message: "Não foi possível carregar a manutenção." });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Download de anexo (mesma regra de acesso do detalhe)
   // ---------------------------------------------------
   router.get("/:manutencaoId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
 
     try {
+      const filtro = filtroManutencao(user);
+
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo, m.time_id
+        `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo
            FROM anexo a
            JOIN manutencoes m ON m.manutencao_id = a.manutencao_id
-          WHERE a.anexo_id = ? AND a.manutencao_id = ?
+          WHERE a.anexo_id = ? AND a.manutencao_id = ? AND ${filtro.sql}
           LIMIT 1`,
-        [req.params.anexoId, req.params.manutencaoId],
+        [String(req.params.anexoId), String(req.params.manutencaoId), ...filtro.params],
       );
 
       const anexo = rows[0];
-      if (!anexo || !podeVerManutencao(user, anexo.time_id as number | null)) {
-        return res.status(404).json({ message: "Anexo não encontrado." });
-      }
+      if (!anexo) return res.status(404).json({ message: "Anexo não encontrado." });
 
       res.setHeader("Content-Type", anexo.anexo_tipo || "application/octet-stream");
       res.setHeader("X-Content-Type-Options", "nosniff");
@@ -198,11 +235,12 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
   // Criação (aba "Nova manutenção") - somente suporte
   // ---------------------------------------------------
   router.post("/", requireRole("suporte"), async (req, res) => {
+    const user = res.locals.user as User;
     const {
       resumo,
       tipo_manutencao,
-      responsavel_nome,
-      id_time_responsavel,
+      projeto_id,
+      data_limite,
       data_inicio_problema,
       prioridade,
       descricao_situacao,
@@ -211,8 +249,8 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     } = (req.body ?? {}) as {
       resumo?: string;
       tipo_manutencao?: string;
-      responsavel_nome?: string;
-      id_time_responsavel?: string | number;
+      projeto_id?: string | number | null;
+      data_limite?: string;
       data_inicio_problema?: string;
       prioridade?: string;
       descricao_situacao?: string;
@@ -231,8 +269,11 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     if (!tipo_manutencao || !TIPOS.includes(tipo_manutencao as Tipo)) {
       return res.status(400).json({ message: "Tipo de manutenção inválido." });
     }
-    if (!responsavel_nome?.trim() || !id_time_responsavel) {
-      return res.status(400).json({ message: "Responsável e time responsável são obrigatórios." });
+    if (!data_limite || !dataValida(data_limite)) {
+      return res.status(400).json({ message: "Informe uma data limite válida." });
+    }
+    if (projeto_id && !/^\d+$/.test(String(projeto_id))) {
+      return res.status(400).json({ message: "Projeto inválido." });
     }
     if (!data_inicio_problema || !dataValida(data_inicio_problema)) {
       return res.status(400).json({ message: "Data de início inválida." });
@@ -249,22 +290,12 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     }
 
     try {
-      const [times] = await pool.execute<RowDataPacket[]>(
-        "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
-        [String(id_time_responsavel)],
-      );
-      const time = times[0];
-      if (!time) return res.status(400).json({ message: "Time responsável inválido." });
-
-      const [responsaveis] = await pool.execute<RowDataPacket[]>(
-        `SELECT id_usuario, ativo
-           FROM usuarios
-          WHERE cargo = 'suporte' AND (LOWER(nome) = LOWER(?) OR LOWER(email) = LOWER(?))
-          LIMIT 1`,
-        [responsavel_nome.trim(), responsavel_nome.trim()],
-      );
-      if (!responsaveis.length || !Boolean(responsaveis[0].ativo)) {
-        return res.status(400).json({ message: "Responsável não encontrado ou inativo." });
+      if (projeto_id) {
+        const [projetos] = await pool.execute<RowDataPacket[]>(
+          "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
+          [String(projeto_id)],
+        );
+        if (!projetos.length) return res.status(400).json({ message: "Projeto não encontrado." });
       }
 
       const itens = new Map<string, { nome: string; quantidade: number }>();
@@ -310,16 +341,17 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         const [result] = await connection.execute<ResultSetHeader>(
           `INSERT INTO manutencoes
             (data_inicio_problema, tipo_manutencao, descricao_situacao, status, prioridade,
-             resumo, responsavel_id, time_id)
-           VALUES (?, ?, ?, 'aberta', ?, ?, ?, ?)`,
+             resumo, responsavel_id, projeto_id, data_limite)
+           VALUES (?, ?, ?, 'aberta', ?, ?, ?, ?, ?)`,
           [
             data_inicio_problema,
             tipo_manutencao,
             descricao_situacao.trim(),
             prioridadeFinal,
             resumo.trim(),
-            responsaveis[0].id_usuario,
-            time.id_time,
+            user.id, // responsável = usuário logado (suporte)
+            projeto_id ? String(projeto_id) : null,
+            data_limite,
           ],
         );
         const manutencaoId = result.insertId;

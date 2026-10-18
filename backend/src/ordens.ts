@@ -4,10 +4,8 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
+import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 
-// Perfis que enxergam todas as O.S. Os demais (exceto superusuário)
-// só enxergam O.S. cujo "time responsável" é o seu próprio time.
-const PERFIS_VEEM_TODOS: Role[] = ["gestor"];
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
   "comercial",
@@ -22,54 +20,40 @@ type Prioridade = (typeof PRIORIDADES)[number];
 
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
-function veTodos(user: User): boolean {
-  return PERFIS_VEEM_TODOS.includes(user.role);
-}
-
-function podeVerOS(user: User, timeIdDaOS: number | null): boolean {
-  if (veTodos(user)) return true;
-  if (timeIdDaOS === null || user.time_id === null) return false;
-  return String(timeIdDaOS) === String(user.time_id);
-}
-
 function dataValida(data: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
   const parsed = new Date(`${data}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
 }
 
-const SELECT_OS = `
-  SELECT o.os_id,
-         o.os_titulo,
-         o.os_descricao,
-         o.os_status,
-         o.prioridade,
-         o.id_time_responsavel,
-         t.nome_time,
-         t.departamento,
-         c.nome AS criador_nome,
-         DATE_FORMAT(o.data_limite, '%Y-%m-%d') AS data_limite,
-         DATE_FORMAT(o.data_criacao, '%Y-%m-%d') AS data_criacao
-    FROM os o
-    LEFT JOIN time t ON t.id_time = o.id_time_responsavel
-    LEFT JOIN usuarios c ON c.id_usuario = o.id_criador`;
+// Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
+//  projeto:    gestor e comercial (todos) | produção/software/implantação (só se o
+//              projeto tiver O.S. do seu time)
+//  manutenção: gestor e suporte (todas)   | produção/software/implantação (idem)
+async function podeCriarNaOrigem(
+  user: User,
+  tipo: "projeto" | "manutencao",
+  id: string,
+): Promise<boolean> {
+  const tabela = tipo === "projeto" ? "projetos" : "manutencoes";
+  const coluna = tipo === "projeto" ? "projeto_id" : "manutencao_id";
+  const donos: Role[] = tipo === "projeto" ? ["gestor", "comercial"] : ["gestor", "suporte"];
 
-function mapOS(o: RowDataPacket) {
-  return {
-    id: String(o.os_id),
-    titulo: o.os_titulo as string,
-    descricao: (o.os_descricao as string) ?? "",
-    status: o.os_status as string,
-    prioridade: o.prioridade as string,
-    data_limite: (o.data_limite as string | null) ?? null,
-    data_criacao: (o.data_criacao as string | null) ?? null,
-    criador: (o.criador_nome as string | null) ?? null,
-    departamento: (o.departamento as string | null) ?? null,
-    time:
-      o.id_time_responsavel === null
-        ? null
-        : { id: String(o.id_time_responsavel), nome: o.nome_time as string },
-  };
+  if (donos.includes(user.role)) {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT ${coluna} FROM ${tabela} WHERE ${coluna} = ? LIMIT 1`,
+      [id],
+    );
+    return rows.length > 0;
+  }
+
+  if (!PERFIS_DE_TIME.includes(user.role) || user.time_id === null) return false;
+
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM os WHERE ${coluna} = ? AND id_time_responsavel = ? LIMIT 1`,
+    [id, Number(user.time_id)],
+  );
+  return rows.length > 0;
 }
 
 export function createOrdensRouter(requireRole: RequireRole): Router {
@@ -77,24 +61,18 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
 
   // ---------------------------------------------------
   // Listagem (aba "Ordens disponíveis")
-  // gestor: todas | demais: apenas as do seu time
+  // gestor: todas | comercial: as de projetos | suporte: as de manutenções
+  // demais: apenas as direcionadas ao seu time
   // ---------------------------------------------------
   router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
-      const params: number[] = [];
-      let filtro = "";
-
-      if (!veTodos(user)) {
-        if (user.time_id === null) return res.json({ ordens: [] });
-        filtro = "WHERE o.id_time_responsavel = ?";
-        params.push(Number(user.time_id));
-      }
+      const filtro = filtroVisibilidadeOS(user);
 
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `${SELECT_OS} ${filtro} ORDER BY o.data_criacao DESC, o.os_id DESC`,
-        params,
+        `${SELECT_OS} WHERE ${filtro.sql} ORDER BY o.data_criacao DESC, o.os_id DESC`,
+        filtro.params,
       );
 
       return res.json({ ordens: rows.map(mapOS) });
@@ -110,18 +88,27 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   router.get("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
 
-    if (!/^\d+$/.test(req.params.osId)) {
+    const osId = String(req.params.osId);
+
+    if (!/^\d+$/.test(osId)) {
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });
     }
 
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `${SELECT_OS} WHERE o.os_id = ? LIMIT 1`,
-        [req.params.osId],
+        [osId],
       );
 
       const os = rows[0];
-      if (!os || !podeVerOS(user, os.id_time_responsavel as number | null)) {
+      if (
+        !os ||
+        !podeVerOS(user, {
+          id_time_responsavel: os.id_time_responsavel as number | null,
+          projeto_id: os.projeto_id as number | null,
+          manutencao_id: os.manutencao_id as number | null,
+        })
+      ) {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
 
@@ -142,9 +129,48 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         [os.os_id],
       );
 
+      // Pedido pai (projeto ou manutenção de onde a O.S. foi criada)
+      let pedidoPai: {
+        tipo: "projeto" | "manutencao";
+        id: string;
+        titulo: string;
+        data_limite: string | null;
+      } | null = null;
+
+      if (os.projeto_id !== null) {
+        const [pais] = await pool.execute<RowDataPacket[]>(
+          `SELECT projeto_id, nome, DATE_FORMAT(data_limite, '%Y-%m-%d') AS data_limite
+             FROM projetos WHERE projeto_id = ? LIMIT 1`,
+          [os.projeto_id],
+        );
+        if (pais[0]) {
+          pedidoPai = {
+            tipo: "projeto",
+            id: String(pais[0].projeto_id),
+            titulo: pais[0].nome as string,
+            data_limite: (pais[0].data_limite as string | null) ?? null,
+          };
+        }
+      } else if (os.manutencao_id !== null) {
+        const [pais] = await pool.execute<RowDataPacket[]>(
+          `SELECT manutencao_id, resumo, DATE_FORMAT(data_limite, '%Y-%m-%d') AS data_limite
+             FROM manutencoes WHERE manutencao_id = ? LIMIT 1`,
+          [os.manutencao_id],
+        );
+        if (pais[0]) {
+          pedidoPai = {
+            tipo: "manutencao",
+            id: String(pais[0].manutencao_id),
+            titulo: ((pais[0].resumo as string | null) ?? "") || `Manutenção #${pais[0].manutencao_id}`,
+            data_limite: (pais[0].data_limite as string | null) ?? null,
+          };
+        }
+      }
+
       return res.json({
         ordem: {
           ...mapOS(os),
+          pedido_pai: pedidoPai,
           equipamentos: equipamentos.map((e) => ({
             nome: e.nome_equipamento as string,
             quantidade: Number(e.quantidade),
@@ -171,16 +197,24 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
 
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo, o.id_time_responsavel
+        `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo,
+                o.id_time_responsavel, o.projeto_id, o.manutencao_id
            FROM anexo a
            JOIN os o ON o.os_id = a.os_id
           WHERE a.anexo_id = ? AND a.os_id = ?
           LIMIT 1`,
-        [req.params.anexoId, req.params.osId],
+        [String(req.params.anexoId), String(req.params.osId)],
       );
 
       const anexo = rows[0];
-      if (!anexo || !podeVerOS(user, anexo.id_time_responsavel as number | null)) {
+      if (
+        !anexo ||
+        !podeVerOS(user, {
+          id_time_responsavel: anexo.id_time_responsavel as number | null,
+          projeto_id: anexo.projeto_id as number | null,
+          manutencao_id: anexo.manutencao_id as number | null,
+        })
+      ) {
         return res.status(404).json({ message: "Anexo não encontrado." });
       }
 
@@ -198,7 +232,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   });
 
   // ---------------------------------------------------
-  // Criação (aba "Nova O.S.") - todos, exceto superusuário
+  // Criação - somente a partir de um projeto OU de uma manutenção existente
+  // (botão "Nova O.S." na tela expandida do projeto/manutenção)
   // ---------------------------------------------------
   router.post("/", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
@@ -209,6 +244,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       prioridade,
       data_limite,
       id_time_responsavel,
+      projeto_id,
+      manutencao_id,
       equipamentos = [],
       anexos = [],
     } = (req.body ?? {}) as {
@@ -217,6 +254,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       prioridade?: string;
       data_limite?: string;
       id_time_responsavel?: string | number;
+      projeto_id?: string | number | null;
+      manutencao_id?: string | number | null;
       equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
       anexos?: {
         nome_anexo?: string;
@@ -225,6 +264,17 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         conteudo_arquivo_base64?: string;
       }[];
     };
+
+    if (!projeto_id === !manutencao_id) {
+      return res
+        .status(400)
+        .json({ message: "A O.S. deve ser criada a partir de um projeto ou de uma manutenção." });
+    }
+    const origemTipo = projeto_id ? "projeto" : "manutencao";
+    const origemId = String(origemTipo === "projeto" ? projeto_id : manutencao_id);
+    if (!/^\d+$/.test(origemId)) {
+      return res.status(400).json({ message: "Projeto ou manutenção inválido." });
+    }
 
     if (!os_titulo?.trim() || os_titulo.trim().length > 150) {
       return res.status(400).json({ message: "Informe um título válido (até 150 caracteres)." });
@@ -246,6 +296,10 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     }
 
     try {
+      if (!(await podeCriarNaOrigem(user, origemTipo, origemId))) {
+        return res.status(404).json({ message: "Projeto ou manutenção não encontrado." });
+      }
+
       const [times] = await pool.execute<RowDataPacket[]>(
         "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
         [String(id_time_responsavel)],
@@ -295,8 +349,9 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
 
         const [result] = await connection.execute<ResultSetHeader>(
           `INSERT INTO os
-            (os_titulo, os_descricao, os_status, prioridade, data_limite, id_criador, id_time_responsavel)
-           VALUES (?, ?, 'aberta', ?, ?, ?, ?)`,
+            (os_titulo, os_descricao, os_status, prioridade, data_limite, id_criador,
+             id_time_responsavel, projeto_id, manutencao_id)
+           VALUES (?, ?, 'aberta', ?, ?, ?, ?, ?, ?)`,
           [
             os_titulo.trim(),
             os_descricao.trim(),
@@ -304,6 +359,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
             data_limite,
             user.id,
             time.id_time,
+            origemTipo === "projeto" ? origemId : null,
+            origemTipo === "manutencao" ? origemId : null,
           ],
         );
         const osId = result.insertId;
