@@ -105,13 +105,16 @@ export default function Cadastro({
     });
   }
 
+  // Comercial e suporte não pertencem a times
+  const semTime = form.role === "comercial" || form.role === "suporte";
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     setError("");
     setMessage("");
 
-    if (!form.time_id) {
+    if (!semTime && !form.time_id) {
       setError("Selecione o time do usuário.");
 
       return;
@@ -123,7 +126,7 @@ export default function Cadastro({
         email: form.email,
         password: form.password,
         role: form.role,
-        time_id: form.time_id,
+        time_id: semTime ? "" : form.time_id,
       });
 
       setMessage("Usuário cadastrado com sucesso.");
@@ -220,6 +223,7 @@ export default function Cadastro({
             ))}
           </Select>
 
+          {!semTime && (
           <Select
             label={"Time do usuário"}
             value={form.time_id}
@@ -240,6 +244,7 @@ export default function Cadastro({
               </option>
             ))}
           </Select>
+          )}
 
           <div className="col-span-full space-x-5">
             <Button type="submit" variant="primary" size="lg">

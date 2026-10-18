@@ -171,6 +171,11 @@ export default function Times() {
     return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
   }
 
+  // Comercial e suporte não pertencem a times
+  const usuariosElegiveis = users.filter(
+    (user) => user.role !== "comercial" && user.role !== "suporte",
+  );
+
   const filteredTimes = times.filter((time) => {
     const query = search.trim().toLowerCase();
     const matchesSearch =
@@ -284,7 +289,12 @@ export default function Times() {
                 required
               >
                 <option value="">Selecione uma equipe</option>
-                {equipes.map((equipe) => (
+                {equipes
+                  .filter(
+                    (equipe) =>
+                      equipe.value !== "comercial" && equipe.value !== "suporte",
+                  )
+                  .map((equipe) => (
                   <option key={equipe.value} value={equipe.value}>
                     {equipe.label}
                   </option>
@@ -298,7 +308,7 @@ export default function Times() {
                 required
               >
                 <option value="">Selecione um usuário</option>
-                {users.map((user) => (
+                {usuariosElegiveis.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} — {user.email}
                   </option>
@@ -311,7 +321,7 @@ export default function Times() {
                 onChange={(e) => adicionarPessoa(e.target.value)}
               >
                 <option value="">Adicionar usuário</option>
-                {users
+                {usuariosElegiveis
                   .filter((user) => !pessoasVinculadas.includes(user.id))
                   .map((user) => (
                     <option key={user.id} value={user.id}>
@@ -381,7 +391,12 @@ export default function Times() {
                 onChange={(e) => setDepartmentFilter(e.target.value)}
               >
                 <option value="">Selecione uma equipe</option>
-                {equipes.map((equipe) => (
+                {equipes
+                  .filter(
+                    (equipe) =>
+                      equipe.value !== "comercial" && equipe.value !== "suporte",
+                  )
+                  .map((equipe) => (
                   <option key={equipe.value} value={equipe.value}>
                     {equipe.label}
                   </option>

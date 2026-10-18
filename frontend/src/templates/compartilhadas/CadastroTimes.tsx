@@ -20,14 +20,6 @@ const equipes: {
     label: "Gestor",
   },
   {
-    value: "comercial",
-    label: "Comercial",
-  },
-  {
-    value: "suporte",
-    label: "Suporte",
-  },
-  {
     value: "producao",
     label: "Produção",
   },
@@ -103,6 +95,11 @@ export default function CadastroTimes({
   function removerPessoa(id: string) {
     setPessoasVinculadas(pessoasVinculadas.filter((item) => item !== id));
   }
+
+  // Comercial e suporte não pertencem a times
+  const usuariosElegiveis = users.filter(
+    (user) => user.role !== "comercial" && user.role !== "suporte",
+  );
 
   function getUser(id: string) {
     return users.find((user) => user.id === id);
@@ -205,7 +202,7 @@ export default function CadastroTimes({
             <option value="">
               {loadingUsers ? "Carregando usuários..." : "Selecione um usuário"}
             </option>
-            {users.map((user) => (
+            {usuariosElegiveis.map((user) => (
               <option key={user.id} value={user.id}>
                 {user.name} — {user.email}
               </option>
@@ -224,7 +221,7 @@ export default function CadastroTimes({
                 Selecione um usuário para adicionar
               </option>
 
-              {users
+              {usuariosElegiveis
                 .filter((user) => !pessoasVinculadas.includes(user.id))
                 .map((user) => (
                   <option key={user.id} value={user.id}>
