@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-
-import { useNavigate } from "react-router-dom";
+import { UsersRound } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 
@@ -21,14 +20,6 @@ const equipes: {
     label: "Gestor",
   },
   {
-    value: "comercial",
-    label: "Comercial",
-  },
-  {
-    value: "suporte",
-    label: "Suporte",
-  },
-  {
     value: "producao",
     label: "Produção",
   },
@@ -42,9 +33,15 @@ const equipes: {
   },
 ];
 
-export default function CadastroTimes() {
-  const navigate = useNavigate();
+interface CadastroTimesProps {
+  onVoltar: () => void;
+  onCadastrado?: () => void | Promise<void>;
+}
 
+export default function CadastroTimes({
+  onVoltar,
+  onCadastrado,
+}: CadastroTimesProps) {
   const currentUser = getCurrentUser();
 
   const [users, setUsers] = useState<User[]>([]);
@@ -99,6 +96,11 @@ export default function CadastroTimes() {
     setPessoasVinculadas(pessoasVinculadas.filter((item) => item !== id));
   }
 
+  // Comercial e suporte não pertencem a times
+  const usuariosElegiveis = users.filter(
+    (user) => user.role !== "comercial" && user.role !== "suporte",
+  );
+
   function getUser(id: string) {
     return users.find((user) => user.id === id);
   }
@@ -141,16 +143,30 @@ export default function CadastroTimes() {
       setPessoasVinculadas([]);
 
       setMessage("Time cadastrado com sucesso.");
+      await onCadastrado?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao cadastrar time.");
     }
   }
 
   return (
-    <main className="page">
+    <main className="page min-h-full p-5 md:p-8">
+      <div className="mx-auto w-full max-w-[1320px]">
+        <header className="mb-8 flex items-center gap-4">
+          <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+            <UsersRound size={32} />
+          </div>
+          <div>
+            <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
+              Novo time
+            </h1>
+            <p className="text-text-muted m-0 text-sm md:text-base">
+              Cadastre uma equipe e defina seus integrantes.
+            </p>
+          </div>
+        </header>
 
-      <section className="card content flex flex-col gap-5">
-        <h1>Novo time</h1>
+        <section className="card content flex flex-col gap-5">
 
         <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
           <Input
@@ -186,7 +202,7 @@ export default function CadastroTimes() {
             <option value="">
               {loadingUsers ? "Carregando usuários..." : "Selecione um usuário"}
             </option>
-            {users.map((user) => (
+            {usuariosElegiveis.map((user) => (
               <option key={user.id} value={user.id}>
                 {user.name} — {user.email}
               </option>
@@ -205,7 +221,7 @@ export default function CadastroTimes() {
                 Selecione um usuário para adicionar
               </option>
 
-              {users
+              {usuariosElegiveis
                 .filter((user) => !pessoasVinculadas.includes(user.id))
                 .map((user) => (
                   <option key={user.id} value={user.id}>
@@ -244,8 +260,13 @@ export default function CadastroTimes() {
               Cadastrar
             </Button>
 
-            <Button type="button" variant="secondary" onClick={() => navigate("/times")} size="lg">
-              Visualizar times
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onVoltar}
+              size="lg"
+            >
+              Voltar para times
             </Button>
           </div>
         </form>
@@ -254,6 +275,7 @@ export default function CadastroTimes() {
 
         {error && <div className="error">{error}</div>}
       </section>
+      </div>
     </main>
   );
 }

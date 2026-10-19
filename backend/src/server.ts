@@ -7,9 +7,11 @@ import dotenv from "dotenv";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
-import type { OrdemServico } from "./ordemservico.js";
 import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
+import { createProjetosRouter } from "./projetos.js";
+import { createManutencoesRouter } from "./manutencoes.js";
+import { createOrdensRouter } from "./ordens.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -77,21 +79,6 @@ type OSRow = RowDataPacket & {
   id_criador: number;
   id_time_responsavel: number | null;
   data_criacao: string;
-};
-
-type ManutencaoPayload = {
-  tipo_manutencao?: "corretiva" | "preventiva" | "evolutiva" | "adaptativa";
-  responsavel_nome?: string;
-  data_inicio_problema?: string;
-  descricao_situacao?: string;
-  prioridade?: "baixa" | "media" | "alta" | "critica";
-  equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
-  anexos?: {
-    nome_anexo?: string;
-    anexo_tipo?: string;
-    anexo_tamanho?: number;
-    conteudo_arquivo_base64?: string;
-  }[];
 };
 
 // =====================================================
@@ -256,6 +243,27 @@ function requireRole(...roles: Role[]) {
   };
 }
 
+function requireNotRole(...roles: Role[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = await getAuthenticatedUser(req);
+      if (!user) {
+        return res.status(401).json({ message: "Sessão inválida ou expirada." });
+      }
+
+      if (roles.includes(user.role)) {
+        return res.status(403).json({ message: "Você não possui permissão para esta operação." });
+      }
+
+      res.locals.user = user;
+      next();
+    } catch (error) {
+      console.error(error);
+      return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
+    }
+  };
+}
+
 // =====================================================
 // HEALTH
 // =====================================================
@@ -380,6 +388,9 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
   if (!validRoles.includes(role)) return res.status(400).json({ message: "Perfil inválido." });
   if (password.length < 6) return res.status(400).json({ message: "A senha deve possuir pelo menos 6 caracteres." });
 
+  // Comercial e suporte não pertencem a times
+  const timeIdFinal = PERFIS_SEM_TIME.includes(role) ? null : time_id || null;
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -393,10 +404,10 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
       return res.status(409).json({ message: "Este email já está cadastrado." });
     }
 
-    if (time_id) {
+    if (timeIdFinal) {
       const [timeRows] = await connection.execute<RowDataPacket[]>(
         "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
-        [time_id],
+        [timeIdFinal],
       );
       if (!timeRows.length) {
         await connection.rollback();
@@ -408,7 +419,7 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
     const [result] = await connection.execute<ResultSetHeader>(
       `INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id)
        VALUES (?, ?, ?, ?, TRUE, ?)`,
-      [name.trim(), email.trim().toLowerCase(), role, passwordHash, time_id || null],
+      [name.trim(), email.trim().toLowerCase(), role, passwordHash, timeIdFinal],
     );
 
     await connection.commit();
@@ -482,7 +493,12 @@ app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
       }
     }
 
-    const newTimeId = time_id === undefined ? current.time_id : time_id;
+    const novoCargo = role === undefined ? (current.cargo as Role) : role;
+    const newTimeId = PERFIS_SEM_TIME.includes(novoCargo)
+      ? null
+      : time_id === undefined
+        ? current.time_id
+        : time_id;
     const newHash = password === undefined ? current.senha_hash : await hashPassword(password);
 
     await connection.execute(
@@ -500,7 +516,7 @@ app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
       ],
     );
 
-    if (time_id !== undefined && String(current.time_id ?? "") !== String(time_id ?? "")) {
+    if (String(current.time_id ?? "") !== String(newTimeId ?? "")) {
       if (current.time_id !== null) {
         await connection.execute(
           "UPDATE time SET responsavel_id = NULL WHERE id_time = ? AND responsavel_id = ?",
@@ -584,6 +600,10 @@ app.get("/api/times", requireAuth, async (_req, res) => {
   }
 });
 
+// Comercial e suporte não pertencem a times: enxergam projetos/manutenções
+// diretamente. Só produção, software e implantação são alocados em times.
+const PERFIS_SEM_TIME: Role[] = ["comercial", "suporte"];
+
 async function validateTimePayload(
   nome_time: string | undefined,
   departamento: string | undefined,
@@ -606,10 +626,13 @@ async function validateTimePayload(
   if (ids.length) {
     const placeholders = ids.map(() => "?").join(",");
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT id_usuario FROM usuarios WHERE id_usuario IN (${placeholders})`,
+      `SELECT id_usuario, cargo FROM usuarios WHERE id_usuario IN (${placeholders})`,
       ids,
     );
     if (rows.length !== ids.length) return "Uma ou mais pessoas vinculadas são inválidas.";
+    if (rows.some((row) => PERFIS_SEM_TIME.includes(row.cargo as Role))) {
+      return "Usuários das equipes Comercial e Suporte não podem ser alocados em times.";
+    }
   }
 
   const [duplicates] = await pool.execute<RowDataPacket[]>(
@@ -746,440 +769,20 @@ app.delete("/api/times/:id", requireRole("superusuario", "gestor"), async (req, 
 
 
 // =====================================================
-// PROJTOS
+// PROJETOS (rotas em projetos.ts)
 // =====================================================
-app.get("/api/projetos/times", requireRole("comercial"), async (_req, res) => {
-  try {
-    const [times] = await pool.execute<(RowDataPacket & { id_time: number; nome_time: string })[]>(
-      "SELECT id_time, nome_time FROM time ORDER BY nome_time",
-    );
-    return res.json({ times });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Não foi possível carregar os times." });
-  }
-});
-
-app.post("/api/projetos", requireRole("comercial"), async (req, res) => {
-  const {
-    nome,
-    data_assinatura_contrato,
-    data_vencimento_contrato,
-    tipo_sistema,
-    id_time_responsavel,
-    vendedor_nome,
-    equipamentos = [],
-    anexos = [],
-  } = req.body as {
-    nome?: string;
-    data_assinatura_contrato?: string;
-    data_vencimento_contrato?: string;
-    tipo_sistema?: string;
-    id_time_responsavel?: string | number;
-    vendedor_nome?: string;
-    equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
-    anexos?: {
-      nome_anexo?: string;
-      anexo_tipo?: string;
-      anexo_tamanho?: number;
-      conteudo_arquivo_base64?: string;
-    }[];
-  };
-
-  const dataValida = (data: string) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
-    const parsed = new Date(`${data}T00:00:00Z`);
-    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
-  };
-
-  if (!nome?.trim() || nome.trim().length > 150) {
-    return res.status(400).json({ message: "Informe um nome de projeto válido." });
-  }
-  if (!data_assinatura_contrato || !dataValida(data_assinatura_contrato) || !data_vencimento_contrato || !dataValida(data_vencimento_contrato)) {
-    return res.status(400).json({ message: "Informe datas válidas para assinatura e vencimento." });
-  }
-  if (!tipo_sistema?.trim() || tipo_sistema.trim().length > 100) {
-    return res.status(400).json({ message: "Informe o tipo de sistema." });
-  }
-  if (!id_time_responsavel || !vendedor_nome?.trim()) {
-    return res.status(400).json({ message: "Time responsável e vendedor são obrigatórios." });
-  }
-  if (!Array.isArray(equipamentos) || !Array.isArray(anexos)) {
-    return res.status(400).json({ message: "Equipamentos ou anexos em formato inválido." });
-  }
-
-  try {
-    const time = await getTimeById(String(id_time_responsavel));
-    if (!time) return res.status(400).json({ message: "Time responsável inválido." });
-
-    const [vendedores] = await pool.execute<UserRow[]>(
-      `SELECT id_usuario, nome, email, cargo, senha_hash, ativo, time_id
-         FROM usuarios
-        WHERE LOWER(nome) = LOWER(?) OR LOWER(email) = LOWER(?)
-        LIMIT 1`,
-      [vendedor_nome.trim(), vendedor_nome.trim()],
-    );
-    if (!vendedores.length || !Boolean(vendedores[0].ativo)) {
-      return res.status(400).json({ message: "Vendedor não encontrado ou inativo." });
-    }
-
-    const itens = new Map<string, { nome: string; quantidade: number }>();
-    for (const equipamento of equipamentos) {
-      const equipamentoNome = equipamento?.nome_equipamento?.trim();
-      const quantidade = Number(equipamento?.quantidade);
-      if (!equipamentoNome || equipamentoNome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
-        return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
-      }
-      const key = equipamentoNome.toLocaleLowerCase();
-      const existing = itens.get(key);
-      if (existing) existing.quantidade += quantidade;
-      else itens.set(key, { nome: equipamentoNome, quantidade });
-    }
-
-    const arquivos: { nome: string; tipo: string; tamanho: number; conteudo: Buffer }[] = [];
-    let tamanhoTotal = 0;
-    for (const anexo of anexos) {
-      const anexoNome = anexo?.nome_anexo?.trim();
-      const anexoTipo = anexo?.anexo_tipo?.trim() || "application/octet-stream";
-      const base64 = anexo?.conteudo_arquivo_base64;
-      if (!anexoNome || anexoNome.length > 255 || anexoTipo.length > 150 || typeof base64 !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) {
-        return res.status(400).json({ message: "Um dos anexos está inválido." });
-      }
-      const conteudo = Buffer.from(base64, "base64");
-      tamanhoTotal += conteudo.length;
-      if (tamanhoTotal > 18 * 1024 * 1024) {
-        return res.status(400).json({ message: "O total de anexos não pode ultrapassar 18 MB." });
-      }
-      arquivos.push({ nome: anexoNome, tipo: anexoTipo, tamanho: anexo.anexo_tamanho || conteudo.length, conteudo });
-    }
-
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
-      const [result] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO projetos
-          (nome, data_assinatura_contrato, data_vencimento_contrato, responsavel_id, vendedor_id, tipo_sistema)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [nome.trim(), data_assinatura_contrato, data_vencimento_contrato, time.responsavel_id, vendedores[0].id_usuario, tipo_sistema.trim()],
-      );
-      const projetoId = result.insertId;
-
-      for (const item of itens.values()) {
-        await connection.execute(
-          "INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)",
-          [item.nome],
-        );
-        const [rows] = await connection.execute<RowDataPacket[]>(
-          "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
-          [item.nome],
-        );
-        const equipamentoId = rows[0]?.equipamento_id;
-        if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-        await connection.execute(
-          `INSERT INTO item_equipamento_projeto (projeto_id, equipamento_id, quantidade)
-           VALUES (?, ?, ?)`,
-          [projetoId, equipamentoId, item.quantidade],
-        );
-      }
-
-      for (const arquivo of arquivos) {
-        await connection.execute(
-          `INSERT INTO anexo
-            (nome_anexo, anexo_tipo, anexo_tamanho, projeto_id, conteudo_arquivo)
-           VALUES (?, ?, ?, ?, ?)`,
-          [arquivo.nome, arquivo.tipo, arquivo.tamanho, projetoId, arquivo.conteudo],
-        );
-      }
-
-      await connection.commit();
-      return res.status(201).json({
-        message: "Projeto criado com sucesso!",
-        projeto: { projeto_id: projetoId },
-      });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Erro ao criar projeto:", error);
-    return res.status(500).json({ message: "Não foi possível criar o projeto." });
-  }
-});
+app.use("/api/projetos", createProjetosRouter(requireRole));
 
 // =====================================================
 // ORDENS DE SERVIÇO
 // =====================================================
 
-app.post(
-  "/api/os",
-  requireAuth,
-  async (req, res) => {
-    const {
-      os_titulo,
-      os_descricao,
-      prioridade,
-      data_limite,
-      id_time_responsavel
-    } =
-      req.body as Partial<OrdemServico>;
-
-    if (
-      !os_titulo ||
-      !os_descricao ||
-      !prioridade ||
-      !data_limite ||
-      !id_time_responsavel
-    ) {
-      return res.status(400).json({
-        message:
-          "Titulo e cliente sao obrigatórios, por favor preencha!!!"
-      });
-    }
-
-    try {
-      const [
-        result
-      ] =
-        await pool.execute(
-          `INSERT INTO os
-        (
-          os_titulo,
-          os_descricao,
-          os_status,
-          prioridade,
-          data_limite,
-          id_criador,
-          id_time_responsavel
-        )
-       VALUES (
-          ?,
-          ?,
-          'aberta',
-          ?,
-          ?,
-          ?,
-          ?
-       )`,
-          [
-            os_titulo,
-            os_descricao,
-            prioridade,
-            data_limite,
-            (
-              res.locals
-                .user as User
-            ).id,
-            id_time_responsavel
-          ]
-        );
-
-      const insertId =
-        (
-          result as ResultSetHeader
-        ).insertId;
-
-      return res.status(201).json({
-        message:
-          "Ordem de serviço aberta com sucesso!",
-
-        os: {
-          os_id:
-            insertId,
-
-          os_status:
-            "aberta"
-        }
-      });
-      } catch (error) {
-          console.error("ERRO AO ABRIR OS:", error);
-      
-          return res.status(500).json({
-              message: error instanceof Error
-                  ? error.message
-                  : "Erro ao abrir a ordem de serviço."
-          });
-      }
-  }
-);
+app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================
-// MANUTENCAO
+// MANUTENÇÕES (rotas em manutencoes.ts)
 // =====================================================
-
-app.post("/api/manutencoes", requireRole("suporte"), async (req, res) => {
-  const {
-    tipo_manutencao: tipoManutencao,
-    responsavel_nome: responsavel,
-    data_inicio_problema: dataInicio,
-    prioridade,
-    descricao_situacao: descricao,
-    equipamentos,
-    anexos,
-  } = (req.body ?? {}) as ManutencaoPayload;
-
-  const tiposValidos = ["preventiva", "corretiva", "adaptativa", "evolutiva"];
-  const prioridadesValidas = ["baixa", "media", "alta", "critica"];
-
-  if (
-    !tipoManutencao ||
-    !responsavel?.trim() ||
-    !dataInicio ||
-    !prioridade ||
-    !descricao?.trim()
-  ) {
-    return res.status(400).json({
-      message: "Tipo de manutenção, responsável, data de início, prioridade e descrição são obrigatórios.",
-    });
-  }
-
-  if (!tiposValidos.includes(tipoManutencao)) {
-    return res.status(400).json({ message: "Tipo de manutenção inválido." });
-  }
-
-  if (!prioridadesValidas.includes(prioridade)) {
-    return res.status(400).json({ message: "Prioridade inválida." });
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataInicio)) {
-    return res.status(400).json({ message: "Data de início inválida." });
-  }
-
-  try {
-    const [responsaveis] = await pool.execute<UserRow[]>(
-      `SELECT id_usuario, nome, email, cargo, senha_hash, ativo, time_id
-         FROM usuarios
-        WHERE LOWER(nome) = LOWER(?)
-           OR LOWER(email) = LOWER(?)
-        LIMIT 1`,
-      [responsavel.trim(), responsavel.trim()],
-    );
-
-    if (!responsaveis.length) {
-      return res.status(400).json({
-        message: "Responsável não encontrado. Informe o nome ou email de um usuário cadastrado.",
-      });
-    }
-
-    const responsavelUsuario = responsaveis[0];
-    if (!Boolean(responsavelUsuario.ativo)) {
-      return res.status(400).json({ message: "O responsável informado está inativo." });
-    }
-
-    const connection = await pool.getConnection();
-
-    try {
-      await connection.beginTransaction();
-
-      const [result] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO manutencoes
-          (data_inicio_problema, tipo_manutencao, descricao_situacao, status, prioridade, responsavel)
-        VALUES (?, ?, ?, 'aberta', ?, ?)`,
-        [
-          dataInicio,
-          tipoManutencao,
-          descricao.trim(),
-          prioridade,
-          responsavelUsuario.nome,
-        ],
-      );
-
-      const manutencaoId = result.insertId;
-
-      if (Array.isArray(equipamentos)) {
-        for (const equipamento of equipamentos) {
-          const nome = equipamento?.nome_equipamento?.trim();
-          const quantidade = Number(equipamento?.quantidade);
-
-          if (!nome) continue;
-
-          if (!Number.isInteger(quantidade) || quantidade <= 0) {
-            throw new Error(`Quantidade inválida para o equipamento "${nome}".`);
-          }
-
-          const [equipamentoRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT equipamento_id
-               FROM equipamentos
-              WHERE LOWER(nome_equipamento) = LOWER(?)
-              LIMIT 1`,
-            [nome],
-          );
-
-          let equipamentoId: number;
-
-          if (equipamentoRows.length) {
-            equipamentoId = Number(equipamentoRows[0].equipamento_id);
-          } else {
-            const [novoEquipamento] = await connection.execute<ResultSetHeader>(
-              `INSERT INTO equipamentos (nome_equipamento) VALUES (?)`,
-              [nome],
-            );
-            equipamentoId = novoEquipamento.insertId;
-          }
-
-          await connection.execute(
-            `INSERT INTO item_equipamento_manutencao
-              (manutencao_id, equipamento_id, quantidade)
-             VALUES (?, ?, ?)`,
-            [manutencaoId, equipamentoId, quantidade],
-          );
-        }
-      }
-
-      if (Array.isArray(anexos)) {
-        for (const anexo of anexos) {
-          if (!anexo?.nome_anexo || !anexo?.conteudo_arquivo_base64) continue;
-
-          const conteudo = Buffer.from(anexo.conteudo_arquivo_base64, "base64");
-
-          await connection.execute(
-            `INSERT INTO anexo
-              (os_id, nome_anexo, anexo_tipo, anexo_tamanho, manutencao_id, projeto_id, conteudo_arquivo)
-             VALUES (NULL, ?, ?, ?, ?, NULL, ?)`,
-            [
-              anexo.nome_anexo,
-              anexo.anexo_tipo || "application/octet-stream",
-              anexo.anexo_tamanho || conteudo.length,
-              manutencaoId,
-              conteudo,
-            ],
-          );
-        }
-      }
-
-      await connection.commit();
-
-      return res.status(201).json({
-        message: "Manutenção criada com sucesso!",
-        manutencao: {
-          manutencao_id: manutencaoId,
-          status: "aberta",
-        },
-      });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-} catch (error) {
-  console.error("ERRO COMPLETO AO CRIAR MANUTENÇÃO:", error);
-
-  return res.status(500).json({
-    message: error instanceof Error
-      ? error.message
-      : "Não foi possível criar a manutenção.",
-  });
-}
-});
-
-// =====================================================
-// Notificações pop-up
-// =====================================================
-
-
-
+app.use("/api/manutencoes", createManutencoesRouter(requireRole));
 
 // =====================================================
 // ERROS E START

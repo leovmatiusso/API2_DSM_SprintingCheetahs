@@ -82,30 +82,35 @@
 
 ## 📋 Backlog <a id="backlog"></a>
 
-| RANK | USER STORY | PRIORIDADE | ESTIMATIVA | ÉPICO | SPRINT |
-| :---: | :--- | :---: | :---: | :---: | :---: |
-| 1 | Como gestor, quero cadastrar times (equipes técnicas), para que eu possa atribuir OS a eles | Should | 5 | E1 | 1 |
-| 2<sup>★</sup> | Como gestor, quero cadastrar usuários e vincular cada um a um time, para que cada pessoa tenha acesso ao que é relevante para sua função | Must | 5 | E1 | 1 |
-| 3 | Como gestor, quero definir o papel de cada usuário, para que cada um veja só o que é relevante para sua função | Should | 3 | E1 | 1 |
-| 4 | Como usuário do sistema, quero fazer login com minhas credenciais, para que eu acesse apenas as funcionalidades do meu time | Should | 8 | E1 | 1 |
-| 5<sup>★</sup> | Como equipe comercial, quero abrir uma solicitação de novo produto/pedido, para que o gestor possa designar a equipe técnica responsável pelo desenvolvimento | Must | 5 | E2 | 1 |
-| 6<sup>★</sup> | Como suporte, quero abrir uma solicitação de manutenção/acidente para relatar um problema, para que uma equipe seja solicitada para resolver o problema | Must | 3 | E2 | 1 |
-| 7 | Como equipe comercial ou suporte, quero que o sistema exija o preenchimento dos campos obrigatórios ao abrir uma OS, para que nenhuma OS seja criada sem as informações mínimas necessárias | Should | 1 | E2 | 1 |
-| 8 | Como equipe de implantação, quero anexar laudos em PDF à OS, para que a documentação do atendimento fique registrada junto ao histórico | Could | 8 | E6 | 1 |
-| 9 | Como gestor, quero atribuir uma OS a um time específico, para que a equipe correta seja responsável pela execução | Must | 3 | E3 | 2 |
-| 10 | Como gestor, quero definir a prioridade de uma OS (urgência/criticidade), para que os casos mais críticos sejam tratados primeiro | Should | 3 | E3 | 2 |
-| 11 | Como equipe de produção, quero visualizar as OS atribuídas a mim (tanto de novo produto quanto de manutenção), para que eu saiba o que preciso montar ou configurar | Should | 5 | E3 | 2 |
-| 12 | Como equipe de produção, quero marcar uma OS como "montagem/configuração concluída", para que ela siga automaticamente para a Equipe de Implantação | Must | 2 | E3 | 2 |
-| 13 | Como equipe técnica ou equipe de implantação, quero atualizar o status de uma OS, para que todos saibam em que ponto está o atendimento | Must | 1 | E4 | 2 |
-| 14 | Como gestor, quero um painel com visão geral das OS por status/time/prioridade, para que eu tenha uma visão consolidada da operação | Could | 3 | E4 | 2 |
-| 15 | Como gestor, quero visualizar em qual etapa cada OS está, para que eu tenha uma visão geral do andamento de todas as solicitações | Should | 2 | E4 | 2 |
-| 16 | Como gestor, quero um filtro no qual apareçam as OS abertas ou em andamento por prioridade, mais recente ou prazo mais próximo | Could | 3 | E4 | 3 |
-| 17 | Como gestor, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior | Should | 8 | E4 | 3 |
-| 18 | Como usuário, quero receber notificação quando houver mudança relevante na minha OS, para que eu me mantenha atualizado sem precisar checar o sistema o tempo todo | Should | 5 | E5 | 3 |
-| 19 | Como equipe técnica, suporte ou gestor, quero ser notificado quando uma OS crítica for aberta, para que eu reaja rapidamente a casos urgentes | Should | 5 | E5 | 3 |
-| 20 | Como usuário, quero ver o histórico completo de uma OS (status, responsáveis, prazos), para que eu tenha rastreabilidade e clareza sobre o que já ocorreu | Should | 5 | E6 | 3 |
-| 21 | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê | Should | 13 | E6 | 3 |
 
+| RANK          | USER STORY                                                                                                                                                                                                              | PRIORIDADE | ESTIMATIVA | ÉPICO | SPRINT |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- | ----- | ------ |
+| 1             | Como gestor, quero cadastrar times (equipes técnicas), para que eu possa atribuir OS a eles                                                                                                                             | Should     | 5          | E1    | 1      |
+| 2<sup>★</sup> | Como gestor, quero cadastrar usuários e vincular cada um a um time, para que cada pessoa tenha acesso ao que é relevante para sua função                                                                                | Must       | 5          | E1    | 1      |
+| 3             | Como gestor, quero definir o papel de cada usuário, para que cada um veja só o que é relevante para sua função.                                                                                                         | Should     | 3          | E1    | 1      |
+| 4             | Como usuário do sistema, quero fazer login com minhas credenciais, para que eu acesse apenas as funcionalidades do meu time                                                                                             | Should     | 8          | E1    | 1      |
+| 5<sup>★</sup> | Como equipe comercial, quero abrir uma solicitação de novo produto/pedido, para que o gestor possa designar a equipe técnica responsável pelo desenvolvimento                                                           | Must       | 5          | E2    | 1      |
+| 6<sup>★</sup> | Como suporte, quero abrir uma solicitação de manutenção/acidente para relatar um problema, para que uma equipe seja solicitada para resolver o problema                                                                 | Must       | 3          | E2    | 1      |
+| 7             | Como equipe comercial ou suporte, quero que o sistema exija o preenchimento dos campos obrigatórios ao abrir uma OS, para que nenhuma OS seja criada sem as informações mínimas necessárias                             | Should     | 1          | E2    | 1      |
+| 8             | Como equipe de implantação, quero anexar laudos em PDF à OS, para que a documentação do atendimento fique registrada junto ao histórico                                                                                 | Could      | 8          | E6    | 1      |
+| 9             | Como comercial, suporte ou gestor, quero atribuir uma OS a um time específico, para que a equipe correta seja responsável pela execução                                                                                 | Should     | 3          | E3    | 2      |
+| 10            | Como gestor, quero poder redefinir a prioridade de uma OS (urgência/criticidade), para que os casos mais críticos sejam tratados primeiro                                                                               | Should     | 3          | E3    | 2      |
+| 11<sup>★</sup>| Como equipe de produção, software, monitoramento ou implantação, quero visualizar as OS atribuídas a mim, para que eu saiba o que é preciso fazer                                                                       | Must       | 2          | E3    | 2      |
+| 12            | Como equipe de produção, quero marcar uma OS como "montagem/configuração concluída", para que ela siga automaticamente para a equipe de implantação                                                                     | Should     | 3          | E3    | 2      |
+| 13<sup>★</sup>| Como equipe de produção, software, implantação ou monitoramento, quero abrir uma OS diretamente quando identificar uma necessidade, para que eu não precise depender do comercial ou suporte para realizar meu trabalho | Must       | 3          | E3    | 2      |
+| 14            | Como equipe de produção, software, monitoramento ou implantação, quero atualizar o status de uma OS, para que todos saibam em que ponto está o atendimento                                                              | Should     | 3          | E4    | 2      |
+| 15<sup>★</sup>| Como gestor, suporte ou equipe comercial, quero um painel com a descrição geral de um novo projeto, manutenção ou OS, para que eu tenha uma visão consolidada da operação e edite algo caso necessário                  | Must       | 3          | E4    | 2      |
+| 16            | Como equipe de produção, software, monitoramento ou implantação quero ser notificado quando uma OS for atribuída a mim, para que eu comece a desenvolve-la o quanto antes                                               | Should     | 8          | E5    | 2      |
+| 17            | Como gestor, quero ser notificado quando um novo projeto ou nova manutenção for criada, para que eu sempre fique ciente do que está acontecendo e possa gerenciar conforme o necessário                                 | Should     | 3          | E5    | 2      |
+| 18            | Como suporte ou equipe comercial, quero ser notificado quando uma OS for concluída ou bloqueada, para que eu possa dar continuidade ao fluxo de trabalho para a próxima equipe                                          | Could      | 5          | E5    | 2      |
+| 19            | Como usuário, quero um filtro no qual apareça as OS por status ou por prioridade, para que eu consiga agir antes que surja um problema                                                                                  | Must       | 5          | E4    | 3      |
+| 20            | Como equipe (produção, software, monitoramento ou implantação) ou gestor, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                      | Must       | 3          | E4    | 3      |
+| 21            | Como equipe de produção, software, monitoramento ou implantação, quero receber notificação quando houver mudança relevante na minha OS, para que eu me mantenha atualizado sem precisar checar o sistema o tempo todo   | Could      | 3          | E5    | 3      |
+| 22            | Como equipe de produção, software, monitoramento ou implantação, quero ser notificado quando uma OS crítica for aberta, para que eu reaja rapidamente a casos urgentes                                                  | Could      | 2          | E5    | 3      |
+| 23            | Como usuário, quero ver o histórico completo de uma OS (status, responsáveis, prazos), para que eu tenha rastreabilidade e clareza sobre o que já ocorreu                                                               | Should     | 5          | E6    | 3      |
+| 24            | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                         | Should     | 13         | E6    | 3      |
+| 25            | Como equipe de monitoramento, quero aprovar ou reprovar a verificação de uma OS, para que a OS seja encerrada (se aprovada) ou volte para a equipe de software (se reprovada)                                           | Should     | 3          | E7    | 3      |
+| 26            | Como equipe de monitoramento, quero poder anexar relatórios em PDF do resultado dos testes, para que a próxima equipe responsável saiba o que fazer                                                                     | Should     | 3          | E7    | 3      |
 ---
 
 ## ⚙️ Metodologia <a id="metodologia"></a>

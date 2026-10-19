@@ -1,6 +1,7 @@
 -- =====================================================
 -- API2 - Banco de dados para MySQL / AWS RDS
 -- Execute em uma instância MySQL vazia.
+-- ATENÇÃO: este script apaga e recria todas as tabelas.
 -- =====================================================
 
 CREATE DATABASE IF NOT EXISTS API2
@@ -84,6 +85,9 @@ CREATE TABLE equipamentos (
 
 -- =====================================================
 -- ORDENS DE SERVIÇO
+-- Toda O.S. nasce de um projeto OU de uma manutenção
+-- (projeto_id / manutencao_id, preenchidos pelo backend).
+-- id_time_responsavel = time que executa a O.S. (define quem a enxerga).
 -- =====================================================
 
 CREATE TABLE os (
@@ -102,9 +106,13 @@ CREATE TABLE os (
     data_limite DATE NOT NULL,
     id_criador INT NOT NULL,
     id_time_responsavel INT NULL,
+    projeto_id INT NULL,
+    manutencao_id INT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_os_criador (id_criador),
     INDEX idx_os_time (id_time_responsavel),
+    INDEX idx_os_projeto (projeto_id),
+    INDEX idx_os_manutencao (manutencao_id),
     INDEX idx_os_status (os_status),
     CONSTRAINT fk_criador_os
         FOREIGN KEY (id_criador) REFERENCES usuarios(id_usuario),
@@ -116,6 +124,8 @@ CREATE TABLE os (
 
 -- =====================================================
 -- PROJETOS
+-- responsavel_id = vendedor responsável (equipe comercial)
+-- O time é definido em cada O.S. do projeto, não no projeto.
 -- =====================================================
 
 CREATE TABLE projetos (
@@ -124,9 +134,12 @@ CREATE TABLE projetos (
     data_assinatura_contrato DATE NULL,
     data_implantacao DATE NULL,
     data_vencimento_contrato DATE NULL,
+    data_limite DATE NULL,
     responsavel_id INT NULL,
     vendedor_id INT NULL,
     tipo_sistema VARCHAR(100) NOT NULL,
+    prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
+    descricao TEXT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_projeto_responsavel (responsavel_id),
     INDEX idx_projeto_vendedor (vendedor_id),
@@ -140,6 +153,9 @@ CREATE TABLE projetos (
 
 -- =====================================================
 -- MANUTENÇÕES
+-- responsavel_id = responsável (usuário de suporte que criou a manutenção)
+-- projeto_id     = projeto ao qual a manutenção se refere (opcional)
+-- O time é definido em cada O.S. da manutenção, não na manutenção.
 -- =====================================================
 
 CREATE TABLE manutencoes (
@@ -152,6 +168,7 @@ CREATE TABLE manutencoes (
     projeto_id INT NULL,
     resumo VARCHAR(255) NULL,
     responsavel_id INT NULL,
+    data_limite DATE NULL,
     prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
     INDEX idx_manutencao_projeto (projeto_id),
     INDEX idx_manutencao_responsavel (responsavel_id),
@@ -162,6 +179,15 @@ CREATE TABLE manutencoes (
         FOREIGN KEY (responsavel_id) REFERENCES usuarios(id_usuario)
         ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- O.S. vinculadas a projeto/manutenção (criadas após as duas tabelas existirem)
+ALTER TABLE os
+    ADD CONSTRAINT fk_os_projeto
+        FOREIGN KEY (projeto_id) REFERENCES projetos(projeto_id)
+        ON DELETE CASCADE,
+    ADD CONSTRAINT fk_os_manutencao
+        FOREIGN KEY (manutencao_id) REFERENCES manutencoes(manutencao_id)
+        ON DELETE CASCADE;
 
 -- =====================================================
 -- ANEXOS
@@ -258,12 +284,16 @@ INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id) VALUES
 ('Software', 'software@empresa.com', 'software', 'scrypt:e0fbf81ea30fb0310350d12fc6e0858b:7dc391979d9f6500ee85685b7ba3229a1928bdbb6bd4cb03ff158a2949b695755918dd4c58a8e132809010cb44a660bd50c31e6b0f2ab8d40c2c7d5ad7296805', TRUE, NULL),
 ('Implantação', 'implantacao@empresa.com', 'implantacao', 'scrypt:f79381f899e0a9b58754f1b02fd5b8aa:83f75865934992466e1b8292036a9b77d26823541a59a686ea54d6d32d8a89bc891af6059d32989c4f315befc8981ac0ea57ba7778da739690b1520aaa959366', TRUE, NULL);
 
+-- Times: apenas produção, software e implantação são alocados em times.
+-- Usuários de comercial e suporte não pertencem a times.
 INSERT INTO time (nome_time, email_time, departamento) VALUES
-('Software', NULL, 'Software'),
-('Comercial', NULL, 'Comercial');
+('Software', NULL, 'software'),
+('Produção', NULL, 'producao'),
+('Implantação', NULL, 'implantacao');
 
 UPDATE usuarios SET time_id = 1 WHERE id_usuario = 6;
-UPDATE usuarios SET time_id = 2 WHERE id_usuario = 3;
+UPDATE usuarios SET time_id = 2 WHERE id_usuario = 5;
+UPDATE usuarios SET time_id = 3 WHERE id_usuario = 7;
 
 INSERT INTO equipamentos (nome_equipamento) VALUES
 ('aeróstato'),

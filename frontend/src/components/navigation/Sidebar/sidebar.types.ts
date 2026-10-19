@@ -6,4 +6,5 @@ export interface SidebarItemConfig {
   icon: LucideIcon;
   path: string;
   roles?: Role[];
+  excludedRoles?: Role[];
 }
