@@ -13,6 +13,7 @@ import { suporteRoutes } from "./suporte.routes";
 import { producaoRoutes } from "./producao.routes";
 import { softwareRoutes } from "./software.routes";
 import { implantacaoRoutes } from "./implantacao.routes";
+import { testesRoutes } from "./testes.routes";
 
 export default function AppRoutes() {
   const user = getCurrentUser();
@@ -22,6 +23,8 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
 
       {authRoutes}
+
+      {testesRoutes}
 
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>

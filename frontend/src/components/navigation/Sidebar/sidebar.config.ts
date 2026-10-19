@@ -7,7 +7,6 @@ import {
   Users,
   UserRoundPlus,
   CirclePlus,
-  LayersPlus,
   Wrench,
 } from "lucide-react";
 

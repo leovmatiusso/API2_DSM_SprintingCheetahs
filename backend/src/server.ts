@@ -1174,6 +1174,12 @@ app.post("/api/manutencoes", requireRole("suporte"), async (req, res) => {
 }
 });
 
+// =====================================================
+// Notificações pop-up
+// =====================================================
+
+
+
 
 // =====================================================
 // ERROS E START
@@ -1186,3 +1192,4 @@ app.use((_req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend Express rodando em http://localhost:${PORT}`);
 });
+
