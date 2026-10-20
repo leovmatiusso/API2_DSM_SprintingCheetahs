@@ -10,7 +10,11 @@ O foco principal dessa Sprint foi a construção da base de funcionamento do sis
 - **Equipe Comercial:** Responsável pela criação de novos projetos e OS vinculadas a um projeto 
 - **Suporte:** Responsável pela criação de novas manutenções e OS vinculadas à uma manutenção 
 - **Gestor:** Responsável pela criação de novos usuários e times, além de acompanhar e gerenciar projetos, manutenções e OS.
+<br>
 
+<details><summary>ℹ️ Legenda</summary>
+&nbsp;&nbsp;🔴 Não iniciado <br> &nbsp;&nbsp;🟡 Em andamento <br> &nbsp;&nbsp;🟢 Concluído <br> &nbsp;&nbsp;★ Meta
+</details>
 
 ### 🔑 Backlog do MVP
 
@@ -20,12 +24,26 @@ O foco principal dessa Sprint foi a construção da base de funcionamento do sis
 | 5<sup>★</sup> | Como equipe comercial, quero abrir uma solicitação de novo produto/pedido, para que o gestor possa designar a equipe técnica responsável pelo desenvolvimento |    Must    |     5      |  E2   |   1    | 🟢     |
 | 6<sup>★</sup> | Como suporte, quero abrir uma solicitação de manutenção/acidente para relatar um problema, para que uma equipe seja solicitada para resolver o problema       |    Must    |     3      |  E2   |   1    | 🟢     |
 
+### 📋 Backlog da Sprint
+
+| RANK           | USER STORY                                                                                                                                                                                                              | PRIORIDADE | ESTIMATIVA | ÉPICO | SPRINT | STATUS |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- | ----- | ------ | ------- |
+| 1              | Como gestor, quero cadastrar times (equipes técnicas), para que eu possa atribuir OS a eles                                                                                                                             | Should     | 5          | E1    | 1      | 🟢
+| 2<sup>★</sup>  | Como gestor, quero cadastrar usuários e vincular cada um a um time, para que cada pessoa tenha acesso ao que é relevante para sua função                                                                                | Must       | 5          | E1    | 1      | 🟢
+| 3              | Como gestor, quero definir o papel de cada usuário, para que cada um veja só o que é relevante para sua função.                                                                                                         | Should     | 3          | E1    | 1      | 🟢
+| 4              | Como usuário do sistema, quero fazer login com minhas credenciais, para que eu acesse apenas as funcionalidades do meu time                                                                                             | Should     | 8          | E1    | 1      | 🟢
+| 5<sup>★</sup>  | Como equipe comercial, quero abrir uma solicitação de novo produto/pedido, para que o gestor possa designar a equipe técnica responsável pelo desenvolvimento                                                           | Must       | 5          | E2    | 1      | 🟢
+| 6<sup>★</sup>  | Como suporte, quero abrir uma solicitação de manutenção/acidente para relatar um problema, para que uma equipe seja solicitada para resolver o problema                                                                 | Must       | 3          | E2    | 1      | 🟢
+| 7              | Como equipe comercial ou suporte, quero que o sistema exija o preenchimento dos campos obrigatórios ao abrir uma OS, para que nenhuma OS seja criada sem as informações mínimas necessárias                             | Should     | 1          | E2    | 1      | 🟢
+| 8              | Como equipe de implantação, quero anexar laudos em PDF à OS, para que a documentação do atendimento fique registrada junto ao histórico                                                                                 | Could      | 8          | E6    | 1      | 🟢
+
+<br>
 
 ### 📊 Critérios de Aceitação
-No final da Sprint 1 o MVP deve permitir que:
-	- O gestor cadastre usuários;
-	- O suporte faça a abertura de Manutenções
-	- O comercial faça a abertura de Projetos
+No final da Sprint 1 o MVP deve permitir que: <br>
+	- O gestor cadastre usuários; <br>
+	- O suporte faça a abertura de Manutenções; <br>
+	- O comercial faça a abertura de Projetos; <br>
 	- O comercial e o suporte vinculem OS a seus respectivos pedidos
 
 
