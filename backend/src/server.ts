@@ -12,6 +12,7 @@ import type { Time } from "./times.js";
 import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
+import { createNotificacoesRouter, ensureNotificationSchema } from "./notificacoes.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -780,6 +781,19 @@ app.use("/api/projetos", createProjetosRouter(requireRole));
 app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================
+// EDITAR ORDENS DE SERVIÇO
+// =====================================================
+
+app.use("/api/editar", createOrdensRouter(requireRole));
+
+//await connection.execute("UPDATE os SET os_status = ? WHERE os_id = ?", [,req.params.id]);
+
+// =====================================================
+// NOTIFICAÇÕES
+// =====================================================
+app.use("/api/notificacoes", createNotificacoesRouter(requireAuth));
+
+// =====================================================
 // MANUTENÇÕES (rotas em manutencoes.ts)
 // =====================================================
 app.use("/api/manutencoes", createManutencoesRouter(requireRole));
@@ -792,7 +806,17 @@ app.use((_req, res) => {
   res.status(404).json({ message: "Rota não encontrada." });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend Express rodando em http://localhost:${PORT}`);
-});
+async function startServer() {
+  try {
+    await ensureNotificationSchema();
+    app.listen(PORT, () => {
+      console.log(`Backend Express rodando em http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Erro ao inicializar o banco de notificações:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
 

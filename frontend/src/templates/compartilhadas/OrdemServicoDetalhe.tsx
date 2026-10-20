@@ -84,7 +84,7 @@ export default function OrdemServicoDetalhe() {
             <p className="text-danger mb-4 text-sm" role="alert">
               {erro ?? "Ordem de serviço não encontrada."}
             </p>
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" onClick={() => navigate('/os/disponiveis')}>
               Voltar
             </Button>
           </div>
@@ -233,7 +233,7 @@ export default function OrdemServicoDetalhe() {
                 </div>
               </div>
 
-              <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
+              <Button variant="outline" size="lg" onClick={() => navigate('/os/disponiveis')}>
                 Voltar
               </Button>
             </div>

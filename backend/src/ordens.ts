@@ -5,6 +5,13 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
+import {
+  buildOSCreatedNotificationMessage,
+  buildOSCreatedNotificationTitle,
+  buildStatusNotificationMessage,
+  createNotificationsForTime,
+  shouldCreateStatusNotification,
+} from "./notificacoes.js";
 
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
@@ -16,7 +23,9 @@ const PERFIS_COM_ACESSO: Role[] = [
 ];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
+const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review"] as const;
 type Prioridade = (typeof PRIORIDADES)[number];
+type StatusOS = (typeof STATUS_OS)[number];
 
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
@@ -388,6 +397,25 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           );
         }
 
+        const [criadorRow] = await connection.execute<RowDataPacket[]>(
+          "SELECT nome FROM usuarios WHERE id_usuario = ? LIMIT 1",
+          [user.id],
+        );
+        const criadorNome = (criadorRow[0]?.nome as string | undefined) ?? "Usuário";
+        const [timeRow] = await connection.execute<RowDataPacket[]>(
+          "SELECT nome_time FROM time WHERE id_time = ? LIMIT 1",
+          [time.id_time],
+        );
+        const nomeTime = (timeRow[0]?.nome_time as string | undefined) ?? "time responsável";
+
+        await createNotificationsForTime(connection, {
+          titulo: buildOSCreatedNotificationTitle(),
+          mensagem: buildOSCreatedNotificationMessage(os_titulo.trim(), criadorNome, nomeTime),
+          timeId: Number(time.id_time),
+          osId,
+          usuarioOrigemId: user.id,
+        });
+
         await connection.commit();
         return res.status(201).json({
           message: "Ordem de serviço aberta com sucesso!",
@@ -402,6 +430,83 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     } catch (error) {
       console.error("Erro ao abrir O.S.:", error);
       return res.status(500).json({ message: "Erro ao abrir a ordem de serviço." });
+    }
+  });
+
+  router.put("/:osId/status", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
+    const osId = String(req.params.osId);
+    const statusInput = req.body?.os_status ?? req.body?.status;
+    const statusNovo = typeof statusInput === "string" ? statusInput.trim().toLowerCase() : statusInput;
+
+    if (!/^\d+$/.test(osId)) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+
+    if (typeof statusNovo !== "string" || !STATUS_OS.includes(statusNovo as StatusOS)) {
+      return res.status(400).json({ message: "Status inválido." });
+    }
+
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT o.os_id, o.os_status, o.id_time_responsavel, o.projeto_id, o.manutencao_id
+           FROM os o
+          WHERE o.os_id = ?
+          LIMIT 1`,
+        [osId],
+      );
+
+      const os = rows[0];
+      if (!os) {
+        return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+
+      if (!podeVerOS(user, {
+        id_time_responsavel: os.id_time_responsavel as number | null,
+        projeto_id: os.projeto_id as number | null,
+        manutencao_id: os.manutencao_id as number | null,
+      })) {
+        return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+
+      if (!shouldCreateStatusNotification(os.os_status as string | null, statusNovo)) {
+        return res.json({
+          message: "O status já está atualizado.",
+          os: mapOS({ ...os, os_status: statusNovo }),
+        });
+      }
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        await connection.execute(
+          "UPDATE os SET os_status = ? WHERE os_id = ?",
+          [statusNovo, osId],
+        );
+
+        await createNotificationsForTime(connection, {
+          titulo: "Atualização de status",
+          mensagem: buildStatusNotificationMessage(os.os_status as string | null, statusNovo),
+          timeId: Number(os.id_time_responsavel),
+          osId: os.os_id,
+          usuarioOrigemId: user.id,
+        });
+
+        await connection.commit();
+        return res.json({
+          message: "Status atualizado com sucesso.",
+          os: mapOS({ ...os, os_status: statusNovo }),
+        });
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar status da O.S.:", error);
+      return res.status(500).json({ message: "Não foi possível atualizar o status da ordem de serviço." });
     }
   });
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, Search, User } from "lucide-react";
 import { getCurrentUser, logout } from "@/auth";
 import { notificationConfig } from "@/components/ui/Notification/notification.config";
+import NotificationMessage from "@/components/ui/Notification/NotificationMessage";
 import { useNotifications } from "@/components/ui/Notification/useNotifications";
 import Input from "@/components/ui/Input";
 
@@ -10,8 +11,8 @@ export default function Header() {
   const navigate = useNavigate();
   const [notificacaoAberto, setNotificacaoAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
-  const { notifications, hasUnread, markAllAsRead } = useNotifications();
-  const user = getCurrentUser() ?? { role: "teste", name: "Teste" };
+  const { notifications, hasUnread, markAsRead, markAllAsRead } = useNotifications();
+  const user = getCurrentUser();
 
   function sair() {
     logout();
@@ -21,10 +22,10 @@ export default function Header() {
   return (
     <header className="border-border bg-bg mb-8 flex items-center justify-between border-b px-6 py-4">
       <div className="flex items-center gap-3 min-w-[450px] w-1/3">
-        <Input 
+        {/* <Input 
         iconLeft={Search}
         placeholder="Buscar usuários, equipes, ordens de serviço..."
-        />
+        /> */}
         <div className="relative inline-block">
           <button
             type="button"
@@ -64,11 +65,18 @@ export default function Header() {
                       <button
                         key={notification.id}
                         type="button"
-                        className={`border-border flex w-full items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10"}`}
+                        title={notification.description}
+                        onClick={() => {
+                          if (!notification.read) {
+                            void markAsRead(notification.id);
+                          }
+                          navigate(`/os/disponiveis/${notification.osId}`);
+                        }}
+                        className={`border-border cursor-pointer flex w-full relative items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
                       >
                         <div
-                          className="flex size-12 shrink-0 items-center justify-center rounded-full text-white"
-                          style={{ backgroundColor: color }}
+                          className="flex size-12 shrink-0 items-center justify-center rounded-full"
+                          style={{ color: color, backgroundColor: `${color}20`  }}
                         >
                           <Icon className="size-7" strokeWidth={1.7} />
                         </div>
@@ -77,12 +85,15 @@ export default function Header() {
                             {notification.title}
                           </p>
                           <p className="text-text/70 truncate text-xs font-medium">
-                            {notification.description}
+                              <NotificationMessage message={notification.description} />
                           </p>
                           <p className="text-text-muted mt-0.5 text-[10px] font-medium">
                             {notification.time}
                           </p>
                         </div>
+                        {!notification.read && (
+                          <div className="absolute bg-primary size-2 top-5 right-5 rounded-full"></div>
+                        )}
                       </button>
                     );
                   })}

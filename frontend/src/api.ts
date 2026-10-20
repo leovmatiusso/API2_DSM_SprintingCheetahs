@@ -205,6 +205,35 @@ export function getOrdensServico(): Promise<{
   return request<{ os: unknown[] }>("/os");
 }
 
+export function getNotificacoes(): Promise<{
+  notificacoes: Array<{
+    id: string;
+    titulo: string;
+    mensagem: string;
+    time_id: string | null;
+    os_id: string | null;
+    os_titulo: string | null;
+    os_status: string | null;
+    time_nome: string | null;
+    usuario_origem_id: string | null;
+    usuario_origem_nome: string | null;
+    data_criacao: string;
+    lida: boolean;
+  }>;
+}> {
+  return request<{ notificacoes: Array<{ id: string; titulo: string; mensagem: string; time_id: string | null; os_id: string | null; os_titulo: string | null; os_status: string | null; time_nome: string | null; usuario_origem_id: string | null; usuario_origem_nome: string | null; data_criacao: string; lida: boolean; }> }>("/notificacoes");
+}
+
+export function getNotificacoesNaoLidas(): Promise<{ total: number }> {
+  return request<{ total: number }>("/notificacoes/nao-lidas/count");
+}
+
+export function marcarNotificacaoComoLida(id: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/notificacoes/${encodeURIComponent(id)}/ler`, {
+    method: "PATCH",
+  });
+}
+
 // =====================================================
 // ANEXOS (abrir PDF/imagem em nova aba ou baixar)
 // =====================================================

@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { notificationConfig, type NotificationType } from "./notification.config";
+import NotificationMessage from "./NotificationMessage";
 
 const hoveredToastIds = new Set<string | number>();
 const hoverReleaseTimers = new Map<string | number, number>();
@@ -78,7 +79,7 @@ export default function NotificationToast({
       if (remainingTime.current <= 0) {
         setIsClosing(true);
       }
-    }, 50);
+    }, 150);
 
     return () => window.clearInterval(timer);
   }, [duration, isAnyToastHovered, isClosing, isHovered, toastId]);
@@ -104,8 +105,8 @@ export default function NotificationToast({
     >
       <div className="flex items-center gap-3 p-4">
         <div
-          style={{ backgroundColor: color }}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-white shadow-sm"
+          style={{ color: color, backgroundColor: `${color}20`  }}
+          className="flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm"
         >
           <Icon className="size-5" />
         </div>
@@ -113,7 +114,9 @@ export default function NotificationToast({
         <div className="min-w-0 flex-1">
           <p className="text-text truncate text-sm font-semibold xl:text-base">{title}</p>
 
-          <p className="text-text/75 mt-0.5 truncate text-xs xl:text-sm">{description}</p>
+          <p className="text-text/75 mt-0.5 truncate text-xs xl:text-sm">
+            <NotificationMessage message={description} />
+          </p>
 
           <p className="text-text-muted mt-1 text-[10px] xl:text-xs">{time}</p>
         </div>
