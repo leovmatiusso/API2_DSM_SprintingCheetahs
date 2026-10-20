@@ -36,6 +36,7 @@ interface NotificationToastProps {
   toastId: string | number;
   type: NotificationType;
   duration: number;
+  onClick?: () => void;
 }
 
 export default function NotificationToast({
@@ -45,6 +46,7 @@ export default function NotificationToast({
   toastId,
   type,
   duration,
+  onClick,
 }: NotificationToastProps) {
   const { color, icon: Icon } = notificationConfig[type];
   const [isClosing, setIsClosing] = useState(false);
@@ -104,22 +106,34 @@ export default function NotificationToast({
       }}
     >
       <div className="flex items-center gap-3 p-4">
-        <div
-          style={{ color: color, backgroundColor: `${color}20`  }}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm"
+        <button
+          type="button"
+          disabled={!onClick}
+          onClick={() => {
+            if (!onClick) return;
+            onClick();
+            setIsClosing(true);
+          }}
+          aria-label={onClick ? `${title}. Abrir detalhes` : undefined}
+          className={`flex min-w-0 flex-1 items-center gap-3 text-left ${onClick ? "cursor-pointer" : "cursor-default"}`}
         >
-          <Icon className="size-5" />
-        </div>
+          <div
+            style={{ color: color, backgroundColor: `${color}20`  }}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm"
+          >
+            <Icon className="size-5" />
+          </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-text truncate text-sm font-semibold xl:text-base">{title}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-text truncate text-sm font-semibold xl:text-base">{title}</p>
 
-          <p className="text-text/75 mt-0.5 truncate text-xs xl:text-sm">
-            <NotificationMessage message={description} />
-          </p>
+            <p className="text-text/75 mt-0.5 truncate text-xs xl:text-sm">
+              <NotificationMessage message={description} />
+            </p>
 
-          <p className="text-text-muted mt-1 text-[10px] xl:text-xs">{time}</p>
-        </div>
+            <p className="text-text-muted mt-1 text-[10px] xl:text-xs">{time}</p>
+          </div>
+        </button>
 
         <button
           type="button"

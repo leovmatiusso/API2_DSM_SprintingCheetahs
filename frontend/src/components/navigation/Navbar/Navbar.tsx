@@ -11,8 +11,8 @@ export default function Header() {
   const navigate = useNavigate();
   const [notificacaoAberto, setNotificacaoAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
-  const { notifications, hasUnread, markAsRead, markAllAsRead } = useNotifications();
   const user = getCurrentUser();
+  const { notifications, hasUnread, markAsRead, markAllAsRead, refresh } = useNotifications(user?.id ?? null);
 
   function sair() {
     logout();
@@ -32,7 +32,9 @@ export default function Header() {
             aria-label="Notificações"
             className="group hover:bg-bg-tertiary relative cursor-pointer rounded-lg p-1.5"
             onClick={() => {
-              setNotificacaoAberto(!notificacaoAberto);
+              const abrir = !notificacaoAberto;
+              setNotificacaoAberto(abrir);
+              if (abrir) void refresh();
             }}
           >
             <Bell className="text-text-muted group-hover:text-text size-6" />
@@ -70,7 +72,13 @@ export default function Header() {
                           if (!notification.read) {
                             void markAsRead(notification.id);
                           }
-                          navigate(`/os/disponiveis/${notification.osId}`);
+                          if (notification.projectId) {
+                            navigate(`/projetos-totais/${notification.projectId}`);
+                          } else if (notification.maintenanceId) {
+                            navigate(`/manutencoes-totais/${notification.maintenanceId}`);
+                          } else if (notification.osId) {
+                            navigate(`/os/disponiveis/${notification.osId}`);
+                          }
                         }}
                         className={`border-border cursor-pointer flex w-full relative items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
                       >
@@ -113,7 +121,7 @@ export default function Header() {
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-purple-700">
             <User size={18} />
           </div>
-          <span className="text-sm font-medium">{user.name}</span>
+          <span className="text-sm font-medium">{user?.name ?? "Usuário"}</span>
           <ChevronDown
             size={17}
             className={`transition-transform ${menuAberto ? "rotate-180" : ""}`}

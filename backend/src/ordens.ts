@@ -8,6 +8,8 @@ import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } fro
 import {
   buildOSCreatedNotificationMessage,
   buildOSCreatedNotificationTitle,
+  buildOSStatusEventMessage,
+  buildOSStatusNotificationTitle,
   buildStatusNotificationMessage,
   createNotificationsForTime,
   shouldCreateStatusNotification,
@@ -59,8 +61,24 @@ async function podeCriarNaOrigem(
   if (!PERFIS_DE_TIME.includes(user.role) || user.time_id === null) return false;
 
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT 1 FROM os WHERE ${coluna} = ? AND id_time_responsavel = ? LIMIT 1`,
-    [id, Number(user.time_id)],
+    tipo === "projeto"
+      ? `SELECT 1
+           FROM projetos p
+          WHERE p.projeto_id = ?
+            AND (p.id_time_responsavel = ? OR EXISTS (
+              SELECT 1 FROM os o
+               WHERE o.projeto_id = p.projeto_id AND o.id_time_responsavel = ?
+            ))
+          LIMIT 1`
+      : `SELECT 1
+           FROM manutencoes m
+          WHERE m.manutencao_id = ?
+            AND (m.id_time_responsavel = ? OR EXISTS (
+              SELECT 1 FROM os o
+               WHERE o.manutencao_id = m.manutencao_id AND o.id_time_responsavel = ?
+            ))
+          LIMIT 1`,
+    [id, Number(user.time_id), Number(user.time_id)],
   );
   return rows.length > 0;
 }
@@ -446,11 +464,15 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     if (typeof statusNovo !== "string" || !STATUS_OS.includes(statusNovo as StatusOS)) {
       return res.status(400).json({ message: "Status inválido." });
     }
-
+    if (statusNovo === "concluida" && user.role !== "producao") {
+      return res.status(403).json({ message: "Somente a produção pode concluir uma ordem de serviço." });
+    }
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT o.os_id, o.os_status, o.id_time_responsavel, o.projeto_id, o.manutencao_id
+        `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
+          o.projeto_id, o.manutencao_id, t.nome_time
            FROM os o
+           LEFT JOIN time t ON t.id_time = o.id_time_responsavel
           WHERE o.os_id = ?
           LIMIT 1`,
         [osId],
@@ -480,14 +502,43 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       try {
         await connection.beginTransaction();
 
-        await connection.execute(
-          "UPDATE os SET os_status = ? WHERE os_id = ?",
-          [statusNovo, osId],
+        const [updateResult] = await connection.execute<ResultSetHeader>(
+          "UPDATE os SET os_status = ? WHERE os_id = ? AND os_status = ?",
+          [statusNovo, osId, os.os_status],
         );
+        if (!updateResult.affectedRows) {
+          const [currentRows] = await connection.execute<RowDataPacket[]>(
+            "SELECT os_status FROM os WHERE os_id = ? LIMIT 1",
+            [osId],
+          );
+          await connection.rollback();
+          return res.json({
+            message: "O status já foi atualizado.",
+            os: mapOS({ ...os, os_status: currentRows[0]?.os_status ?? os.os_status }),
+          });
+        }
+
+        const statusEvento = statusNovo === "concluida" || statusNovo === "bloqueado";
+        let mensagem = buildStatusNotificationMessage(os.os_status as string | null, statusNovo);
+        if (statusEvento) {
+          const [eventRows] = await connection.execute<RowDataPacket[]>(
+            "SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%d/%m/%Y %H:%i:%s') AS data_evento",
+          );
+          mensagem = buildOSStatusEventMessage(
+            os.os_id as number,
+            os.os_titulo as string,
+            statusNovo,
+            (os.nome_time as string | undefined) ?? "time responsável",
+            user.name,
+            (eventRows[0]?.data_evento as string | undefined) ?? "data não informada",
+          );
+        }
 
         await createNotificationsForTime(connection, {
-          titulo: "Atualização de status",
-          mensagem: buildStatusNotificationMessage(os.os_status as string | null, statusNovo),
+          titulo: statusEvento
+            ? buildOSStatusNotificationTitle(statusNovo as "concluida" | "bloqueado")
+            : "Atualização de status",
+          mensagem,
           timeId: Number(os.id_time_responsavel),
           osId: os.os_id,
           usuarioOrigemId: user.id,

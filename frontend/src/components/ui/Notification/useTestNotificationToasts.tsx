@@ -12,34 +12,34 @@ const testNotifications: Array<{
   type: NotificationType;
 }> = [
   {
-    title: "Nova ordem de serviço",
-    description: "OS criada por Manoel Gomes do time Suporte",
+    title: "Nova Ordem de Serviço",
+    description: "Uma nova O.S. foi criada: Ajuste no sistema de login para o time Suporte.",
     time: "agora",
     type: "novaOS",
   },
   {
-    title: "Nova manutenção",
-    description: "OS criada por Manoel Gomes do time Suporte",
+    title: "Nova manutenção criada",
+    description: "A manutenção Falha na câmera térmica foi criada para o time Suporte.",
     time: "agora",
     type: "novaManutencao",
   },
   {
-    title: "Novo projeto",
-    description: "OS criada por Manoel Gomes do time Suporte",
+    title: "Novo projeto criado",
+    description: "Um novo projeto foi criado: Sistema de monitoramento.",
     time: "agora",
     type: "novoProjeto",
   },
   {
-    title: "Ordem de serviço concluída",
-    description: "Ordem de serviço concluída",
+    title: "Ordem de Serviço concluída",
+    description: "A O.S. Ajuste no sistema de login foi concluída.",
     time: "agora",
-    type: "success",
+    type: "osConcluida",
   },
   {
-    title: "Ordem de serviço bloqueada",
-    description: "OS criada por Manoel Gomes do time Suporte",
+    title: "Ordem de Serviço bloqueada",
+    description: "A O.S. Ajuste no sistema de login foi bloqueada.",
     time: "agora",
-    type: "danger",
+    type: "osBloqueada",
   },
 ];
 

@@ -13,6 +13,7 @@ import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
 import { createNotificacoesRouter, ensureNotificationSchema } from "./notificacoes.js";
+import osConcluidasRouter from "./os_concluida.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -775,6 +776,40 @@ app.delete("/api/times/:id", requireRole("superusuario", "gestor"), async (req, 
 app.use("/api/projetos", createProjetosRouter(requireRole));
 
 // =====================================================
+// CONCLUIR ORDEM DE SERVIÇO
+// =====================================================
+
+app.patch("/api/os/:id/concluir", requireRole("producao"), async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ message: "Identificador da ordem de serviço inválido." });
+  }
+
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      "SELECT os_status FROM os WHERE os_id = ? LIMIT 1",
+      [id],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+
+    if (rows[0].os_status === "concluida") {
+      return res.status(409).json({ message: "Esta ordem de serviço já foi concluída." });
+    }
+
+    await pool.execute("UPDATE os SET os_status = 'concluida' WHERE os_id = ?", [id]);
+
+    return res.json({ message: "Ordem de serviço concluída com sucesso." });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Não foi possível concluir a ordem de serviço." });
+  }
+});
+
+// =====================================================
 // ORDENS DE SERVIÇO
 // =====================================================
 
@@ -784,7 +819,7 @@ app.use("/api/os", createOrdensRouter(requireRole));
 // EDITAR ORDENS DE SERVIÇO
 // =====================================================
 
-app.use("/api/editar", createOrdensRouter(requireRole));
+app.use("/api/os-concluidas", osConcluidasRouter);
 
 //await connection.execute("UPDATE os SET os_status = ? WHERE os_id = ?", [,req.params.id]);
 

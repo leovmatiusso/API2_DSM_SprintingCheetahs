@@ -6,6 +6,14 @@ export const notificationConfig = {
     color: "#3e69c5",
     icon: ClipboardPlus,
   },
+  osConcluida: {
+    color: "#4BB84B",
+    icon: ClipboardCheck,
+  },
+  osBloqueada: {
+    color: "#E24056",
+    icon: ClipboardX,
+  },
   novaManutencao: {
     color: "#9810fa",
     icon: Wrench,

@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ClipboardList, File, Link } from "lucide-react";
 
-import { abrirAnexoOS, getOrdem } from "@/api";
+import { abrirAnexoOS, concluirOS, getOrdem } from "@/api";
 import type { OrdemServicoDetalhe as Ordem, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
+import { getCurrentUser } from "@/auth";
 
-import {
+import {  
   PRIORIDADE_CLASSE,
   PRIORIDADE_LABEL,
   STATUS_CLASSE,
@@ -29,11 +30,16 @@ function CampoCaixa({ rotulo, children }: { rotulo: string; children: React.Reac
 export default function OrdemServicoDetalhe() {
   const { osId } = useParams<{ osId: string }>();
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
 
   const [ordem, setOrdem] = useState<Ordem | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
+  const [concluindo, setConcluindo] = useState(false);
+  const [erroConclusao, setErroConclusao] = useState<string | null>(null);
+
+    const podeConcluir = currentUser?.role === "producao" && ordem?.status !== "concluida";
 
   useEffect(() => {
     let ativo = true;
@@ -71,6 +77,28 @@ export default function OrdemServicoDetalhe() {
       setErroAnexo(
         error instanceof Error ? error.message : "Não foi possível abrir o anexo.",
       );
+    }
+  }
+
+  async function concluir() {
+    if (!ordem || !osId) return;
+    if (!window.confirm("Deseja concluir esta ordem de serviço?")) return;
+ 
+    setErroConclusao(null);
+    setConcluindo(true);
+ 
+    try {
+      await concluirOS(ordem.id);
+      const resposta = await getOrdem(osId);
+      setOrdem(resposta.ordem);
+    } catch (error) {
+      setErroConclusao(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir a ordem de serviço.",
+      );
+    } finally {
+      setConcluindo(false);
     }
   }
 
@@ -233,9 +261,30 @@ export default function OrdemServicoDetalhe() {
                 </div>
               </div>
 
-              <Button variant="outline" size="lg" onClick={() => navigate('/os/disponiveis')}>
-                Voltar
-              </Button>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex gap-3">
+                  <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
+                    Voltar
+                  </Button>
+ 
+                  {podeConcluir && (
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={concluir}
+                      disabled={concluindo}
+                    >
+                      {concluindo ? "Concluindo..." : "Concluir O.S."}
+                    </Button>
+                  )}
+                </div>
+
+                {erroConclusao && (
+                  <p className="text-danger m-0 text-xs" role="alert">
+                    {erroConclusao}
+                  </p>
+                )}
+              </div>
             </div>
           </section>
         )}

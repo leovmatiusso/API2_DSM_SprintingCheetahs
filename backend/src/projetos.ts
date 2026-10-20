@@ -5,9 +5,10 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
+import { buildProjectCreatedNotificationMessage, createNotificationsForTime } from "./notificacoes.js";
 
 // Perfis que enxergam todos os projetos. Produção, software e implantação
-// só enxergam projetos que tenham ao menos uma O.S. direcionada ao seu time.
+// também enxergam projetos atribuídos ao seu time ou com O.S. direcionada a ele.
 // Suporte não acessa projetos.
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -32,9 +33,9 @@ function filtroProjeto(user: User): { sql: string; params: number[] } {
   if (veTodos(user)) return { sql: "1 = 1", params: [] };
   if (user.time_id === null) return { sql: "1 = 0", params: [] };
   return {
-    sql: `EXISTS (SELECT 1 FROM os ox
-                   WHERE ox.projeto_id = p.projeto_id AND ox.id_time_responsavel = ?)`,
-    params: [Number(user.time_id)],
+    sql: `(p.id_time_responsavel = ? OR EXISTS (SELECT 1 FROM os ox
+                   WHERE ox.projeto_id = p.projeto_id AND ox.id_time_responsavel = ?))`,
+    params: [Number(user.time_id), Number(user.time_id)],
   };
 }
 
@@ -92,7 +93,7 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
 
   // ---------------------------------------------------
   // Listagem (aba "Projetos") - dados resumidos para os tickets
-  // gestor e comercial: todos | demais: só projetos com O.S. do seu time
+  // gestor e comercial: todos | demais: projetos do seu time ou com O.S. do time
   // ---------------------------------------------------
   router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     const user = res.locals.user as User;
@@ -227,6 +228,7 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
   // Criação (aba "Novo projeto") - somente comercial
   // ---------------------------------------------------
   router.post("/", requireRole("comercial"), async (req, res) => {
+    const user = res.locals.user as User;
     const {
       nome,
       data_assinatura_contrato,
@@ -234,6 +236,7 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
       data_limite,
       tipo_sistema,
       vendedor_nome,
+      id_time_responsavel,
       prioridade,
       descricao,
       equipamentos = [],
@@ -245,6 +248,7 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
       data_limite?: string;
       tipo_sistema?: string;
       vendedor_nome?: string;
+      id_time_responsavel?: string | number;
       prioridade?: string;
       descricao?: string;
       equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
@@ -276,6 +280,9 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     if (!vendedor_nome?.trim()) {
       return res.status(400).json({ message: "O vendedor responsável é obrigatório." });
     }
+    if (!id_time_responsavel || !/^\d+$/.test(String(id_time_responsavel))) {
+      return res.status(400).json({ message: "Selecione um time responsável válido." });
+    }
     const prioridadeFinal = (prioridade ?? "media").toLowerCase() as Prioridade;
     if (!PRIORIDADES.includes(prioridadeFinal)) {
       return res.status(400).json({ message: "Prioridade inválida." });
@@ -298,6 +305,13 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
       if (!vendedores.length || !Boolean(vendedores[0].ativo)) {
         return res.status(400).json({ message: "Vendedor não encontrado ou inativo." });
       }
+
+      const [times] = await pool.execute<RowDataPacket[]>(
+        "SELECT id_time, nome_time FROM time WHERE id_time = ? LIMIT 1",
+        [String(id_time_responsavel)],
+      );
+      const time = times[0];
+      if (!time) return res.status(400).json({ message: "Time responsável inválido." });
 
       const itens = new Map<string, { nome: string; quantidade: number }>();
       for (const equipamento of equipamentos) {
@@ -341,8 +355,8 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
         const [result] = await connection.execute<ResultSetHeader>(
           `INSERT INTO projetos
             (nome, data_assinatura_contrato, data_vencimento_contrato, data_limite,
-             responsavel_id, vendedor_id, tipo_sistema, prioridade, descricao)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             responsavel_id, vendedor_id, id_time_responsavel, tipo_sistema, prioridade, descricao)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             nome.trim(),
             data_assinatura_contrato,
@@ -350,6 +364,7 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
             data_limite,
             vendedores[0].id_usuario,
             vendedores[0].id_usuario,
+            time.id_time,
             tipo_sistema.trim(),
             prioridadeFinal,
             descricao?.trim() || null,
@@ -380,6 +395,29 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
             [arquivo.nome, arquivo.tipo, arquivo.tamanho, projetoId, arquivo.conteudo],
           );
         }
+
+        const [contextoProjeto] = await connection.execute<RowDataPacket[]>(
+          `SELECT u.nome AS criador_nome,
+                  DATE_FORMAT(p.data_criacao, '%d/%m/%Y %H:%i') AS data_criacao
+             FROM projetos p
+             LEFT JOIN usuarios u ON u.id_usuario = ?
+            WHERE p.projeto_id = ?
+            LIMIT 1`,
+          [user.id, projetoId],
+        );
+        const contexto = contextoProjeto[0];
+        await createNotificationsForTime(connection, {
+          titulo: "Novo projeto",
+          mensagem: buildProjectCreatedNotificationMessage(
+            nome.trim(),
+            time.nome_time as string,
+            (contexto?.criador_nome as string | undefined) ?? "Usuário",
+            (contexto?.data_criacao as string | undefined) ?? "data não informada",
+          ),
+          timeId: Number(time.id_time),
+          projetoId,
+          usuarioOrigemId: user.id,
+        });
 
         await connection.commit();
         return res.status(201).json({

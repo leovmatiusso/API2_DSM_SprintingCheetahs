@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CirclePlus } from "lucide-react";
 
-import { createManutencao, getProjetosParaManutencao } from "@/api";
+import { createManutencao, getProjetosParaManutencao, getTimes } from "@/api";
 
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -35,21 +35,30 @@ export default function NovaManutencao() {
   const [prioridade, setPrioridade] = useState<PrioridadeValor | "">("");
   const [tipo, setTipo] = useState<TipoManutencao | "">("");
   const [projetoId, setProjetoId] = useState("");
+  const [timeResponsavelId, setTimeResponsavelId] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
   const [equipamentos, setEquipamentos] = useState<EquipamentoForm[]>([]);
   const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
-  const [projetos, setProjetos] = useState<{ id_projeto: number; nome: string }[]>([]);
+  const [projetos, setProjetos] = useState<
+    { id_projeto: number; nome: string; id_time_responsavel: number | null }[]
+  >([]);
+  const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoProjetos, setCarregandoProjetos] = useState(true);
+  const [carregandoTimes, setCarregandoTimes] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     async function carregar() {
       try {
-        const resposta = await getProjetosParaManutencao();
-        setProjetos(resposta.projetos);
+        const [respostaProjetos, respostaTimes] = await Promise.all([
+          getProjetosParaManutencao(),
+          getTimes(),
+        ]);
+        setProjetos(respostaProjetos.projetos);
+        setTimes(respostaTimes.times);
       } catch (error) {
         setErro(
           error instanceof Error
@@ -58,6 +67,7 @@ export default function NovaManutencao() {
         );
       } finally {
         setCarregandoProjetos(false);
+        setCarregandoTimes(false);
       }
     }
 
@@ -87,6 +97,7 @@ export default function NovaManutencao() {
         prioridade,
         tipo_manutencao: tipo,
         projeto_id: projetoId || null,
+        id_time_responsavel: timeResponsavelId,
         data_limite: dataLimite,
         descricao_situacao: descricao.trim(),
         equipamentos: equipamentosParaPayload(equipamentos),
@@ -183,7 +194,14 @@ export default function NovaManutencao() {
             id="projeto"
             label="Projeto"
             value={projetoId}
-            onChange={(event) => setProjetoId(event.target.value)}
+            onChange={(event) => {
+              const id = event.target.value;
+              setProjetoId(id);
+              const projeto = projetos.find((item) => String(item.id_projeto) === id);
+              if (projeto?.id_time_responsavel) {
+                setTimeResponsavelId(String(projeto.id_time_responsavel));
+              }
+            }}
             disabled={carregandoProjetos}
           >
             <option value="">
@@ -192,6 +210,24 @@ export default function NovaManutencao() {
             {projetos.map((projeto) => (
               <option key={projeto.id_projeto} value={String(projeto.id_projeto)}>
                 {projeto.nome}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            id="time-responsavel"
+            label="Time responsável"
+            value={timeResponsavelId}
+            onChange={(event) => setTimeResponsavelId(event.target.value)}
+            disabled={carregandoTimes}
+            required
+          >
+            <option value="" hidden>
+              {carregandoTimes ? "Carregando..." : "Selecione o time"}
+            </option>
+            {times.map((time) => (
+              <option key={time.id} value={time.id}>
+                {time.nome_time}
               </option>
             ))}
           </Select>

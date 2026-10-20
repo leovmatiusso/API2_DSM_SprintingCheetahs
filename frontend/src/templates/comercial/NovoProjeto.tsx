@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CirclePlus } from "lucide-react";
 
-import { createProjeto, getVendedores } from "@/api";
+import { createProjeto, getTimes, getVendedores } from "@/api";
 
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,7 @@ export default function NovoProjeto() {
 
   const [titulo, setTitulo] = useState("");
   const [vendedor, setVendedor] = useState("");
+  const [timeResponsavelId, setTimeResponsavelId] = useState("");
   const [prioridade, setPrioridade] = useState<PrioridadeValor | "">("");
   const [tipoSistema, setTipoSistema] = useState("");
   const [dataAssinatura, setDataAssinatura] = useState("");
@@ -35,15 +36,18 @@ export default function NovoProjeto() {
   const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
   const [vendedores, setVendedores] = useState<{ id_usuario: number; nome: string }[]>([]);
+  const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoVendedores, setCarregandoVendedores] = useState(true);
+  const [carregandoTimes, setCarregandoTimes] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     async function carregar() {
       try {
-        const resposta = await getVendedores();
-        setVendedores(resposta.vendedores);
+        const [respostaVendedores, respostaTimes] = await Promise.all([getVendedores(), getTimes()]);
+        setVendedores(respostaVendedores.vendedores);
+        setTimes(respostaTimes.times);
       } catch (error) {
         setErro(
           error instanceof Error
@@ -52,6 +56,7 @@ export default function NovoProjeto() {
         );
       } finally {
         setCarregandoVendedores(false);
+        setCarregandoTimes(false);
       }
     }
 
@@ -73,6 +78,7 @@ export default function NovoProjeto() {
     try {
       const resposta = await createProjeto({
         nome: titulo.trim(),
+        id_time_responsavel: timeResponsavelId,
         vendedor_nome: vendedor,
         prioridade,
         tipo_sistema: tipoSistema,
@@ -158,6 +164,26 @@ export default function NovoProjeto() {
           </Select>
 
           <SeletorPrioridade value={prioridade} onChange={setPrioridade} />
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
+          <Select
+            id="time-responsavel"
+            label="Time responsável"
+            value={timeResponsavelId}
+            onChange={(event) => setTimeResponsavelId(event.target.value)}
+            disabled={carregandoTimes}
+            required
+          >
+            <option value="" hidden>
+              {carregandoTimes ? "Carregando..." : "Selecione o time responsável"}
+            </option>
+            {times.map((time) => (
+              <option key={time.id} value={time.id}>
+                {time.nome_time}
+              </option>
+            ))}
+          </Select>
         </div>
 
         {/* LINHA 2: tipo de sistema e datas */}

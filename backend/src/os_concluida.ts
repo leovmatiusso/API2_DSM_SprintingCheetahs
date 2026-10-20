@@ -6,18 +6,27 @@ dotenv.config();
 
 const router = express.Router();
 
-router.post("/", async (req, res) => {
-    try {
-        const {  } = req.body; 
+router.get("/", async (req, res) => {
+  try {
+    const [result] = await pool.query(
+      `SELECT
+        o.os_id,
+        o.os_titulo,
+        o.os_descricao,
+        o.prioridade,
+        o.id_criador,
+        o.data_criacao
+      FROM os o
+      WHERE o.os_status = 'concluida'`
+    );
 
-        const [result] = await pool.query(
-            "select o.os_titulo,o.os_descricao,o.prioridade,o.id_criador,o.datacriacao from os o inner join time t on t.id_time = o.id_time_responsavel where o.status = 'concluida' ", // insere os dados obtidos na tabela
-            []
-        );
-    }
-    catch (e) {
-        res.status(500).json({ erro: "Falha ao criar time" });
-    }
+    res.status(200).json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({
+      erro: "Falha ao buscar ordens de serviço"
+    });
+  }
 });
 
-//nem sei mais oq eu to fazendo, só sei q ta errado e to com muito sono pra continuar
+export default router;

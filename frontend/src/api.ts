@@ -212,6 +212,10 @@ export function getNotificacoes(): Promise<{
     mensagem: string;
     time_id: string | null;
     os_id: string | null;
+    projeto_id: string | null;
+    projeto_nome: string | null;
+    manutencao_id: string | null;
+    manutencao_resumo: string | null;
     os_titulo: string | null;
     os_status: string | null;
     time_nome: string | null;
@@ -221,7 +225,7 @@ export function getNotificacoes(): Promise<{
     lida: boolean;
   }>;
 }> {
-  return request<{ notificacoes: Array<{ id: string; titulo: string; mensagem: string; time_id: string | null; os_id: string | null; os_titulo: string | null; os_status: string | null; time_nome: string | null; usuario_origem_id: string | null; usuario_origem_nome: string | null; data_criacao: string; lida: boolean; }> }>("/notificacoes");
+  return request<{ notificacoes: Array<{ id: string; titulo: string; mensagem: string; time_id: string | null; os_id: string | null; projeto_id: string | null; projeto_nome: string | null; manutencao_id: string | null; manutencao_resumo: string | null; os_titulo: string | null; os_status: string | null; time_nome: string | null; usuario_origem_id: string | null; usuario_origem_nome: string | null; data_criacao: string; lida: boolean; }> }>("/notificacoes");
 }
 
 export function getNotificacoesNaoLidas(): Promise<{ total: number }> {
@@ -298,6 +302,7 @@ async function abrirAnexoPorCaminho(
 
 export interface ProjetoPayload {
   nome: string;
+  id_time_responsavel: string;
   data_assinatura_contrato: string;
   data_vencimento_contrato: string;
   data_limite: string;
@@ -380,6 +385,7 @@ export { API_URL };
 
 export interface ManutencaoPayload {
   resumo: string;
+  id_time_responsavel: string;
 
   tipo_manutencao:
     | "preventiva"
@@ -415,7 +421,7 @@ export interface ManutencaoPayload {
 }
 
 export function getProjetosParaManutencao(): Promise<{
-  projetos: { id_projeto: number; nome: string }[];
+  projetos: { id_projeto: number; nome: string; id_time_responsavel: number | null }[];
 }> {
   return request("/manutencoes/projetos");
 }
@@ -475,7 +481,7 @@ export function abrirAnexoManutencao(
 }
 
 // =====================================================
-// ORDENS DE SERVIÇO (listagem e detalhe)
+// ORDENS DE SERVIÇO (listagem, detalhe e conclusão)
 // =====================================================
 
 export type OrdemStatus =
@@ -527,4 +533,10 @@ export function abrirAnexoOS(osId: string, anexo: ProjetoAnexo): Promise<void> {
     `/os/${encodeURIComponent(osId)}/anexos/${encodeURIComponent(anexo.id)}`,
     anexo,
   );
+}
+export function concluirOS(id: number | string): Promise<any> {
+  return request(`/os/${encodeURIComponent(id)}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ os_status: "concluida" }),
+  });
 }
