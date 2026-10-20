@@ -21,6 +21,8 @@ DROP TABLE IF EXISTS os;
 DROP TABLE IF EXISTS time;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS equipamentos;
+DROP TABLE IF EXISTS notificacao_leituras;
+DROP TABLE IF EXISTS notificacoes;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================
@@ -268,6 +270,58 @@ CREATE TABLE item_equipamento_manutencao (
         FOREIGN KEY (equipamento_id) REFERENCES equipamentos(equipamento_id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE notificacoes (
+    notificacao_id INT PRIMARY KEY AUTO_INCREMENT,
+    titulo VARCHAR(150) NOT NULL,
+    mensagem VARCHAR(200) NOT NULL,
+    time_id INT NOT NULL,
+    os_id INT NULL,
+    usuario_origem_id INT NULL,
+    data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_notificacoes_time (time_id),
+    INDEX idx_notificacoes_os (os_id),
+    INDEX idx_notificacoes_data (data_criacao),
+
+    CONSTRAINT fk_notificacao_time
+        FOREIGN KEY (time_id)
+        REFERENCES time(id_time)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_notificacao_os
+        FOREIGN KEY (os_id)
+        REFERENCES os(os_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_notificacao_usuario
+        FOREIGN KEY (usuario_origem_id)
+        REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ;
+
+CREATE TABLE notificacao_leituras (
+    notificacao_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    data_leitura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (notificacao_id, usuario_id),
+
+    CONSTRAINT fk_leitura_notificacao
+        FOREIGN KEY (notificacao_id)
+        REFERENCES notificacoes(notificacao_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_leitura_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ;
 
 -- =====================================================
 -- DADOS INICIAIS PARA DESENVOLVIMENTO/TESTE
