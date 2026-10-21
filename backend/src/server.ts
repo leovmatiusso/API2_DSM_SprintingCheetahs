@@ -13,6 +13,7 @@ import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
 import { createNotificacoesRouter, ensureNotificationSchema } from "./notificacoes.js";
+import { podeVerOS } from "./os_comum.js";
 import osConcluidasRouter from "./os_concluida.js";
 
 // =====================================================
@@ -779,7 +780,8 @@ app.use("/api/projetos", createProjetosRouter(requireRole));
 // CONCLUIR ORDEM DE SERVIÇO
 // =====================================================
 
-app.patch("/api/os/:id/concluir", requireRole("producao"), async (req, res) => {
+app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", "producao", "software", "implantacao"), async (req, res) => {
+  const user = res.locals.user as User;
   const id = Number(req.params.id);
 
   if (!Number.isInteger(id)) {
@@ -788,11 +790,19 @@ app.patch("/api/os/:id/concluir", requireRole("producao"), async (req, res) => {
 
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT os_status FROM os WHERE os_id = ? LIMIT 1",
+      "SELECT os_status, id_time_responsavel, projeto_id, manutencao_id FROM os WHERE os_id = ? LIMIT 1",
       [id],
     );
 
     if (!rows.length) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+
+    if (!podeVerOS(user, {
+      id_time_responsavel: rows[0].id_time_responsavel as number | null,
+      projeto_id: rows[0].projeto_id as number | null,
+      manutencao_id: rows[0].manutencao_id as number | null,
+    })) {
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });
     }
 

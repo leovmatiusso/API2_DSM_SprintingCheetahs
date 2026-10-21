@@ -1,18 +1,32 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { OrdemServicoResumo } from "@/api";
+import { atualizarStatusOS } from "@/api";
 
 import { Selo, Ticket, TicketLinha } from "./Ticket";
-import {
-  PRIORIDADE_CLASSE,
-  PRIORIDADE_LABEL,
-  STATUS_CLASSE,
-  STATUS_LABEL,
-} from "./osEstilos";
+import { PRIORIDADE_CLASSE, PRIORIDADE_LABEL } from "./osEstilos";
+import SeletorStatusOS from "./SeletorStatusOS";
 
 // Ticket de uma O.S. - ao clicar abre a O.S. expandida
 export default function OrdemTicket({ os }: { os: OrdemServicoResumo }) {
   const navigate = useNavigate();
+  const [status, setStatus] = useState(os.status);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function alterarStatus(novoStatus: typeof os.status) {
+    setErro(null);
+    setSalvando(true);
+    try {
+      await atualizarStatusOS(os.id, novoStatus);
+      setStatus(novoStatus);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível atualizar o status.");
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   return (
     <Ticket titulo={os.titulo} onClick={() => navigate(`/os/disponiveis/${os.id}`)}>
@@ -28,10 +42,9 @@ export default function OrdemTicket({ os }: { os: OrdemServicoResumo }) {
         </Selo>
       </TicketLinha>
       <TicketLinha rotulo="Status">
-        <Selo classe={STATUS_CLASSE[os.status]}>
-          {STATUS_LABEL[os.status] ?? os.status}
-        </Selo>
+        <SeletorStatusOS status={status} disabled={salvando} onChange={alterarStatus} />
       </TicketLinha>
+      {erro && <span className="text-danger block text-xs" role="alert">{erro}</span>}
     </Ticket>
   );
 }

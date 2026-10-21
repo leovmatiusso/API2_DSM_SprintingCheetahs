@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, File, Link } from "lucide-react";
+import { AlertTriangle, ClipboardList, File, Link } from "lucide-react";
 
-import { abrirAnexoOS, concluirOS, getOrdem } from "@/api";
-import type { OrdemServicoDetalhe as Ordem, ProjetoAnexo } from "@/api";
+import { abrirAnexoOS, atualizarStatusOS, getOrdem } from "@/api";
+import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
 import { getCurrentUser } from "@/auth";
 
-import {  
+import SeletorStatusOS from "./SeletorStatusOS";
+
+import {
   PRIORIDADE_CLASSE,
   PRIORIDADE_LABEL,
-  STATUS_CLASSE,
-  STATUS_LABEL,
   formatarData,
   formatarTamanho,
 } from "./osEstilos";
@@ -36,10 +36,11 @@ export default function OrdemServicoDetalhe() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
-  const [concluindo, setConcluindo] = useState(false);
-  const [erroConclusao, setErroConclusao] = useState<string | null>(null);
+  const [erroStatus, setErroStatus] = useState<string | null>(null);
+  const [atualizandoStatus, setAtualizandoStatus] = useState(false);
+  const [confirmarConclusao, setConfirmarConclusao] = useState(false);
 
-    const podeConcluir = currentUser?.role === "producao" && ordem?.status !== "concluida";
+  const podeConcluir = currentUser?.role !== undefined && currentUser.role !== "superusuario";
 
   useEffect(() => {
     let ativo = true;
@@ -80,25 +81,40 @@ export default function OrdemServicoDetalhe() {
     }
   }
 
-  async function concluir() {
+  async function alterarStatus(status: OrdemStatus) {
     if (!ordem || !osId) return;
-    if (!window.confirm("Deseja concluir esta ordem de serviço?")) return;
- 
-    setErroConclusao(null);
-    setConcluindo(true);
- 
+    setErroStatus(null);
+    setAtualizandoStatus(true);
     try {
-      await concluirOS(ordem.id);
+      await atualizarStatusOS(ordem.id, status);
       const resposta = await getOrdem(osId);
       setOrdem(resposta.ordem);
     } catch (error) {
-      setErroConclusao(
+      setErroStatus(
         error instanceof Error
           ? error.message
-          : "Não foi possível concluir a ordem de serviço.",
+          : "Não foi possível atualizar o status da ordem de serviço.",
       );
     } finally {
-      setConcluindo(false);
+      setAtualizandoStatus(false);
+    }
+  }
+
+  async function concluirOS() {
+    if (!ordem || !podeConcluir) return;
+    setAtualizandoStatus(true);
+    setErroStatus(null);
+    try {
+      await atualizarStatusOS(ordem.id, "concluida");
+      setOrdem({ ...ordem, status: "concluida" });
+      setConfirmarConclusao(false);
+      window.dispatchEvent(new Event("notifications:refresh"));
+    } catch (error) {
+      setErroStatus(
+        error instanceof Error ? error.message : "Não foi possível concluir a ordem de serviço.",
+      );
+    } finally {
+      setAtualizandoStatus(false);
     }
   }
 
@@ -136,11 +152,11 @@ export default function OrdemServicoDetalhe() {
             {/* Status, departamento, time e prioridade */}
             <div className="mb-6 flex flex-wrap gap-x-8 gap-y-4">
               <CampoCaixa rotulo="Status">
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_CLASSE[ordem.status]}`}
-                >
-                  {STATUS_LABEL[ordem.status] ?? ordem.status}
-                </span>
+                <SeletorStatusOS
+                  status={ordem.status}
+                  disabled={atualizandoStatus}
+                  onChange={alterarStatus}
+                />
               </CampoCaixa>
               <CampoCaixa rotulo="Departamento">
                 <span className="text-text text-sm">{ordem.departamento ?? "—"}</span>
@@ -266,22 +282,21 @@ export default function OrdemServicoDetalhe() {
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
- 
-                  {podeConcluir && (
+                  {podeConcluir && ordem.status !== "concluida" && (
                     <Button
                       variant="primary"
                       size="lg"
-                      onClick={concluir}
-                      disabled={concluindo}
+                      disabled={atualizandoStatus}
+                      onClick={() => setConfirmarConclusao(true)}
                     >
-                      {concluindo ? "Concluindo..." : "Concluir O.S."}
+                      Concluir O.S.
                     </Button>
                   )}
                 </div>
 
-                {erroConclusao && (
+                {erroStatus && (
                   <p className="text-danger m-0 text-xs" role="alert">
-                    {erroConclusao}
+                    {erroStatus}
                   </p>
                 )}
               </div>
@@ -289,6 +304,49 @@ export default function OrdemServicoDetalhe() {
           </section>
         )}
       </div>
+
+      {confirmarConclusao && ordem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !atualizandoStatus) {
+              setConfirmarConclusao(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirmar-conclusao-titulo"
+            className="border-border bg-bg w-full max-w-md rounded-xl border p-5 shadow-xl sm:p-6"
+          >
+            <div className="flex items-start gap-3">
+              <div className="bg-warning-alt text-warning-alt-inverted flex size-10 shrink-0 items-center justify-center rounded-full">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h2 id="confirmar-conclusao-titulo" className="text-text m-0 text-lg font-semibold">
+                  Concluir ordem de serviço?
+                </h2>
+                <p className="text-text-muted mt-2 mb-0 text-sm leading-5">
+                  Confirma a conclusão de <span className="text-text font-medium">{ordem.titulo}</span>?
+                  Essa ação atualizará o status para Concluída.
+                </p>
+              </div>
+            </div>
+            {erroStatus && <p className="text-danger mt-4 mb-0 text-sm" role="alert">{erroStatus}</p>}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" disabled={atualizandoStatus} onClick={() => setConfirmarConclusao(false)}>
+                Cancelar
+              </Button>
+              <Button variant="primary" disabled={atualizandoStatus} onClick={concluirOS}>
+                {atualizandoStatus ? "Concluindo..." : "Confirmar conclusão"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

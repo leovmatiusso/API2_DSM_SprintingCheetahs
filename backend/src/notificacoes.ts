@@ -305,6 +305,7 @@ export async function createNotificationsForTime(
     projetoId?: number | string | null;
     manutencaoId?: number | string | null;
     usuarioOrigemId?: number | string | null;
+    incluirUsuarioOrigemComoDestino?: boolean;
   },
 ): Promise<number> {
   await ensureNotificationSchema();
@@ -318,6 +319,17 @@ export async function createNotificationsForTime(
     [String(payload.timeId)],
   );
 
+  if (payload.incluirUsuarioOrigemComoDestino && payload.usuarioOrigemId !== undefined && payload.usuarioOrigemId !== null) {
+    const origemId = String(payload.usuarioOrigemId);
+    if (!destinatarios.some((destinatario) => String(destinatario.id_usuario) === origemId)) {
+      const [origemAtiva] = await connection.execute<RowDataPacket[]>(
+        `SELECT id_usuario FROM usuarios WHERE id_usuario = ? AND ativo = TRUE LIMIT 1`,
+        [origemId],
+      );
+      if (origemAtiva[0]) destinatarios.push(origemAtiva[0]);
+    }
+  }
+
   if (!destinatarios.length) {
     return 0;
   }
@@ -329,7 +341,7 @@ export async function createNotificationsForTime(
     values.push(
       payload.titulo,
       payload.mensagem,
-      Number(payload.timeId),
+      payload.timeId === null || payload.timeId === undefined ? null : Number(payload.timeId),
       payload.osId === undefined || payload.osId === null ? null : Number(payload.osId),
       payload.projetoId === undefined || payload.projetoId === null ? null : Number(payload.projetoId),
       payload.manutencaoId === undefined || payload.manutencaoId === null ? null : Number(payload.manutencaoId),

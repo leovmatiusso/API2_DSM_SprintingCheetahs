@@ -205,7 +205,12 @@ export function useNotifications(userId: string | null) {
     setNotifications([]);
     void refresh();
     const interval = window.setInterval(() => void refresh(), POLL_INTERVAL);
-    return () => window.clearInterval(interval);
+    const handleRefreshRequest = () => void refresh();
+    window.addEventListener("notifications:refresh", handleRefreshRequest);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("notifications:refresh", handleRefreshRequest);
+    };
   }, [refresh]);
 
   const markAllAsRead = useCallback(async () => {

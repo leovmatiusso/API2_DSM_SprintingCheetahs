@@ -27,7 +27,7 @@ export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
   aberta: "bg-bg-tertiary text-text-muted",
   "em andamento": "bg-primary-muted text-primary",
   concluida: "bg-success-alt text-success-alt-inverted",
-  teste: "bg-primary-muted text-primary",
+  teste: "bg-orange-300/30 text-orange-950",
   bloqueado: "bg-danger-alt text-danger-alt-inverted",
   review: "bg-warning-alt text-warning-alt-inverted",
 };

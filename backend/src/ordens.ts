@@ -96,7 +96,6 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
 
     try {
       const filtro = filtroVisibilidadeOS(user);
-
       const [rows] = await pool.execute<RowDataPacket[]>(
         `${SELECT_OS} WHERE ${filtro.sql} ORDER BY o.data_criacao DESC, o.os_id DESC`,
         filtro.params,
@@ -114,7 +113,6 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   router.get("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
-
     const osId = String(req.params.osId);
 
     if (!/^\d+$/.test(osId)) {
@@ -464,9 +462,6 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     if (typeof statusNovo !== "string" || !STATUS_OS.includes(statusNovo as StatusOS)) {
       return res.status(400).json({ message: "Status inválido." });
     }
-    if (statusNovo === "concluida" && user.role !== "producao") {
-      return res.status(403).json({ message: "Somente a produção pode concluir uma ordem de serviço." });
-    }
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
@@ -542,6 +537,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           timeId: Number(os.id_time_responsavel),
           osId: os.os_id,
           usuarioOrigemId: user.id,
+          incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
         });
 
         await connection.commit();

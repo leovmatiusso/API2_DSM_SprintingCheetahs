@@ -540,3 +540,13 @@ export function concluirOS(id: number | string): Promise<any> {
     body: JSON.stringify({ os_status: "concluida" }),
   });
 }
+
+export function atualizarStatusOS(
+  id: number | string,
+  status: string,
+): Promise<any> {
+  return request(`/os/${encodeURIComponent(id)}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ os_status: status }),
+  });
+}
