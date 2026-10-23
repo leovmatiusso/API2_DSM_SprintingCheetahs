@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2";
+import { pool } from "./db.js";
 
 import type { Role, User } from "./users.js";
 
@@ -9,6 +10,13 @@ import type { Role, User } from "./users.js";
 // Os demais perfis (produção, software, implantação) enxergam apenas
 // as O.S. direcionadas ao seu time.
 export const PERFIS_DE_TIME: Role[] = ["producao", "software", "implantacao"];
+
+export async function ensureOSWorkflowSchema(): Promise<void> {
+  const [columns] = await pool.query<RowDataPacket[]>("SHOW COLUMNS FROM os LIKE 'motivo_bloqueio'");
+  if (columns.length === 0) {
+    await pool.query("ALTER TABLE os ADD COLUMN motivo_bloqueio TEXT NULL AFTER id_time_responsavel");
+  }
+}
 
 export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
 
@@ -30,6 +38,8 @@ export const SELECT_OS = `
          o.projeto_id,
          o.manutencao_id,
          t.nome_time,
+         t.responsavel_id,
+         o.motivo_bloqueio,
          t.departamento,
          c.nome AS criador_nome,
          DATE_FORMAT(o.data_limite, '%Y-%m-%d') AS data_limite,

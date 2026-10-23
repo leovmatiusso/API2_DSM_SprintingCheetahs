@@ -60,8 +60,6 @@ export default function OrdemServicoDetalhe() {
   const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoTimes, setCarregandoTimes] = useState(false);
 
-  const podeConcluir = currentUser?.role !== undefined && currentUser.role !== "superusuario";
-
   useEffect(() => {
     let ativo = true;
 
@@ -174,12 +172,26 @@ export default function OrdemServicoDetalhe() {
     }
   }
 
-  async function alterarStatus(status: OrdemStatus) {
+  const membroDoTime = Boolean(currentUser?.time_id && ordem?.time?.id === currentUser.time_id);
+  const responsavelDoTime = Boolean(currentUser?.id && ordem?.responsavel_id === currentUser.id);
+  const opcoesStatus: OrdemStatus[] = !ordem ? [] : ordem.status === "aberta"
+    ? (membroDoTime ? ["em andamento"] : [])
+    : ordem.status === "em andamento"
+      ? (membroDoTime ? ["teste", "review", "bloqueado"] : [])
+      : ordem.status === "teste"
+        ? (membroDoTime ? ["review", "bloqueado"] : [])
+        : ordem.status === "review"
+          ? (responsavelDoTime ? ["teste", "bloqueado"] : [])
+          : ordem.status === "bloqueado"
+            ? (responsavelDoTime ? ["teste"] : [])
+            : [];
+
+  async function alterarStatus(status: OrdemStatus, motivoBloqueio?: string) {
     if (!ordem || !osId) return;
     setErroStatus(null);
     setAtualizandoStatus(true);
     try {
-      await atualizarStatusOS(ordem.id, status);
+      await atualizarStatusOS(ordem.id, status, motivoBloqueio);
       const resposta = await getOrdem(osId);
       setOrdem(resposta.ordem);
     } catch (error) {
@@ -194,7 +206,7 @@ export default function OrdemServicoDetalhe() {
   }
 
   async function concluirOS() {
-    if (!ordem || !podeConcluir) return;
+    if (!ordem || !responsavelDoTime || ordem.status !== "review") return;
     setAtualizandoStatus(true);
     setErroStatus(null);
     try {
@@ -260,8 +272,14 @@ export default function OrdemServicoDetalhe() {
                   status={ordem.status}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
+                  opcoes={opcoesStatus}
                 />
               </CampoCaixa>
+              {ordem.status === "bloqueado" && ordem.motivo_bloqueio && (
+                <CampoCaixa rotulo="Motivo do bloqueio">
+                  <span className="text-text max-w-xl text-sm">{ordem.motivo_bloqueio}</span>
+                </CampoCaixa>
+              )}
               <CampoCaixa rotulo="Departamento">
                 <span className="text-text text-sm">{ordem.departamento ?? "—"}</span>
               </CampoCaixa>
@@ -386,7 +404,7 @@ export default function OrdemServicoDetalhe() {
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
-                  {podeConcluir && ordem.status !== "concluida" && (
+                  {responsavelDoTime && ordem.status === "review" && (
                     <Button
                       variant="primary"
                       size="lg"

@@ -12,6 +12,7 @@ import {
   buildOSStatusNotificationTitle,
   buildStatusNotificationMessage,
   createNotificationsForTime,
+  escapeNotificationHtml,
   shouldCreateStatusNotification,
 } from "./notificacoes.js";
 
@@ -195,6 +196,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       return res.json({
         ordem: {
           ...mapOS(os),
+          responsavel_id: os.responsavel_id === null ? null : String(os.responsavel_id),
+          motivo_bloqueio: (os.motivo_bloqueio as string | null) ?? null,
           pedido_pai: pedidoPai,
           equipamentos: equipamentos.map((e) => ({
             nome: e.nome_equipamento as string,
@@ -253,6 +256,107 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     } catch (error) {
       console.error("Erro ao baixar anexo:", error);
       return res.status(500).json({ message: "Não foi possível baixar o anexo." });
+    }
+  });
+
+  // Edição dos campos exibidos no formulário de detalhes da O.S.
+  router.put("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
+    const osId = String(req.params.osId);
+    const { os_titulo, os_descricao, prioridade, data_limite, id_time_responsavel, equipamentos } = req.body ?? {};
+
+    if (!/^\d+$/.test(osId)) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+    if (typeof os_titulo !== "string" || !os_titulo.trim() || os_titulo.trim().length > 150) {
+      return res.status(400).json({ message: "Informe um título válido (até 150 caracteres)." });
+    }
+    if (typeof os_descricao !== "string" || !os_descricao.trim() || os_descricao.length > 5000) {
+      return res.status(400).json({ message: "Informe uma descrição válida (até 5000 caracteres)." });
+    }
+    if (typeof prioridade !== "string" || !PRIORIDADES.includes(prioridade.toLowerCase() as Prioridade)) {
+      return res.status(400).json({ message: "Prioridade inválida." });
+    }
+    if (typeof data_limite !== "string" || !dataValida(data_limite)) {
+      return res.status(400).json({ message: "Informe um prazo válido." });
+    }
+    if (id_time_responsavel === undefined || !/^\d+$/.test(String(id_time_responsavel))) {
+      return res.status(400).json({ message: "Selecione um time responsável válido." });
+    }
+    if (equipamentos !== undefined && !Array.isArray(equipamentos)) {
+      return res.status(400).json({ message: "A lista de equipamentos é inválida." });
+    }
+
+    const itens = new Map<string, { nome: string; quantidade: number }>();
+    for (const equipamento of (equipamentos ?? []) as { nome_equipamento?: unknown; quantidade?: unknown }[]) {
+      const nome = typeof equipamento?.nome_equipamento === "string" ? equipamento.nome_equipamento.trim() : "";
+      const quantidade = Number(equipamento?.quantidade);
+      if (!nome || nome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
+        return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
+      }
+      const key = nome.toLocaleLowerCase();
+      const atual = itens.get(key);
+      if (atual) atual.quantidade += quantidade;
+      else itens.set(key, { nome, quantidade });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [osRows] = await connection.execute<RowDataPacket[]>(
+        "SELECT id_time_responsavel, projeto_id, manutencao_id FROM os WHERE os_id = ? FOR UPDATE",
+        [osId],
+      );
+      const os = osRows[0];
+      if (!os || !podeVerOS(user, {
+        id_time_responsavel: os.id_time_responsavel as number | null,
+        projeto_id: os.projeto_id as number | null,
+        manutencao_id: os.manutencao_id as number | null,
+      })) {
+        await connection.rollback();
+        return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+
+      const [times] = await connection.execute<RowDataPacket[]>(
+        "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+        [String(id_time_responsavel)],
+      );
+      if (!times[0]) {
+        await connection.rollback();
+        return res.status(400).json({ message: "Time responsável inválido." });
+      }
+
+      await connection.execute(
+        `UPDATE os SET os_titulo = ?, os_descricao = ?, prioridade = ?, data_limite = ?, id_time_responsavel = ?
+          WHERE os_id = ?`,
+        [os_titulo.trim(), os_descricao.trim(), prioridade.toLowerCase(), data_limite, String(id_time_responsavel), osId],
+      );
+
+      if (equipamentos !== undefined) {
+        await connection.execute("DELETE FROM item_equipamento_os WHERE os_id = ?", [osId]);
+        for (const item of itens.values()) {
+          await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
+          const [equipamentoRows] = await connection.execute<RowDataPacket[]>(
+            "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
+            [item.nome],
+          );
+          const equipamentoId = equipamentoRows[0]?.equipamento_id;
+          if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
+          await connection.execute(
+            "INSERT INTO item_equipamento_os (os_id, equipamento_id, quantidade) VALUES (?, ?, ?)",
+            [osId, equipamentoId, item.quantidade],
+          );
+        }
+      }
+
+      await connection.commit();
+      return res.json({ message: "Ordem de serviço atualizada com sucesso." });
+    } catch (error) {
+      await connection.rollback();
+      console.error("Erro ao editar O.S.:", error);
+      return res.status(500).json({ message: "Não foi possível atualizar a ordem de serviço." });
+    } finally {
+      connection.release();
     }
   });
 
@@ -454,6 +558,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     const osId = String(req.params.osId);
     const statusInput = req.body?.os_status ?? req.body?.status;
     const statusNovo = typeof statusInput === "string" ? statusInput.trim().toLowerCase() : statusInput;
+    const motivoBloqueio = typeof req.body?.motivo_bloqueio === "string" ? req.body.motivo_bloqueio.trim() : "";
 
     if (!/^\d+$/.test(osId)) {
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });
@@ -465,7 +570,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
-          o.projeto_id, o.manutencao_id, t.nome_time
+          o.projeto_id, o.manutencao_id, o.motivo_bloqueio, t.nome_time, t.responsavel_id
            FROM os o
            LEFT JOIN time t ON t.id_time = o.id_time_responsavel
           WHERE o.os_id = ?
@@ -486,6 +591,36 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
 
+      const statusAnterior = String(os.os_status);
+      const membroDoTime = user.time_id !== null && String(user.time_id) === String(os.id_time_responsavel);
+      const responsavelDoTime = os.responsavel_id !== null && String(user.id) === String(os.responsavel_id);
+      const transicoesValidas: Record<string, string[]> = {
+        aberta: ["em andamento"],
+        "em andamento": ["teste", "review", "bloqueado"],
+        teste: ["review", "bloqueado"],
+        review: ["concluida", "teste", "bloqueado"],
+        bloqueado: ["teste"],
+        concluida: [],
+      };
+      if (!transicoesValidas[statusAnterior]?.includes(statusNovo)) {
+        return res.status(409).json({ message: `Transição de ${statusAnterior} para ${statusNovo} não permitida.` });
+      }
+      if (["review", "bloqueado"].includes(statusNovo) && !membroDoTime) {
+        return res.status(403).json({ message: "Somente integrantes do time responsável podem encaminhar para Review ou bloquear a OS." });
+      }
+      if (statusAnterior === "review" && !responsavelDoTime) {
+        return res.status(403).json({ message: "Somente o responsável cadastrado do time pode aprovar ou reprovar a Review." });
+      }
+      if (statusAnterior === "bloqueado" && !responsavelDoTime) {
+        return res.status(403).json({ message: "Somente o responsável cadastrado do time pode liberar a OS bloqueada." });
+      }
+      if (statusNovo === "review" && !os.responsavel_id) {
+        return res.status(409).json({ message: "Cadastre um responsável para o time antes de encaminhar a OS para Review." });
+      }
+      if (statusNovo === "bloqueado" && (!motivoBloqueio || motivoBloqueio.length > 2000)) {
+        return res.status(400).json({ message: "Informe o motivo do bloqueio (até 2000 caracteres)." });
+      }
+
       if (!shouldCreateStatusNotification(os.os_status as string | null, statusNovo)) {
         return res.json({
           message: "O status já está atualizado.",
@@ -498,8 +633,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         await connection.beginTransaction();
 
         const [updateResult] = await connection.execute<ResultSetHeader>(
-          "UPDATE os SET os_status = ? WHERE os_id = ? AND os_status = ?",
-          [statusNovo, osId, os.os_status],
+          "UPDATE os SET os_status = ?, motivo_bloqueio = ? WHERE os_id = ? AND os_status = ?",
+          [statusNovo, statusNovo === "bloqueado" ? motivoBloqueio : null, osId, os.os_status],
         );
         if (!updateResult.affectedRows) {
           const [currentRows] = await connection.execute<RowDataPacket[]>(
@@ -530,14 +665,15 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         }
 
         await createNotificationsForTime(connection, {
-          titulo: statusEvento
+          titulo: statusNovo === "review" ? "Ordem de Serviço aguardando Review" : statusEvento
             ? buildOSStatusNotificationTitle(statusNovo as "concluida" | "bloqueado")
-            : "Atualização de status",
-          mensagem,
+            : statusNovo === "teste" && statusAnterior === "bloqueado" ? "Ordem de Serviço desbloqueada" : "Atualização de status",
+          mensagem: statusNovo === "bloqueado" ? `${mensagem} Motivo: ${escapeNotificationHtml(motivoBloqueio)}` : statusNovo === "review" ? `A O.S. #${os.os_id} — ${escapeNotificationHtml(String(os.os_titulo))} aguarda aprovação do responsável do time.` : statusNovo === "teste" && statusAnterior === "bloqueado" ? `A O.S. #${os.os_id} — ${escapeNotificationHtml(String(os.os_titulo))} foi desbloqueada e voltou para Teste.` : mensagem,
           timeId: Number(os.id_time_responsavel),
           osId: os.os_id,
           usuarioOrigemId: user.id,
-          incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
+          ...(statusNovo === "review" && os.responsavel_id ? { destinatarioIds: [os.responsavel_id as number] } : {}),
+          incluirUsuarioOrigemComoDestino: statusNovo === "concluida" || statusNovo === "bloqueado" || statusAnterior === "bloqueado",
         });
 
         await connection.commit();

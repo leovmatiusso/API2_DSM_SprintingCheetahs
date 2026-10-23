@@ -286,7 +286,7 @@ export function buildOSCreatedNotificationMessage(
   return `A ordem de serviço ${osTitulo} foi aberta por ${criadorNome} do time ${timeNome}.`;
 }
 
-function escapeNotificationHtml(value: string): string {
+export function escapeNotificationHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -306,18 +306,24 @@ export async function createNotificationsForTime(
     manutencaoId?: number | string | null;
     usuarioOrigemId?: number | string | null;
     incluirUsuarioOrigemComoDestino?: boolean;
+    destinatarioIds?: Array<number | string>;
   },
 ): Promise<number> {
   await ensureNotificationSchema();
 
-  const [destinatarios] = await connection.execute<RowDataPacket[]>(
-    `SELECT id_usuario
-       FROM usuarios
-      WHERE time_id = ?
-        AND ativo = TRUE
-      ORDER BY id_usuario`,
-    [String(payload.timeId)],
-  );
+  const [destinatarios] = payload.destinatarioIds?.length
+    ? await connection.execute<RowDataPacket[]>(
+      `SELECT id_usuario FROM usuarios WHERE ativo = TRUE AND id_usuario IN (${payload.destinatarioIds.map(() => "?").join(",")}) ORDER BY id_usuario`,
+      payload.destinatarioIds.map(String),
+    )
+    : await connection.execute<RowDataPacket[]>(
+      `SELECT id_usuario
+         FROM usuarios
+        WHERE time_id = ?
+          AND ativo = TRUE
+        ORDER BY id_usuario`,
+      [String(payload.timeId)],
+    );
 
   if (payload.incluirUsuarioOrigemComoDestino && payload.usuarioOrigemId !== undefined && payload.usuarioOrigemId !== null) {
     const origemId = String(payload.usuarioOrigemId);

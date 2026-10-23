@@ -515,6 +515,8 @@ export interface PedidoPai {
 }
 
 export interface OrdemServicoDetalhe extends OrdemServicoResumo {
+  responsavel_id: string | null;
+  motivo_bloqueio: string | null;
   pedido_pai: PedidoPai | null;
   equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
@@ -544,10 +546,11 @@ export function concluirOS(id: number | string): Promise<any> {
 export function atualizarStatusOS(
   id: number | string,
   status: string,
+  motivo_bloqueio?: string,
 ): Promise<any> {
   return request(`/os/${encodeURIComponent(id)}/status`, {
     method: "PUT",
-    body: JSON.stringify({ os_status: status }),
+    body: JSON.stringify({ os_status: status, ...(motivo_bloqueio ? { motivo_bloqueio } : {}) }),
   });
 }
 
@@ -561,7 +564,7 @@ export function atualizarOrdemServico(
     id_time_responsavel?: string | number;
     equipamentos?: { nome_equipamento: string; quantidade: number }[];
   }
-): Promise<{ message: string; ordem: OrdemServicoDetalhe }> {
+): Promise<{ message: string }> {
   return request(`/os/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(data),

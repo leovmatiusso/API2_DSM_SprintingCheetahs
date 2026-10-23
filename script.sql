@@ -108,6 +108,7 @@ CREATE TABLE os (
     data_limite DATE NOT NULL,
     id_criador INT NOT NULL,
     id_time_responsavel INT NULL,
+    motivo_bloqueio TEXT NULL,
     projeto_id INT NULL,
     manutencao_id INT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -13,7 +13,7 @@ import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
 import { createNotificacoesRouter, ensureNotificationSchema } from "./notificacoes.js";
-import { podeVerOS } from "./os_comum.js";
+import { ensureOSWorkflowSchema, podeVerOS } from "./os_comum.js";
 import osConcluidasRouter from "./os_concluida.js";
 
 // =====================================================
@@ -806,13 +806,9 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });
     }
 
-    if (rows[0].os_status === "concluida") {
-      return res.status(409).json({ message: "Esta ordem de serviço já foi concluída." });
-    }
-
-    await pool.execute("UPDATE os SET os_status = 'concluida' WHERE os_id = ?", [id]);
-
-    return res.json({ message: "Ordem de serviço concluída com sucesso." });
+    return res.status(409).json({
+      message: "A conclusão deve ser aprovada pelo responsável enquanto a OS estiver em Review. Use a atualização de status para registrar a decisão.",
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Não foi possível concluir a ordem de serviço." });
@@ -851,6 +847,7 @@ app.use((_req, res) => {
 
 async function startServer() {
   try {
+    await ensureOSWorkflowSchema();
     await ensureNotificationSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);

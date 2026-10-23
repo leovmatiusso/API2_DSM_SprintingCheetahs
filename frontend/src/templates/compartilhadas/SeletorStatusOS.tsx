@@ -4,20 +4,25 @@ import { Check, ChevronDown } from "lucide-react";
 import type { OrdemStatus } from "@/api";
 import { STATUS_CLASSE, STATUS_LABEL } from "./osEstilos";
 
-export const STATUS_EDITAVEIS: OrdemStatus[] = [
-  "aberta",
-  "em andamento",
-  "teste",
-];
+const TRANSICOES_PADRAO: Record<OrdemStatus, OrdemStatus[]> = {
+  aberta: ["em andamento"],
+  "em andamento": ["teste"],
+  teste: [],
+  review: [],
+  bloqueado: [],
+  concluida: [],
+};
 
 export default function SeletorStatusOS({
   status,
   disabled = false,
   onChange,
+  opcoes = TRANSICOES_PADRAO[status],
 }: {
   status: OrdemStatus;
   disabled?: boolean;
-  onChange: (status: OrdemStatus) => void;
+  onChange: (status: OrdemStatus, motivoBloqueio?: string) => void;
+  opcoes?: OrdemStatus[];
 }) {
   const [aberto, setAberto] = useState(false);
 
@@ -40,7 +45,7 @@ export default function SeletorStatusOS({
           aria-label="Selecionar status da O.S."
           className="border-border bg-bg absolute top-full left-0 z-20 mt-1 min-w-36 overflow-hidden rounded-lg border p-1 shadow-lg"
         >
-          {STATUS_EDITAVEIS.map((opcao) => (
+          {opcoes.map((opcao) => (
             <button
               key={opcao}
               type="button"
@@ -49,7 +54,13 @@ export default function SeletorStatusOS({
               disabled={disabled || status === opcao}
               onClick={() => {
                 setAberto(false);
-                onChange(opcao);
+                if (opcao === "bloqueado") {
+                  const motivo = window.prompt("Descreva a dependência ou impedimento que bloqueia esta OS:");
+                  if (!motivo?.trim()) return;
+                  onChange(opcao, motivo.trim());
+                } else {
+                  onChange(opcao);
+                }
               }}
               className="text-text hover:bg-primary-muted flex w-full cursor-pointer items-center justify-between rounded px-2 py-1.5 text-left transition disabled:cursor-default"
             >
