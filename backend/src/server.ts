@@ -21,6 +21,7 @@ import {
 } from "./notificacoes.js";
 import { podeVerOS } from "./os_comum.js";
 import osConcluidasRouter from "./os_concluida.js";
+import { createDashboardRouter } from "./dashboard.js";
 
 // =====================================================
 // CONFIGURAÇÃO
@@ -895,6 +896,11 @@ app.use("/api/notificacoes", createNotificacoesRouter(requireAuth));
 app.use("/api/manutencoes", createManutencoesRouter(requireRole));
 
 // =====================================================
+// DASHBOARD
+// =====================================================
+app.use("/api/dashboard", createDashboardRouter(requireRole));
+
+// =====================================================
 // ERROS E START
 // =====================================================
 
@@ -915,4 +921,3 @@ async function startServer() {
 }
 
 startServer();
-
