@@ -120,7 +120,6 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
           emTeste: os.filter((ordem) => ordem.status === "teste").length,
           total: os.length,
           porDepartamento,
-          recentes: os.slice(0, 5),
         },
         manutencoes: {
           total: manutencaoRows.reduce((total, row) => total + Number(row.total), 0),

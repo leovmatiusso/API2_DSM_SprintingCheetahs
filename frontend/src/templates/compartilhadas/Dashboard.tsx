@@ -1,20 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
   ClipboardList,
   Clock,
+  CheckCircle2,
   CircleAlert,
 } from "lucide-react";
 
-import { getCurrentUser, logout } from "@/auth";
+import { getCurrentUser } from "@/auth";
 import { getDashboardResumo } from "@/api";
 import type { DashboardResumo } from "@/api";
-import { PRIORIDADE_CLASSE, PRIORIDADE_LABEL, STATUS_CLASSE, STATUS_LABEL, formatarData } from "./osEstilos";
 
 
 export default function Dashboard() {
-  const navigate = useNavigate();
   const [resumo, setResumo] = useState<DashboardResumo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -29,11 +28,6 @@ export default function Dashboard() {
   }, []);
 
   if (!user) return null;
-
-  function sair() {
-    logout();
-    navigate("/login", { replace: true });
-  }
 
   return (
     <main className="bg-bg-secondary text-text min-h-screen">
@@ -50,9 +44,9 @@ export default function Dashboard() {
               <strong className="text-text mt-1 block text-4xl font-bold">{resumo?.projetos ?? "—"}</strong>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="border-border bg-bg-secondary min-w-0 rounded-xl border p-4"><div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black"><ClipboardList size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">OS abertas</span></div><div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.ordens.abertas ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Total de OS em aberto</span></div></div>
+              <div className="border-border bg-bg-secondary min-w-0 rounded-xl border p-4"><div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black"><ClipboardList size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">Total de OS</span></div><div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.ordens.total ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">OS em todos os status</span></div></div>
               <div className="border-border bg-bg-secondary min-w-0 rounded-xl border p-4"><div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-200 text-black"><Clock size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">OS em andamento</span></div><div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.ordens.andamento ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Sendo tratadas</span></div></div>
-              <div className="border-border bg-bg-secondary min-w-0 rounded-xl border p-4"><div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 text-black"><CircleAlert size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">OS em alerta</span></div><div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.ordens.alerta ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Total de OS em alerta</span></div></div>
+              <div className="border-border bg-bg-secondary min-w-0 rounded-xl border p-4"><div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pink-200 text-black"><CheckCircle2 size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">OS concluídas</span></div><div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.ordens.concluidas ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Total de OS concluídas</span></div></div>
             </div>
           </section>
 
@@ -105,14 +99,6 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-border bg-bg p-6 shadow-sm lg:col-span-10">
-            <div className="mb-6 flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-200 text-black"><Clock size={19} /></div><p className="text-2xl font-bold text-text">Solicitações recentes</p></div>
-            {erro ? <p className="text-danger text-sm" role="alert">{erro}</p> : !resumo ? <p className="text-text-muted text-sm">Carregando solicitações...</p> : resumo.ordens.recentes.length === 0 ? <p className="text-text-muted text-sm">Nenhuma solicitação encontrada.</p> : (
-              <div className="space-y-3">
-                {resumo.ordens.recentes.slice(0, 3).map((os) => <button key={os.id} type="button" onClick={() => navigate(`/os/disponiveis/${os.id}`)} className="grid w-full grid-cols-1 gap-4 rounded-lg border border-text/10 bg-bg-secondary p-4 text-left md:grid-cols-4 md:items-center"><div className="min-w-0"><strong className="block text-sm font-bold text-text">{os.titulo}</strong><span className="text-text-muted mt-1 block text-xs">Time: {os.time?.nome ?? "—"} · {os.departamento ?? "—"}</span></div><div><span className="text-xs text-text-muted">Status</span><strong className="mt-1 block text-sm font-semibold"><span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_CLASSE[os.status]}`}>{STATUS_LABEL[os.status] ?? os.status}</span></strong></div><div><span className="text-xs text-text-muted">Prioridade</span><strong className="mt-1 block text-sm font-semibold"><span className={`rounded px-2 py-0.5 text-xs font-medium ${PRIORIDADE_CLASSE[os.prioridade]}`}>{PRIORIDADE_LABEL[os.prioridade] ?? os.prioridade}</span></strong></div><div><span className="text-xs text-text-muted">Data limite</span><strong className="mt-1 block text-sm font-semibold">{formatarData(os.data_limite)}</strong></div></button>)}
-              </div>
-            )}
-          </section>
         </div>
       </section>
     </main>

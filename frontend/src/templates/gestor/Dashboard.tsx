@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   ClipboardList,
   Clock,
+  CheckCircle2,
   CircleAlert,
 } from "lucide-react";
 
@@ -49,11 +50,11 @@ export default function Dashboard() {
               <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black"><ClipboardList size={19} /></div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS abertas</span>
+                  <span className="min-w-0 text-sm leading-tight font-medium">Total de OS</span>
                 </div>
                 <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">{resumo?.ordens.abertas ?? "—"}</strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">Total de OS em aberto</span>
+                  <strong className="block text-3xl font-bold">{resumo?.ordens.total ?? "—"}</strong>
+                  <span className="text-text-muted mt-1 block text-xs leading-4">OS em todos os status</span>
                 </div>
               </div>
 
@@ -70,12 +71,12 @@ export default function Dashboard() {
 
               <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 text-black"><CircleAlert size={19} /></div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS em alerta</span>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pink-200 text-black"><CheckCircle2 size={19} /></div>
+                  <span className="min-w-0 text-sm leading-tight font-medium">OS concluídas</span>
                 </div>
                 <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">{resumo?.ordens.alerta ?? "—"}</strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">Total de OS em alerta</span>
+                  <strong className="block text-3xl font-bold">{resumo?.ordens.concluidas ?? "—"}</strong>
+                  <span className="text-text-muted mt-1 block text-xs leading-4">Total de OS concluídas</span>
                 </div>
               </div>
             </div>

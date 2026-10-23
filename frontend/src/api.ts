@@ -539,7 +539,6 @@ export interface DashboardResumo {
       monitoramento: number;
       implantacao: number;
     };
-    recentes: OrdemServicoResumo[];
   };
   manutencoes: {
     total: number;
