@@ -4,6 +4,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
+import { validarTransicaoOS } from "./os_fluxo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
   buildOSCreatedNotificationMessage,
@@ -30,6 +31,29 @@ type Prioridade = (typeof PRIORIDADES)[number];
 type StatusOS = (typeof STATUS_OS)[number];
 
 type RequireRole = (...roles: Role[]) => RequestHandler;
+
+function isResponsavelDoTime(
+  user: User,
+  os: { time_responsavel_id?: number | string | null },
+): boolean {
+  return os.time_responsavel_id != null && String(os.time_responsavel_id) === String(user.id);
+}
+
+function podeAcessarOSNoFluxo(
+  user: User,
+  os: {
+    id_time_responsavel: number | null;
+    projeto_id: number | null;
+    manutencao_id: number | null;
+    os_status?: string;
+    time_responsavel_id?: number | string | null;
+  },
+): boolean {
+  return (
+    podeVerOS(user, os) ||
+    ((os.os_status === "review" || os.os_status === "bloqueado") && isResponsavelDoTime(user, os))
+  );
+}
 
 function dataValida(data: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
@@ -97,8 +121,11 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     try {
       const filtro = filtroVisibilidadeOS(user);
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `${SELECT_OS} WHERE ${filtro.sql} ORDER BY o.data_criacao DESC, o.os_id DESC`,
-        filtro.params,
+        `${SELECT_OS}
+          WHERE (${filtro.sql})
+             OR (o.os_status IN ('review', 'bloqueado') AND t.responsavel_id = ?)
+          ORDER BY o.data_criacao DESC, o.os_id DESC`,
+        [...filtro.params, Number(user.id)],
       );
 
       return res.json({ ordens: rows.map(mapOS) });
@@ -128,10 +155,12 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       const os = rows[0];
       if (
         !os ||
-        !podeVerOS(user, {
+        !podeAcessarOSNoFluxo(user, {
           id_time_responsavel: os.id_time_responsavel as number | null,
           projeto_id: os.projeto_id as number | null,
           manutencao_id: os.manutencao_id as number | null,
+          os_status: os.os_status as string,
+          time_responsavel_id: os.time_responsavel_id as number | null,
         })
       ) {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
@@ -223,9 +252,11 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT a.nome_anexo, a.anexo_tipo, a.conteudo_arquivo,
-                o.id_time_responsavel, o.projeto_id, o.manutencao_id
+                o.id_time_responsavel, o.projeto_id, o.manutencao_id, o.os_status,
+                t.responsavel_id AS time_responsavel_id
            FROM anexo a
            JOIN os o ON o.os_id = a.os_id
+           LEFT JOIN time t ON t.id_time = o.id_time_responsavel
           WHERE a.anexo_id = ? AND a.os_id = ?
           LIMIT 1`,
         [String(req.params.anexoId), String(req.params.osId)],
@@ -234,10 +265,12 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       const anexo = rows[0];
       if (
         !anexo ||
-        !podeVerOS(user, {
+        !podeAcessarOSNoFluxo(user, {
           id_time_responsavel: anexo.id_time_responsavel as number | null,
           projeto_id: anexo.projeto_id as number | null,
           manutencao_id: anexo.manutencao_id as number | null,
+          os_status: anexo.os_status as string,
+          time_responsavel_id: anexo.time_responsavel_id as number | null,
         })
       ) {
         return res.status(404).json({ message: "Anexo não encontrado." });
@@ -465,7 +498,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
-          o.projeto_id, o.manutencao_id, t.nome_time
+          o.projeto_id, o.manutencao_id, t.nome_time,
+          t.responsavel_id AS time_responsavel_id
            FROM os o
            LEFT JOIN time t ON t.id_time = o.id_time_responsavel
           WHERE o.os_id = ?
@@ -478,12 +512,28 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
 
-      if (!podeVerOS(user, {
+      if (!podeAcessarOSNoFluxo(user, {
         id_time_responsavel: os.id_time_responsavel as number | null,
         projeto_id: os.projeto_id as number | null,
         manutencao_id: os.manutencao_id as number | null,
+        os_status: os.os_status as string,
+        time_responsavel_id: os.time_responsavel_id as number | null,
       })) {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+
+      const responsavelDoTime = isResponsavelDoTime(user, {
+        time_responsavel_id: os.time_responsavel_id as number | null,
+      });
+      const statusAtual = os.os_status as StatusOS;
+      if (statusNovo === "review" && os.time_responsavel_id == null) {
+        return res.status(409).json({
+          message: "Cadastre o responsável do time antes de enviar esta O.S. para Review.",
+        });
+      }
+      const erroTransicao = validarTransicaoOS(statusAtual, statusNovo as StatusOS, responsavelDoTime);
+      if (erroTransicao) {
+        return res.status(erroTransicao.status).json({ message: erroTransicao.message });
       }
 
       if (!shouldCreateStatusNotification(os.os_status as string | null, statusNovo)) {
@@ -530,14 +580,20 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         }
 
         await createNotificationsForTime(connection, {
-          titulo: statusEvento
-            ? buildOSStatusNotificationTitle(statusNovo as "concluida" | "bloqueado")
-            : "Atualização de status",
+          titulo:
+            statusNovo === "review"
+              ? "O.S. aguardando revisão"
+              : statusNovo === "teste" && statusAtual === "bloqueado"
+                ? "O.S. liberada para Teste"
+                : statusEvento
+                  ? buildOSStatusNotificationTitle(statusNovo as "concluida" | "bloqueado")
+                  : "Atualização de status",
           mensagem,
           timeId: Number(os.id_time_responsavel),
           osId: os.os_id,
           usuarioOrigemId: user.id,
           incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
+          incluirResponsavelDoTimeComoDestino: statusNovo === "review",
         });
 
         await connection.commit();

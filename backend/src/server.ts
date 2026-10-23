@@ -12,7 +12,13 @@ import type { Time } from "./times.js";
 import { createProjetosRouter } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
-import { createNotificacoesRouter, ensureNotificationSchema } from "./notificacoes.js";
+import {
+  buildOSStatusEventMessage,
+  buildOSStatusNotificationTitle,
+  createNotificationsForTime,
+  createNotificacoesRouter,
+  ensureNotificationSchema,
+} from "./notificacoes.js";
 import { podeVerOS } from "./os_comum.js";
 import osConcluidasRouter from "./os_concluida.js";
 
@@ -790,7 +796,12 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
 
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT os_status, id_time_responsavel, projeto_id, manutencao_id FROM os WHERE os_id = ? LIMIT 1",
+      `SELECT o.os_status, o.os_titulo, o.id_time_responsavel, o.projeto_id,
+              o.manutencao_id, t.responsavel_id AS time_responsavel_id,
+              t.nome_time
+         FROM os o
+         LEFT JOIN time t ON t.id_time = o.id_time_responsavel
+        WHERE o.os_id = ? LIMIT 1`,
       [id],
     );
 
@@ -798,11 +809,13 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });
     }
 
-    if (!podeVerOS(user, {
+    const responsavelDoTime = String(rows[0].time_responsavel_id) === String(user.id);
+    const podeAcessar = podeVerOS(user, {
       id_time_responsavel: rows[0].id_time_responsavel as number | null,
       projeto_id: rows[0].projeto_id as number | null,
       manutencao_id: rows[0].manutencao_id as number | null,
-    })) {
+    });
+    if (!podeAcessar && !(rows[0].os_status === "review" && responsavelDoTime)) {
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });
     }
 
@@ -810,7 +823,47 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       return res.status(409).json({ message: "Esta ordem de serviço já foi concluída." });
     }
 
-    await pool.execute("UPDATE os SET os_status = 'concluida' WHERE os_id = ?", [id]);
+    if (rows[0].os_status !== "review" || String(rows[0].time_responsavel_id) !== String(user.id)) {
+      return res.status(403).json({ message: "Somente o responsável do time pode concluir uma O.S. em revisão." });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.execute<ResultSetHeader>(
+        "UPDATE os SET os_status = 'concluida' WHERE os_id = ? AND os_status = 'review'",
+        [id],
+      );
+      if (!result.affectedRows) {
+        await connection.rollback();
+        return res.status(409).json({ message: "O status da OS foi alterado. Atualize a tela e tente novamente." });
+      }
+
+      const [eventRows] = await connection.execute<RowDataPacket[]>(
+        "SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%d/%m/%Y %H:%i:%s') AS data_evento",
+      );
+      await createNotificationsForTime(connection, {
+        titulo: buildOSStatusNotificationTitle("concluida"),
+        mensagem: buildOSStatusEventMessage(
+          id,
+          rows[0].os_titulo as string,
+          "concluida",
+          (rows[0].nome_time as string | undefined) ?? "time responsável",
+          user.name,
+          (eventRows[0]?.data_evento as string | undefined) ?? "data não informada",
+        ),
+        timeId: Number(rows[0].id_time_responsavel),
+        osId: id,
+        usuarioOrigemId: user.id,
+        incluirUsuarioOrigemComoDestino: true,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return res.json({ message: "Ordem de serviço concluída com sucesso." });
   } catch (error) {

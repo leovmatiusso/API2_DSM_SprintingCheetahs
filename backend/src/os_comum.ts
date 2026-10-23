@@ -30,6 +30,7 @@ export const SELECT_OS = `
          o.projeto_id,
          o.manutencao_id,
          t.nome_time,
+         t.responsavel_id AS time_responsavel_id,
          t.departamento,
          c.nome AS criador_nome,
          DATE_FORMAT(o.data_limite, '%Y-%m-%d') AS data_limite,
@@ -54,7 +55,14 @@ export function mapOS(o: RowDataPacket) {
     time:
       o.id_time_responsavel === null
         ? null
-        : { id: String(o.id_time_responsavel), nome: o.nome_time as string },
+      : {
+          id: String(o.id_time_responsavel),
+          nome: o.nome_time as string,
+          responsavel_id:
+            o.time_responsavel_id === null || o.time_responsavel_id === undefined
+              ? null
+              : String(o.time_responsavel_id),
+        },
   };
 }
 

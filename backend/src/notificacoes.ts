@@ -306,6 +306,7 @@ export async function createNotificationsForTime(
     manutencaoId?: number | string | null;
     usuarioOrigemId?: number | string | null;
     incluirUsuarioOrigemComoDestino?: boolean;
+    incluirResponsavelDoTimeComoDestino?: boolean;
   },
 ): Promise<number> {
   await ensureNotificationSchema();
@@ -318,6 +319,24 @@ export async function createNotificationsForTime(
       ORDER BY id_usuario`,
     [String(payload.timeId)],
   );
+
+  if (payload.incluirResponsavelDoTimeComoDestino) {
+    const [responsaveis] = await connection.execute<RowDataPacket[]>(
+      `SELECT t.responsavel_id AS id_usuario
+         FROM time t
+         JOIN usuarios u ON u.id_usuario = t.responsavel_id
+        WHERE t.id_time = ? AND u.ativo = TRUE
+        LIMIT 1`,
+      [String(payload.timeId)],
+    );
+    const responsavelId = responsaveis[0]?.id_usuario;
+    if (
+      responsavelId !== undefined &&
+      !destinatarios.some((destinatario) => String(destinatario.id_usuario) === String(responsavelId))
+    ) {
+      destinatarios.push({ id_usuario: responsavelId } as RowDataPacket);
+    }
+  }
 
   if (payload.incluirUsuarioOrigemComoDestino && payload.usuarioOrigemId !== undefined && payload.usuarioOrigemId !== null) {
     const origemId = String(payload.usuarioOrigemId);

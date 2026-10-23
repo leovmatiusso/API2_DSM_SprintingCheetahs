@@ -60,7 +60,10 @@ export default function OrdemServicoDetalhe() {
   const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoTimes, setCarregandoTimes] = useState(false);
 
-  const podeConcluir = currentUser?.role !== undefined && currentUser.role !== "superusuario";
+  const responsavelDoTime = Boolean(
+    currentUser?.id && ordem?.time?.responsavel_id === currentUser.id,
+  );
+  const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
 
   useEffect(() => {
     let ativo = true;
@@ -179,9 +182,9 @@ export default function OrdemServicoDetalhe() {
     setErroStatus(null);
     setAtualizandoStatus(true);
     try {
-      await atualizarStatusOS(ordem.id, status);
-      const resposta = await getOrdem(osId);
-      setOrdem(resposta.ordem);
+      const resposta = await atualizarStatusOS(ordem.id, status);
+      setOrdem({ ...ordem, status: resposta?.os?.status ?? status });
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (error) {
       setErroStatus(
         error instanceof Error
@@ -194,7 +197,7 @@ export default function OrdemServicoDetalhe() {
   }
 
   async function concluirOS() {
-    if (!ordem || !podeConcluir) return;
+    if (!ordem || !podeDecidirReview) return;
     setAtualizandoStatus(true);
     setErroStatus(null);
     try {
@@ -258,6 +261,7 @@ export default function OrdemServicoDetalhe() {
               <CampoCaixa rotulo="Status">
                 <SeletorStatusOS
                   status={ordem.status}
+                  responsavelDoTime={responsavelDoTime}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -386,7 +390,7 @@ export default function OrdemServicoDetalhe() {
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
-                  {podeConcluir && ordem.status !== "concluida" && (
+                  {podeDecidirReview && (
                     <Button
                       variant="primary"
                       size="lg"

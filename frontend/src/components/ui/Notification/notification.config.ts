@@ -14,6 +14,10 @@ export const notificationConfig = {
     color: "#E24056",
     icon: ClipboardX,
   },
+  osRevisao: {
+    color: "#F59E0B",
+    icon: ClipboardCheck,
+  },
   novaManutencao: {
     color: "#9810fa",
     icon: Wrench,

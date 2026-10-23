@@ -504,7 +504,7 @@ export interface OrdemServicoResumo {
   departamento: string | null;
   projeto_id: string | null;
   manutencao_id: string | null;
-  time: { id: string; nome: string } | null;
+  time: { id: string; nome: string; responsavel_id?: string | null } | null;
 }
 
 export interface PedidoPai {

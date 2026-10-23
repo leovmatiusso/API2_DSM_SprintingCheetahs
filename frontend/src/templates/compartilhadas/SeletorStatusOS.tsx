@@ -4,22 +4,37 @@ import { Check, ChevronDown } from "lucide-react";
 import type { OrdemStatus } from "@/api";
 import { STATUS_CLASSE, STATUS_LABEL } from "./osEstilos";
 
-export const STATUS_EDITAVEIS: OrdemStatus[] = [
-  "aberta",
-  "em andamento",
-  "teste",
-];
+function obterOpcoes(status: OrdemStatus, responsavelDoTime: boolean): OrdemStatus[] {
+  if (status === "review") return responsavelDoTime ? ["teste", "bloqueado"] : [];
+  if (status === "bloqueado") return responsavelDoTime ? ["teste"] : [];
+  if (status === "concluida") return [];
+  const opcoes: OrdemStatus[] = ["aberta", "em andamento", "teste", "review"];
+  return opcoes.filter(
+    (opcao) => opcao !== status,
+  );
+}
 
 export default function SeletorStatusOS({
   status,
+  responsavelDoTime = false,
   disabled = false,
   onChange,
 }: {
   status: OrdemStatus;
+  responsavelDoTime?: boolean;
   disabled?: boolean;
   onChange: (status: OrdemStatus) => void;
 }) {
   const [aberto, setAberto] = useState(false);
+  const opcoes = obterOpcoes(status, responsavelDoTime);
+
+  if (opcoes.length === 0) {
+    return (
+      <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${STATUS_CLASSE[status]}`}>
+        {STATUS_LABEL[status] ?? status}
+      </span>
+    );
+  }
 
   return (
     <div className="relative inline-flex" onClick={(event) => event.stopPropagation()}>
@@ -40,7 +55,7 @@ export default function SeletorStatusOS({
           aria-label="Selecionar status da O.S."
           className="border-border bg-bg absolute top-full left-0 z-20 mt-1 min-w-36 overflow-hidden rounded-lg border p-1 shadow-lg"
         >
-          {STATUS_EDITAVEIS.map((opcao) => (
+          {opcoes.map((opcao) => (
             <button
               key={opcao}
               type="button"
