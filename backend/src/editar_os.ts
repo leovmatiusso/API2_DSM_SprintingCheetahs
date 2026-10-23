@@ -1,19 +1,62 @@
 import express from "express";
-import dotenv from "dotenv";
-import { ResultSetHeader } from "mysql2";
 import { pool } from "./db.js";
-
-dotenv.config();
 
 const router = express.Router();
 
-router.post("/", async (req, res) => {
+router.put("/:id", async (req, res) => {
     try {
-        const { os_status, os_id } = req.body;
+        const { id } = req.params;
 
-        const [result] = await pool.query(
-            "UPDATE os SET os_status = ? WHERE os_id = ?",
-            [os_status, os_id]
+        const {
+            os_titulo,
+            os_descricao,
+            os_status,
+            prioridade,
+            os_cliente,
+            data_limite,
+            id_time_responsavel
+        } = req.body;
+
+        if (
+            !os_titulo ||
+            !os_descricao ||
+            !os_status ||
+            !prioridade ||
+            !os_cliente ||
+            !data_limite ||
+            id_time_responsavel == null
+        ) {
+            await pool.execute(
+                "UPDATE os SET os_status = ? WHERE os_id = ?",
+                ["bloqueada", id]
+            );
+        
+            return res.status(400).json({
+                erro: "Preencha todos os campos obrigatórios",
+                os_status: "bloqueada"
+            });
+        }
+
+        const [result] = await pool.execute<ResultSetHeader>(
+            `UPDATE os
+             SET os_titulo = ?,
+                 os_descricao = ?,
+                 os_status = ?,
+                 prioridade = ?,
+                 os_cliente = ?,
+                 data_limite = ?,
+                 id_time_responsavel = ?
+             WHERE os_id = ?`,
+            [
+                os_titulo,
+                os_descricao,
+                os_status,
+                prioridade,
+                os_cliente,
+                data_limite,
+                id_time_responsavel,
+                id
+            ]
         );
 
         if (result.affectedRows === 0) {
@@ -22,15 +65,15 @@ router.post("/", async (req, res) => {
             });
         }
 
-        res.status(200).json({
-            mensagem: "Status atualizado com sucesso",
-            os_id,
-            os_status
+        return res.status(200).json({
+            mensagem: "Ordem de serviço atualizada com sucesso"
         });
 
     } catch (e) {
-        res.status(500).json({
-            erro: "Falha ao atualizar status"
+        console.error(e);
+
+        return res.status(500).json({
+            erro: "Falha ao atualizar ordem de serviço"
         });
     }
 });

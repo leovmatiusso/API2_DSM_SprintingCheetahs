@@ -829,9 +829,7 @@ app.use("/api/os", createOrdensRouter(requireRole));
 // EDITAR ORDENS DE SERVIÇO
 // =====================================================
 
-app.use("/api/os-concluidas", osConcluidasRouter);
-
-//await connection.execute("UPDATE os SET os_status = ? WHERE os_id = ?", [,req.params.id]);
+app.use("/api/os-concluidas", osConcluidasRouter);;
 
 // =====================================================
 // NOTIFICAÇÕES

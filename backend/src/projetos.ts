@@ -7,9 +7,6 @@ import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
 import { buildProjectCreatedNotificationMessage, createNotificationsForTime } from "./notificacoes.js";
 
-// Perfis que enxergam todos os projetos. Produção, software e implantação
-// também enxergam projetos atribuídos ao seu time ou com O.S. direcionada a ele.
-// Suporte não acessa projetos.
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
@@ -28,7 +25,6 @@ function veTodos(user: User): boolean {
   return PERFIS_VEEM_TODOS.includes(user.role);
 }
 
-// Condição SQL (alias "p" = tabela projetos) com os projetos que o usuário pode ver.
 function filtroProjeto(user: User): { sql: string; params: number[] } {
   if (veTodos(user)) return { sql: "1 = 1", params: [] };
   if (user.time_id === null) return { sql: "1 = 0", params: [] };
@@ -54,6 +50,8 @@ const SELECT_PROJETO = `
          DATE_FORMAT(p.data_limite, '%Y-%m-%d') AS data_limite,
          resp.nome AS responsavel_nome,
          vend.nome AS vendedor_nome,
+         p.id_time_responsavel,
+         t.nome_time AS time_nome,
          DATE_FORMAT(p.data_assinatura_contrato, '%Y-%m-%d') AS data_assinatura_contrato,
          DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato,
          (SELECT COUNT(*) FROM os o WHERE o.projeto_id = p.projeto_id) AS total_os,
@@ -61,7 +59,8 @@ const SELECT_PROJETO = `
            WHERE o.projeto_id = p.projeto_id AND o.os_status <> 'concluida') AS os_nao_concluidas
     FROM projetos p
     LEFT JOIN usuarios resp ON resp.id_usuario = p.responsavel_id
-    LEFT JOIN usuarios vend ON vend.id_usuario = p.vendedor_id`;
+    LEFT JOIN usuarios vend ON vend.id_usuario = p.vendedor_id
+    LEFT JOIN time t ON t.id_time = p.id_time_responsavel`;
 
 function mapProjetoResumo(p: RowDataPacket) {
   return {
@@ -69,6 +68,9 @@ function mapProjetoResumo(p: RowDataPacket) {
     nome: p.nome as string,
     prioridade: p.prioridade as string,
     responsavel: ((p.responsavel_nome ?? p.vendedor_nome) as string | null) ?? null,
+    vendedor: (p.vendedor_nome as string | null) ?? null,
+    id_time_responsavel: p.id_time_responsavel ? String(p.id_time_responsavel) : null,
+    time: p.id_time_responsavel ? { id: String(p.id_time_responsavel), nome: p.time_nome as string } : null,
     status: statusDoItem(Number(p.total_os), Number(p.os_nao_concluidas)),
   };
 }
@@ -76,10 +78,7 @@ function mapProjetoResumo(p: RowDataPacket) {
 export function createProjetosRouter(requireRole: RequireRole): Router {
   const router = Router();
 
-  // ---------------------------------------------------
-  // Vendedores (usuários ativos da equipe comercial) para o formulário
-  // ---------------------------------------------------
-  router.get("/vendedores", requireRole("comercial"), async (_req, res) => {
+router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     try {
       const [vendedores] = await pool.execute<(RowDataPacket & { id_usuario: number; nome: string })[]>(
         "SELECT id_usuario, nome FROM usuarios WHERE cargo = 'comercial' AND ativo = TRUE ORDER BY nome",
@@ -91,10 +90,6 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     }
   });
 
-  // ---------------------------------------------------
-  // Listagem (aba "Projetos") - dados resumidos para os tickets
-  // gestor e comercial: todos | demais: projetos do seu time ou com O.S. do time
-  // ---------------------------------------------------
   router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     const user = res.locals.user as User;
 
@@ -115,10 +110,6 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     }
   });
 
-  // ---------------------------------------------------
-  // Detalhe do projeto (tela expandida) + O.S. do projeto
-  // gestor e comercial veem todas as O.S. | demais: só as do seu time
-  // ---------------------------------------------------
   router.get("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
     const projetoId = String(req.params.projetoId);
@@ -190,9 +181,6 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     }
   });
 
-  // ---------------------------------------------------
-  // Download de anexo (mesma regra de acesso do detalhe)
-  // ---------------------------------------------------
   router.get("/:projetoId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
 
@@ -224,9 +212,6 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     }
   });
 
-  // ---------------------------------------------------
-  // Criação (aba "Novo projeto") - somente comercial
-  // ---------------------------------------------------
   router.post("/", requireRole("comercial"), async (req, res) => {
     const user = res.locals.user as User;
     const {
@@ -433,6 +418,206 @@ export function createProjetosRouter(requireRole: RequireRole): Router {
     } catch (error) {
       console.error("Erro ao criar projeto:", error);
       return res.status(500).json({ message: "Não foi possível criar o projeto." });
+    }
+  });
+
+  router.put("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const projetoId = String(req.params.projetoId);
+
+    if (!/^\d+$/.test(projetoId)) {
+      return res.status(404).json({ message: "Projeto não encontrado." });
+    }
+
+    const {
+      nome,
+      data_assinatura_contrato,
+      data_vencimento_contrato,
+      data_limite,
+      tipo_sistema,
+      vendedor_nome,
+      id_time_responsavel,
+      prioridade,
+      descricao,
+      equipamentos,
+    } = (req.body ?? {}) as Record<string, unknown>;
+
+    try {
+      const [existentes] = await pool.execute<RowDataPacket[]>(
+        "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
+        [projetoId],
+      );
+      if (!existentes[0]) {
+        return res.status(404).json({ message: "Projeto não encontrado." });
+      }
+
+      const sets: string[] = [];
+      const valores: (string | number | null)[] = [];
+
+      if (nome !== undefined) {
+        if (typeof nome !== "string" || !nome.trim() || nome.trim().length > 150) {
+          return res.status(400).json({ message: "Informe um nome de projeto válido." });
+        }
+        sets.push("nome = ?");
+        valores.push(nome.trim());
+      }
+
+      if (data_assinatura_contrato !== undefined) {
+        if (typeof data_assinatura_contrato !== "string" || !dataValida(data_assinatura_contrato)) {
+          return res.status(400).json({ message: "Informe uma data de assinatura válida." });
+        }
+        sets.push("data_assinatura_contrato = ?");
+        valores.push(data_assinatura_contrato);
+      }
+
+      if (data_vencimento_contrato !== undefined) {
+        if (typeof data_vencimento_contrato !== "string" || !dataValida(data_vencimento_contrato)) {
+          return res.status(400).json({ message: "Informe uma data de vencimento válida." });
+        }
+        sets.push("data_vencimento_contrato = ?");
+        valores.push(data_vencimento_contrato);
+      }
+
+      if (data_limite !== undefined) {
+        if (typeof data_limite !== "string" || !dataValida(data_limite)) {
+          return res.status(400).json({ message: "Informe uma data limite válida." });
+        }
+        sets.push("data_limite = ?");
+        valores.push(data_limite);
+      }
+
+      if (tipo_sistema !== undefined) {
+        if (typeof tipo_sistema !== "string" || !tipo_sistema.trim() || tipo_sistema.trim().length > 100) {
+          return res.status(400).json({ message: "Informe o tipo de sistema." });
+        }
+        sets.push("tipo_sistema = ?");
+        valores.push(tipo_sistema.trim());
+      }
+
+      if (prioridade !== undefined) {
+        if (typeof prioridade !== "string" || !PRIORIDADES.includes(prioridade.toLowerCase() as Prioridade)) {
+          return res.status(400).json({ message: "Prioridade inválida." });
+        }
+        sets.push("prioridade = ?");
+        valores.push(prioridade.toLowerCase());
+      }
+
+      if (descricao !== undefined) {
+        if (typeof descricao !== "string" || descricao.length > 5000) {
+          return res.status(400).json({ message: "A descrição deve ter no máximo 5000 caracteres." });
+        }
+        sets.push("descricao = ?");
+        valores.push(descricao.trim() || null);
+      }
+
+      if (vendedor_nome !== undefined) {
+        if (typeof vendedor_nome !== "string" || !vendedor_nome.trim()) {
+          return res.status(400).json({ message: "O vendedor responsável é obrigatório." });
+        }
+        const [vendedores] = await pool.execute<RowDataPacket[]>(
+          `SELECT id_usuario, ativo
+             FROM usuarios
+            WHERE cargo = 'comercial' AND (LOWER(nome) = LOWER(?) OR LOWER(email) = LOWER(?))
+            LIMIT 1`,
+          [vendedor_nome.trim(), vendedor_nome.trim()],
+        );
+        if (!vendedores.length || !Boolean(vendedores[0].ativo)) {
+          return res.status(400).json({ message: "Vendedor não encontrado ou inativo." });
+        }
+        sets.push("responsavel_id = ?", "vendedor_id = ?");
+        valores.push(Number(vendedores[0].id_usuario), Number(vendedores[0].id_usuario));
+      }
+
+      if (id_time_responsavel !== undefined && id_time_responsavel !== null && id_time_responsavel !== "") {
+        const novoTime = String(id_time_responsavel);
+        if (!/^\d+$/.test(novoTime)) {
+          return res.status(400).json({ message: "Selecione um time responsável válido." });
+        }
+        const [times] = await pool.execute<RowDataPacket[]>(
+          "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+          [novoTime],
+        );
+        if (!times[0]) {
+          return res.status(400).json({ message: "Time responsável inválido." });
+        }
+        sets.push("id_time_responsavel = ?");
+        valores.push(Number(novoTime));
+      }
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        if (sets.length > 0) {
+          await connection.execute(`UPDATE projetos SET ${sets.join(", ")} WHERE projeto_id = ?`, [
+            ...valores,
+            projetoId,
+          ]);
+        }
+
+        if (equipamentos !== undefined) {
+          if (!Array.isArray(equipamentos)) {
+            await connection.rollback();
+            return res.status(400).json({ message: "Equipamentos em formato inválido." });
+          }
+
+          const itens = new Map<string, { nome: string; quantidade: number }>();
+          for (const equipamento of equipamentos as { nome_equipamento?: string; quantidade?: number }[]) {
+            const nome = equipamento?.nome_equipamento?.trim();
+            const quantidade = Number(equipamento?.quantidade);
+            if (!nome || nome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
+              await connection.rollback();
+              return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
+            }
+            const key = nome.toLocaleLowerCase();
+            const existing = itens.get(key);
+            if (existing) existing.quantidade += quantidade;
+            else itens.set(key, { nome, quantidade });
+          }
+
+          await connection.execute("DELETE FROM item_equipamento_projeto WHERE projeto_id = ?", [projetoId]);
+          for (const item of itens.values()) {
+            await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
+            const [rowsEq] = await connection.execute<RowDataPacket[]>(
+              "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
+              [item.nome],
+            );
+            const equipamentoId = rowsEq[0]?.equipamento_id;
+            if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
+            await connection.execute(
+              `INSERT INTO item_equipamento_projeto (projeto_id, equipamento_id, quantidade) VALUES (?, ?, ?)`,
+              [projetoId, equipamentoId, item.quantidade],
+            );
+          }
+        }
+
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+
+      const [rows] = await pool.execute<RowDataPacket[]>(`${SELECT_PROJETO} WHERE p.projeto_id = ? LIMIT 1`, [
+        projetoId,
+      ]);
+      const p = rows[0];
+
+      return res.json({
+        message: "Projeto atualizado com sucesso.",
+        projeto: {
+          ...mapProjetoResumo(p),
+          tipo_sistema: p.tipo_sistema as string,
+          descricao: (p.descricao as string | null) ?? "",
+          data_assinatura_contrato: p.data_assinatura_contrato as string | null,
+          data_vencimento_contrato: p.data_vencimento_contrato as string | null,
+          data_limite: (p.data_limite as string | null) ?? null,
+          vendedor: (p.vendedor_nome as string | null) ?? null,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao editar projeto:", error);
+      return res.status(500).json({ message: "Não foi possível atualizar o projeto." });
     }
   });
 

@@ -550,3 +550,46 @@ export function atualizarStatusOS(
     body: JSON.stringify({ os_status: status }),
   });
 }
+
+export function atualizarOrdemServico(
+  id: string | number,
+  data: {
+    os_titulo?: string;
+    os_descricao?: string;
+    prioridade?: "baixa" | "media" | "alta" | "critica";
+    data_limite?: string;
+    id_time_responsavel?: string | number;
+    equipamentos?: { nome_equipamento: string; quantidade: number }[];
+  }
+): Promise<{ message: string; ordem: OrdemServicoDetalhe }> {
+  return request(`/os/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function atualizarProjeto(id: string, dados: Partial<Projeto>) {
+  return request(`/projetos/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+export function atualizarManutencao(
+  id: string | number,
+  data: {
+    resumo?: string;
+    tipo_manutencao?: "preventiva" | "corretiva" | "adaptativa" | "evolutiva";
+    projeto_id?: string | number | null;
+    id_time_responsavel?: string | number;
+    data_limite?: string;
+    data_inicio_problema?: string;
+    prioridade?: "baixa" | "media" | "alta" | "critica";
+    descricao_situacao?: string;
+    equipamentos?: { nome_equipamento: string; quantidade: number }[];
+  }
+): Promise<{ message: string; manutencao: Manutencao }> {
+  return request(`/manutencoes/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}

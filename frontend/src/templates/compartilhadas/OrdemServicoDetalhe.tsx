@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ClipboardList, File, Link } from "lucide-react";
+import { AlertTriangle, ClipboardList, File, Link, X } from "lucide-react";
 
-import { abrirAnexoOS, atualizarStatusOS, getOrdem } from "@/api";
+import { abrirAnexoOS, atualizarOrdemServico, atualizarStatusOS, getOrdem } from "@/api";
 import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import { getCurrentUser } from "@/auth";
 
 import SeletorStatusOS from "./SeletorStatusOS";
+import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
+import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
+import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
+import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 
 import {
   PRIORIDADE_CLASSE,
@@ -40,6 +46,20 @@ export default function OrdemServicoDetalhe() {
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [confirmarConclusao, setConfirmarConclusao] = useState(false);
 
+  // Estados para o Modal de Edição da O.S.
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
+
+  const [tituloEdit, setTituloEdit] = useState("");
+  const [descricaoEdit, setDescricaoEdit] = useState("");
+  const [prioridadeEdit, setPrioridadeEdit] = useState<PrioridadeValor | "">("media");
+  const [dataLimiteEdit, setDataLimiteEdit] = useState("");
+  const [timeResponsavelIdEdit, setTimeResponsavelIdEdit] = useState("");
+  const [equipamentosEdit, setEquipamentosEdit] = useState<EquipamentoForm[]>([]);
+  const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
+  const [carregandoTimes, setCarregandoTimes] = useState(false);
+
   const podeConcluir = currentUser?.role !== undefined && currentUser.role !== "superusuario";
 
   useEffect(() => {
@@ -49,7 +69,21 @@ export default function OrdemServicoDetalhe() {
       if (!osId) return;
       try {
         const resposta = await getOrdem(osId);
-        if (ativo) setOrdem(resposta.ordem);
+        if (ativo && resposta?.ordem) {
+          const o = resposta.ordem;
+          setOrdem(o);
+          setTituloEdit(o.titulo || "");
+          setDescricaoEdit(o.descricao || "");
+          setPrioridadeEdit(o.prioridade || "media");
+          setDataLimiteEdit(o.data_limite ? o.data_limite.split("T")[0] : "");
+          setTimeResponsavelIdEdit(o.time?.id || "");
+          setEquipamentosEdit(
+            o.equipamentos.map((eq) => ({
+              nome: eq.nome,
+              quantidade: eq.quantidade,
+            }))
+          );
+        }
       } catch (error) {
         if (ativo) {
           setErro(
@@ -68,6 +102,65 @@ export default function OrdemServicoDetalhe() {
       ativo = false;
     };
   }, [osId]);
+
+ const abrirModalEdicao = async () => {
+  if (ordem) {
+    setEquipamentosEdit(
+      ordem.equipamentos.map((eq) => ({
+        nome: eq.nome,
+        quantidade: eq.quantidade,
+      }))
+    );
+  }
+  setModalEdicaoAberto(true);
+  
+  if (times.length === 0) {
+    setCarregandoTimes(true);
+    try {
+      const { getTimes } = await import("@/api");
+      const respostaTimes = await getTimes();
+      setTimes(respostaTimes.times);
+    } catch (e) {
+      console.error("Erro ao carregar times", e);
+    } finally {
+      setCarregandoTimes(false);
+    }
+  }
+};
+  async function handleSalvarEdicao(e: React.FormEvent) {
+    e.preventDefault();
+    if (!osId || !ordem) return;
+
+    if (!prioridadeEdit) {
+      setErroEdicao("Selecione a prioridade.");
+      return;
+    }
+
+    try {
+      setSalvandoEdicao(true);
+      setErroEdicao(null);
+
+      await atualizarOrdemServico(osId, {
+        os_titulo: tituloEdit.trim(),
+        os_descricao: descricaoEdit.trim(),
+        prioridade: prioridadeEdit as any,
+        data_limite: dataLimiteEdit,
+        id_time_responsavel: timeResponsavelIdEdit,
+        equipamentos: equipamentosParaPayload(equipamentosEdit),
+      });
+
+      // Recarrega os dados completos da O.S. para atualizar a tela sem falhas
+      const resposta = await getOrdem(osId);
+      setOrdem(resposta.ordem);
+      setModalEdicaoAberto(false);
+    } catch (error) {
+      setErroEdicao(
+        error instanceof Error ? error.message : "Não foi possível atualizar a ordem de serviço.",
+      );
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  }
 
   async function abrir(anexo: ProjetoAnexo) {
     if (!ordem) return;
@@ -135,17 +228,28 @@ export default function OrdemServicoDetalhe() {
         ) : (
           <section className="nova-os-card border-border rounded-xl border p-6 shadow-sm md:p-9">
             {/* Cabeçalho */}
-            <div className="mb-8 flex items-center gap-4">
-              <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
-                <ClipboardList size={30} />
+            <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+                  <ClipboardList size={30} />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-text m-0 text-2xl leading-tight font-bold break-words md:text-[28px]">
+                    {ordem.titulo}
+                  </h1>
+                  <p className="text-text-muted mt-1 mb-0 text-sm">
+                    Veja os detalhes da OS
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h1 className="text-text m-0 text-2xl leading-tight font-bold break-words md:text-[28px]">
-                  {ordem.titulo}
-                </h1>
-                <p className="text-text-muted mt-1 mb-0 text-sm">
-                  Veja os detalhes da OS
-                </p>
+
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={abrirModalEdicao}>
+                  Editar O.S.
+                </Button>
+                <Button variant="outline" onClick={() => navigate(-1)}>
+                  Voltar
+                </Button>
               </div>
             </div>
 
@@ -304,6 +408,116 @@ export default function OrdemServicoDetalhe() {
           </section>
         )}
       </div>
+
+      {/* MODAL DE EDIÇÃO DA O.S. (Fundo sólido/opaco garantido para Light e Dark) */}
+      {modalEdicaoAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 md:p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Editar Ordem de Serviço</h2>
+              <button
+                onClick={() => setModalEdicaoAberto(false)}
+                className="text-gray-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {erroEdicao && (
+              <div
+                className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/50 dark:border-red-900 dark:text-red-300"
+                role="alert"
+              >
+                {erroEdicao}
+              </div>
+            )}
+
+            <form onSubmit={handleSalvarEdicao} className="space-y-6">
+              {/* LINHA 1: Título e Prioridade */}
+              <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-3">
+                <div className="md:col-span-2">
+                  <Input
+                    id="edit-os-titulo"
+                    label="Título da O.S."
+                    value={tituloEdit}
+                    onChange={(event) => setTituloEdit(event.target.value)}
+                    placeholder="Ex.: Configuração de equipamentos"
+                    maxLength={150}
+                    required
+                  />
+                </div>
+
+                <SeletorPrioridade value={prioridadeEdit} onChange={setPrioridadeEdit} />
+              </div>
+
+              {/* LINHA 2: Time responsável e Data limite */}
+              <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2">
+                <Select
+                  id="edit-os-time"
+                  label="Time responsável"
+                  value={timeResponsavelIdEdit}
+                  onChange={(event) => setTimeResponsavelIdEdit(event.target.value)}
+                  disabled={carregandoTimes}
+                  required
+                >
+                  <option value="" hidden>
+                    {carregandoTimes ? "Carregando..." : "Selecione o time responsável"}
+                  </option>
+                  {times.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome_time}
+                    </option>
+                  ))}
+                </Select>
+
+                <Input
+                  id="edit-os-prazo"
+                  type="date"
+                  label="Prazo / Data limite"
+                  value={dataLimiteEdit}
+                  onChange={(event) => setDataLimiteEdit(event.target.value)}
+                  required
+                />
+              </div>
+
+              {/* DESCRIÇÃO */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Descrição
+                </label>
+                <textarea
+                  value={descricaoEdit}
+                  onChange={(e) => setDescricaoEdit(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 bg-white p-3 text-sm text-slate-900 focus:ring-2 focus:ring-primary focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  rows={4}
+                  placeholder="Descreva detalhadamente as instruções para a O.S..."
+                  required
+                />
+              </div>
+
+              {/* EQUIPAMENTOS E MATERIAIS */}
+              <div>
+                <CampoEquipamentos value={equipamentosEdit} onChange={setEquipamentosEdit} />
+              </div>
+
+              {/* BOTÕES DE AÇÃO DO MODAL */}
+              <div className="mt-6 flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setModalEdicaoAberto(false)}
+                  disabled={salvandoEdicao}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={salvandoEdicao}>
+                  {salvandoEdicao ? "Salvando..." : "Salvar Alterações"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {confirmarConclusao && ordem && (
         <div
