@@ -77,6 +77,7 @@
 - <strong>E4: </strong>Fluxo de estado da OS
 - <strong>E5: </strong>Notificações
 - <strong>E6: </strong>Histórico de OS e rastreabilidade
+- <strong>E7: </strong>Verificação de qualidade e testes
 
 ---
 
@@ -151,7 +152,7 @@ O projeto está dividido em três Sprints, seguindo a metodologia ágil Scrum. O
 | Sprint | Período | Documentação | Status |
 | :---: | :---: | :---: | :---: |
 | **01** | 07/09 à 27/09 | [📄 Acessar](docs/mvp/mvp-sprint1.md) | ✔️ |
-| **02** | 05/10 à 25/10 | - | 📅 |
+| **02** | 05/10 à 25/10 | [📄 Acessar](docs/mvp/mvp-sprint2.md) | ✔️ |
 | **03** | 02/11 à 22/11 | - | 📅 |
 
 ## Contribuição
