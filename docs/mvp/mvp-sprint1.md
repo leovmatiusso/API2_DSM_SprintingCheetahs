@@ -41,10 +41,10 @@ O foco principal dessa Sprint foi a construção da base de funcionamento do sis
 
 ### 📊 Critérios de Aceitação
 No final da Sprint 1 o MVP deve permitir que: <br>
-	- O gestor cadastre usuários; <br>
-	- O suporte faça a abertura de Manutenções; <br>
-	- O comercial faça a abertura de Projetos; <br>
-	- O comercial e o suporte vinculem OS a seus respectivos pedidos
+- O gestor cadastre usuários; <br>
+- O suporte faça a abertura de Manutenções; <br>
+- O comercial faça a abertura de Projetos; <br>
+- O comercial e o suporte vinculem OS a seus respectivos pedidos
 
 
 ### 👤 Equipe <a id="equipe"></a>
