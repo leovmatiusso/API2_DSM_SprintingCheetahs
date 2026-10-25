@@ -133,6 +133,7 @@ CREATE TABLE os (
 
 CREATE TABLE projetos (
     projeto_id INT PRIMARY KEY AUTO_INCREMENT,
+    status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto',
     nome VARCHAR(150) NOT NULL,
     data_assinatura_contrato DATE NULL,
     data_implantacao DATE NULL,

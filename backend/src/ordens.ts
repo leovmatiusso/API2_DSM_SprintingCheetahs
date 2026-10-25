@@ -476,6 +476,17 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       try {
         await connection.beginTransaction();
 
+        if (origemTipo === "projeto") {
+          const [projetoRows] = await connection.execute<RowDataPacket[]>(
+            "SELECT status FROM projetos WHERE projeto_id = ? FOR UPDATE",
+            [origemId],
+          );
+          if (projetoRows[0]?.status === "finalizado") {
+            await connection.rollback();
+            return res.status(409).json({ message: "Não é possível adicionar uma OS a um projeto finalizado." });
+          }
+        }
+
         const [result] = await connection.execute<ResultSetHeader>(
           `INSERT INTO os
             (os_titulo, os_descricao, os_status, prioridade, data_limite, id_criador,
@@ -646,6 +657,13 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
             message: "O status já foi atualizado.",
             os: mapOS({ ...os, os_status: currentRows[0]?.os_status ?? os.os_status }),
           });
+        }
+
+        if (statusNovo === "em andamento" && os.projeto_id !== null) {
+          await connection.execute(
+            "UPDATE projetos SET status = 'em_andamento' WHERE projeto_id = ? AND status = 'aberto'",
+            [os.projeto_id],
+          );
         }
 
         const statusEvento = statusNovo === "concluida" || statusNovo === "bloqueado";

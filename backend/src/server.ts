@@ -9,7 +9,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
-import { createProjetosRouter } from "./projetos.js";
+import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter } from "./ordens.js";
 import { createNotificacoesRouter, ensureNotificationSchema } from "./notificacoes.js";
@@ -848,6 +848,7 @@ app.use((_req, res) => {
 async function startServer() {
   try {
     await ensureOSWorkflowSchema();
+    await ensureProjectStatusSchema();
     await ensureNotificationSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);

@@ -9,8 +9,8 @@ import { Selo, Ticket, TicketLinha } from "./Ticket";
 import {
   PRIORIDADE_CLASSE,
   PRIORIDADE_LABEL,
-  STATUS_ITEM_CLASSE,
-  STATUS_ITEM_LABEL,
+  STATUS_PROJETO_CLASSE,
+  STATUS_PROJETO_LABEL,
 } from "./osEstilos";
 
 export default function Projetos() {
@@ -88,8 +88,8 @@ export default function Projetos() {
                   </Selo>
                 </TicketLinha>
                 <TicketLinha rotulo="Status">
-                  <Selo classe={STATUS_ITEM_CLASSE[projeto.status]}>
-                    {STATUS_ITEM_LABEL[projeto.status]}
+                  <Selo classe={STATUS_PROJETO_CLASSE[projeto.status]}>
+                    {STATUS_PROJETO_LABEL[projeto.status]}
                   </Selo>
                 </TicketLinha>
               </Ticket>
