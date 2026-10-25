@@ -46,6 +46,10 @@ const roles: {
     value: "implantacao",
     label: "Implantação",
   },
+  {
+    value: "monitoramento",
+    label: "Monitoramento",
+  },
 ];
 
 interface CadastroProps {

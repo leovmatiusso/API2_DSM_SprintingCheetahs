@@ -40,7 +40,8 @@ CREATE TABLE usuarios (
         'suporte',
         'producao',
         'software',
-        'implantacao'
+        'implantacao',
+        'monitoramento'
     ) NOT NULL,
     senha_hash VARCHAR(255) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
@@ -336,18 +337,21 @@ INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id) VALUES
 ('Suporte', 'suporte@empresa.com', 'suporte', 'scrypt:24c3fea94bc378d0c3ce81162201e610:161b1c9ea0ffb3d9b6fc4ac7fe22c1ef9cb0d2399840a61347a30cbe51b04fb1c44c1c46677fa43b52fe4e56ae1756fa6e0a2331dfdc5182abc2b6f7c8139622', TRUE, NULL),
 ('Produção', 'producao@empresa.com', 'producao', 'scrypt:3e15643b6efea99e9c5e8337224ce6da:43e47af515c456c9d3b79e35b4fdc214145daafddf9db3433785dad3ac8574ee1711a04a1f71e882413e0d2a4e95d52bfbf0a0f22cd1ecfc4f717f8737821134', TRUE, NULL),
 ('Software', 'software@empresa.com', 'software', 'scrypt:e0fbf81ea30fb0310350d12fc6e0858b:7dc391979d9f6500ee85685b7ba3229a1928bdbb6bd4cb03ff158a2949b695755918dd4c58a8e132809010cb44a660bd50c31e6b0f2ab8d40c2c7d5ad7296805', TRUE, NULL),
-('Implantação', 'implantacao@empresa.com', 'implantacao', 'scrypt:f79381f899e0a9b58754f1b02fd5b8aa:83f75865934992466e1b8292036a9b77d26823541a59a686ea54d6d32d8a89bc891af6059d32989c4f315befc8981ac0ea57ba7778da739690b1520aaa959366', TRUE, NULL);
+('Implantação', 'implantacao@empresa.com', 'implantacao', 'scrypt:f79381f899e0a9b58754f1b02fd5b8aa:83f75865934992466e1b8292036a9b77d26823541a59a686ea54d6d32d8a89bc891af6059d32989c4f315befc8981ac0ea57ba7778da739690b1520aaa959366', TRUE, NULL),
+('Monitoramento', 'monitoramento@empresa.com', 'monitoramento', 'scrypt:10e30fc14d0eab11e4582007171557a0:15d1449e09830e09fb99910527f8250ce63ef1f3d9a1ad2f4202c010249610a9de8ef7ecb377846da9a0826e3e866a954b0d855962505044d3e699b9827550a8', TRUE, NULL);
 
--- Times: apenas produção, software e implantação são alocados em times.
+-- Times: apenas produção, software, implantação e monitoramento são alocados em times.
 -- Usuários de comercial e suporte não pertencem a times.
 INSERT INTO time (nome_time, email_time, departamento) VALUES
 ('Software', NULL, 'software'),
 ('Produção', NULL, 'producao'),
-('Implantação', NULL, 'implantacao');
+('Implantação', NULL, 'implantacao'),
+('Monitoramento', NULL, 'monitoramento');
 
 UPDATE usuarios SET time_id = 1 WHERE id_usuario = 6;
 UPDATE usuarios SET time_id = 2 WHERE id_usuario = 5;
 UPDATE usuarios SET time_id = 3 WHERE id_usuario = 7;
+UPDATE usuarios SET time_id = 4 WHERE id_usuario = 8;
 
 INSERT INTO equipamentos (nome_equipamento) VALUES
 ('aeróstato'),

@@ -47,7 +47,14 @@ export const compartilhadasRoutes = (
     <Route
       element={
         <ProtectedRoute
-          allowedRoles={["comercial", "suporte", "producao", "software", "implantacao"]}
+          allowedRoles={[
+            "comercial",
+            "suporte",
+            "producao",
+            "software",
+            "implantacao",
+            "monitoramento",
+          ]}
         />
       }
     >

@@ -23,6 +23,7 @@ const PERFIS_COM_ACESSO: Role[] = [
   "producao",
   "software",
   "implantacao",
+  "monitoramento",
 ];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
@@ -62,9 +63,9 @@ function dataValida(data: string): boolean {
 }
 
 // Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
-//  projeto:    gestor e comercial (todos) | produção/software/implantação (só se o
+//  projeto:    gestor e comercial (todos) | produção/software/implantação/monitoramento (só se o
 //              projeto tiver O.S. do seu time)
-//  manutenção: gestor e suporte (todas)   | produção/software/implantação (idem)
+//  manutenção: gestor e suporte (todas)   | produção/software/implantação/monitoramento (idem)
 async function podeCriarNaOrigem(
   user: User,
   tipo: "projeto" | "manutencao",

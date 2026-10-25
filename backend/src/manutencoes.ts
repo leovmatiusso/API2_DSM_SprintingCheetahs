@@ -14,6 +14,7 @@ const PERFIS_COM_ACESSO: Role[] = [
   "producao",
   "software",
   "implantacao",
+  "monitoramento",
 ];
 
 const TIPOS = ["preventiva", "corretiva", "adaptativa", "evolutiva"] as const;

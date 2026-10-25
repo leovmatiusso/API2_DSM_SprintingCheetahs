@@ -5,7 +5,8 @@ export type Role =
   | "suporte"
   | "producao"
   | "software"
-  | "implantacao";
+  | "implantacao"
+  | "monitoramento";
 
 export interface User {
   id: string;

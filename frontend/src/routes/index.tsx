@@ -13,6 +13,7 @@ import { suporteRoutes } from "./suporte.routes";
 import { producaoRoutes } from "./producao.routes";
 import { softwareRoutes } from "./software.routes";
 import { implantacaoRoutes } from "./implantacao.routes";
+import { monitoramentoRoutes } from "./monitoramento.routes";
 import { testesRoutes } from "./testes.routes";
 
 export default function AppRoutes() {
@@ -37,6 +38,7 @@ export default function AppRoutes() {
           {producaoRoutes}
           {softwareRoutes}
           {implantacaoRoutes}
+          {monitoramentoRoutes}
         </Route>
       </Route>
 

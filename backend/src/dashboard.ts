@@ -15,6 +15,7 @@ const PERFIS_COM_DASHBOARD: Role[] = [
   "producao",
   "software",
   "implantacao",
+  "monitoramento",
 ];
 
 export function createDashboardRouter(requireRole: RequireRole): Router {

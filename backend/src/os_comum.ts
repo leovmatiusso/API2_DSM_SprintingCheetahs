@@ -6,9 +6,9 @@ import type { Role, User } from "./users.js";
 //  - gestor: todas as O.S.
 //  - comercial: O.S. vinculadas a projetos
 //  - suporte: O.S. vinculadas a manutenções
-// Os demais perfis (produção, software, implantação) enxergam apenas
+// Os demais perfis (produção, software, implantação, monitoramento) enxergam apenas
 // as O.S. direcionadas ao seu time.
-export const PERFIS_DE_TIME: Role[] = ["producao", "software", "implantacao"];
+export const PERFIS_DE_TIME: Role[] = ["producao", "software", "implantacao", "monitoramento"];
 
 export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
 

@@ -90,6 +90,13 @@ export const menuItems: SidebarItemConfig[] = [
   },
 
   {
+    label: "Execução",
+    icon: ClipboardList,
+    path: "/execucao/monitoramento",
+    roles: ["monitoramento"],
+  },
+
+  {
     label: "Relatórios",
     icon: BarChart3,
     path: "/relatorios",

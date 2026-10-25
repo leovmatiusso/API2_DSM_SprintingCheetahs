@@ -13,6 +13,7 @@ const PERFIS_COM_ACESSO: Role[] = [
   "producao",
   "software",
   "implantacao",
+  "monitoramento",
 ];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;

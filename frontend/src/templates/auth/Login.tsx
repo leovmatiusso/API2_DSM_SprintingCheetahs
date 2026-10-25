@@ -200,6 +200,16 @@ export default function Login() {
               implantacao@empresa.com
               <span className="select-none">— Implantação</span>
             </span>
+
+            <span
+              className="cursor-pointer underline underline-offset-1 hover:font-semibold"
+              onClick={(e) => {
+                logarRapido("monitoramento@empresa.com");
+              }}
+            >
+              monitoramento@empresa.com
+              <span className="select-none">— Monitoramento</span>
+            </span>
           </div>
         </form>
       </section>

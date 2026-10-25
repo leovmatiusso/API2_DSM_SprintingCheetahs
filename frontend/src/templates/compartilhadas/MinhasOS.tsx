@@ -57,6 +57,17 @@ const data: Partial<Record<Role, { title: string; description: string; items: st
       "Consultar histórico",
     ],
   },
+  monitoramento: {
+    title: "Minhas Ordens de Serviço — Monitoramento",
+    description: "O.S. encaminhadas para a equipe de Monitoramento.",
+    items: [
+      "Visualizar O.S. atribuídas",
+      "Abrir detalhes da demanda",
+      "Acompanhar sistemas e equipamentos",
+      "Atualizar andamento",
+      "Concluir etapa de Monitoramento",
+    ],
+  },
 };
 export default function MinhasOS() {
   const user = getCurrentUser();

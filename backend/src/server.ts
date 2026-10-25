@@ -55,6 +55,7 @@ const validRoles: Role[] = [
   "producao",
   "software",
   "implantacao",
+  "monitoramento",
 ];
 
 // =====================================================
@@ -611,7 +612,7 @@ app.get("/api/times", requireAuth, async (_req, res) => {
 });
 
 // Comercial e suporte não pertencem a times: enxergam projetos/manutenções
-// diretamente. Só produção, software e implantação são alocados em times.
+// diretamente. Só produção, software, implantação e monitoramento são alocados em times.
 const PERFIS_SEM_TIME: Role[] = ["comercial", "suporte"];
 
 async function validateTimePayload(
@@ -787,7 +788,7 @@ app.use("/api/projetos", createProjetosRouter(requireRole));
 // CONCLUIR ORDEM DE SERVIÇO
 // =====================================================
 
-app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", "producao", "software", "implantacao"), async (req, res) => {
+app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", "producao", "software", "implantacao", "monitoramento"), async (req, res) => {
   const user = res.locals.user as User;
   const id = Number(req.params.id);
 

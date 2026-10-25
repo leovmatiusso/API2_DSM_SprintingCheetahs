@@ -33,6 +33,7 @@ const equipes: {
   { value: "producao", label: "Produção" },
   { value: "software", label: "Software" },
   { value: "implantacao", label: "Implantação" },
+  { value: "monitoramento", label: "Monitoramento" },
 ];
 
 export default function Times() {

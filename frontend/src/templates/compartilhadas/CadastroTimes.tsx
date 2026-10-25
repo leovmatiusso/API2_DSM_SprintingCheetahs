@@ -31,6 +31,10 @@ const equipes: {
     value: "implantacao",
     label: "Implantação",
   },
+  {
+    value: "monitoramento",
+    label: "Monitoramento",
+  },
 ];
 
 interface CadastroTimesProps {
