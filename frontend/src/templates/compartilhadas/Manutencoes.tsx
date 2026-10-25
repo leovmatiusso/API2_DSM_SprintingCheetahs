@@ -94,7 +94,7 @@ export default function Manutencoes() {
           <p className="text-text-muted text-sm">Nenhuma manutenção disponível.</p>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {manutencoes.map((manutencao: any) => (
+            {manutencoes.map((manutencao) => (
               <Ticket
                 key={manutencao.id}
                 titulo={manutencao.resumo || "Resumo"}

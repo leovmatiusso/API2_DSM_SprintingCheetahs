@@ -5,7 +5,6 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
-import { buildMaintenanceCreatedNotificationMessage, createNotificationsForTime } from "./notificacoes.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -35,9 +34,9 @@ function filtroManutencao(user: User): { sql: string; params: number[] } {
   if (veTodos(user)) return { sql: "1 = 1", params: [] };
   if (user.time_id === null) return { sql: "1 = 0", params: [] };
   return {
-    sql: `(m.id_time_responsavel = ? OR EXISTS (SELECT 1 FROM os ox
-                   WHERE ox.manutencao_id = m.manutencao_id AND ox.id_time_responsavel = ?))`,
-    params: [Number(user.time_id), Number(user.time_id)],
+    sql: `EXISTS (SELECT 1 FROM os ox
+                   WHERE ox.manutencao_id = m.manutencao_id AND ox.id_time_responsavel = ?)`,
+    params: [Number(user.time_id)],
   };
 }
 
@@ -59,15 +58,12 @@ const SELECT_MANUTENCAO = `
          DATE_FORMAT(m.data_limite, '%Y-%m-%d') AS data_limite,
          resp.nome AS responsavel_nome,
          DATE_FORMAT(m.data_inicio_problema, '%Y-%m-%d') AS data_inicio_problema,
-         m.id_time_responsavel,
-         t.nome_time AS time_nome,
          (SELECT COUNT(*) FROM os o WHERE o.manutencao_id = m.manutencao_id) AS total_os,
          (SELECT COUNT(*) FROM os o
            WHERE o.manutencao_id = m.manutencao_id AND o.os_status <> 'concluida') AS os_nao_concluidas
     FROM manutencoes m
     LEFT JOIN usuarios resp ON resp.id_usuario = m.responsavel_id
-    LEFT JOIN projetos pr ON pr.projeto_id = m.projeto_id
-    LEFT JOIN time t ON t.id_time = m.id_time_responsavel`;
+    LEFT JOIN projetos pr ON pr.projeto_id = m.projeto_id`;
 
 function mapManutencaoResumo(m: RowDataPacket) {
   return {
@@ -76,7 +72,6 @@ function mapManutencaoResumo(m: RowDataPacket) {
     prioridade: m.prioridade as string,
     status_manutencao: (m.status_manutencao as string) ?? "aberta",
     responsavel: (m.responsavel_nome as string | null) ?? null,
-    time: m.id_time_responsavel ? { id: String(m.id_time_responsavel), nome: m.time_nome as string } : null,
     status:
       m.status_manutencao === "cancelada"
         ? "cancelado"
@@ -90,7 +85,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
   router.get("/projetos", requireRole("suporte"), async (_req, res) => {
     try {
       const [projetos] = await pool.execute<RowDataPacket[]>(
-        `SELECT projeto_id AS id_projeto, nome, id_time_responsavel
+        `SELECT projeto_id AS id_projeto, nome
            FROM projetos
           ORDER BY nome`,
       );
@@ -232,7 +227,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       resumo,
       tipo_manutencao,
       projeto_id,
-      id_time_responsavel,
       data_limite,
       data_inicio_problema,
       prioridade,
@@ -244,7 +238,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       resumo?: string;
       tipo_manutencao?: string;
       projeto_id?: string | number | null;
-      id_time_responsavel?: string | number;
       data_limite?: string;
       data_inicio_problema?: string;
       prioridade?: string;
@@ -271,9 +264,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     if (projeto_id && !/^\d+$/.test(String(projeto_id))) {
       return res.status(400).json({ message: "Projeto inválido." });
     }
-    if (id_time_responsavel !== undefined && !/^\d+$/.test(String(id_time_responsavel))) {
-      return res.status(400).json({ message: "Time responsável inválido." });
-    }
     if (!data_inicio_problema || !dataValida(data_inicio_problema)) {
       return res.status(400).json({ message: "Data de início inválida." });
     }
@@ -293,31 +283,16 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     }
 
     try {
-      let projetoNome: string | null = null;
-      let timeResponsavelId = id_time_responsavel === undefined ? null : String(id_time_responsavel);
       if (projeto_id) {
         const [projetos] = await pool.execute<RowDataPacket[]>(
-          `SELECT projeto_id, nome, id_time_responsavel
+          `SELECT projeto_id
              FROM projetos
             WHERE projeto_id = ?
             LIMIT 1`,
           [String(projeto_id)],
         );
         if (!projetos.length) return res.status(400).json({ message: "Projeto não encontrado." });
-        projetoNome = projetos[0].nome as string;
-        if (projetos[0].id_time_responsavel !== null) {
-          timeResponsavelId = String(projetos[0].id_time_responsavel);
-        }
       }
-      if (!timeResponsavelId) {
-        return res.status(400).json({ message: "Selecione o time responsável pela manutenção." });
-      }
-      const [times] = await pool.execute<RowDataPacket[]>(
-        "SELECT id_time, nome_time FROM time WHERE id_time = ? LIMIT 1",
-        [timeResponsavelId],
-      );
-      const time = times[0];
-      if (!time) return res.status(400).json({ message: "Time responsável inválido." });
 
       const itens = new Map<string, { nome: string; quantidade: number }>();
       for (const equipamento of equipamentos) {
@@ -362,8 +337,8 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         const [result] = await connection.execute<ResultSetHeader>(
           `INSERT INTO manutencoes
             (data_inicio_problema, tipo_manutencao, descricao_situacao, status, prioridade,
-             resumo, responsavel_id, id_time_responsavel, projeto_id, data_limite)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             resumo, responsavel_id, projeto_id, data_limite)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             data_inicio_problema,
             tipo_manutencao,
@@ -372,7 +347,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
             prioridadeFinal,
             resumo.trim(),
             user.id,
-            time.id_time,
             projeto_id ? String(projeto_id) : null,
             data_limite,
           ],
@@ -403,31 +377,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
           );
         }
 
-        const [contextRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT u.nome AS criador_nome,
-                  DATE_FORMAT(m.data_criacao, '%d/%m/%Y %H:%i:%s') AS data_criacao
-             FROM manutencoes m
-             LEFT JOIN usuarios u ON u.id_usuario = ?
-            WHERE m.manutencao_id = ?
-            LIMIT 1`,
-          [user.id, manutencaoId],
-        );
-        const contexto = contextRows[0];
-        await createNotificationsForTime(connection, {
-          titulo: "Nova manutenção",
-          mensagem: buildMaintenanceCreatedNotificationMessage(
-            resumo.trim(),
-            manutencaoId,
-            projetoNome,
-            time.nome_time as string,
-            (contexto?.criador_nome as string | undefined) ?? "Usuário",
-            (contexto?.data_criacao as string | undefined) ?? "data não informada",
-          ),
-          timeId: Number(time.id_time),
-          manutencaoId,
-          usuarioOrigemId: user.id,
-        });
-
         await connection.commit();
         return res.status(201).json({
           message: "Manutenção criada com sucesso!",
@@ -456,7 +405,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       resumo,
       tipo_manutencao,
       projeto_id,
-      id_time_responsavel,
       data_limite,
       data_inicio_problema,
       prioridade,
@@ -534,7 +482,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         valores.push(descricao_situacao.trim());
       }
 
-      let timeDoProjeto: string | null = null;
       if (projeto_id !== undefined) {
         if (projeto_id === null || projeto_id === "") {
           sets.push("projeto_id = ?");
@@ -545,7 +492,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
             return res.status(400).json({ message: "Projeto inválido." });
           }
           const [projetos] = await pool.execute<RowDataPacket[]>(
-            "SELECT projeto_id, id_time_responsavel FROM projetos WHERE projeto_id = ? LIMIT 1",
+            "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
             [novoProjeto],
           );
           if (!projetos[0]) {
@@ -553,28 +500,9 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
           }
           sets.push("projeto_id = ?");
           valores.push(Number(novoProjeto));
-          if (projetos[0].id_time_responsavel !== null) {
-            timeDoProjeto = String(projetos[0].id_time_responsavel);
-          }
         }
       }
 
-      const timeFinal =
-        timeDoProjeto ?? (id_time_responsavel !== undefined && id_time_responsavel !== "" ? String(id_time_responsavel) : null);
-      if (timeFinal !== null) {
-        if (!/^\d+$/.test(timeFinal)) {
-          return res.status(400).json({ message: "Time responsável inválido." });
-        }
-        const [times] = await pool.execute<RowDataPacket[]>(
-          "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
-          [timeFinal],
-        );
-        if (!times[0]) {
-          return res.status(400).json({ message: "Time responsável inválido." });
-        }
-        sets.push("id_time_responsavel = ?");
-        valores.push(Number(timeFinal));
-      }
 
       const connection = await pool.getConnection();
       try {

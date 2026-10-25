@@ -445,6 +445,7 @@ export interface ManutencaoResumo {
   resumo: string;
   prioridade: "baixa" | "media" | "alta" | "critica";
   responsavel: string | null;
+  status_manutencao: "aberta" | "em_andamento" | "concluida" | "cancelada";
   status: StatusItem;
 }
 
