@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CirclePlus } from "lucide-react";
 
-import { createProjeto, getTimes, getVendedores } from "@/api";
+import { createProjeto, getVendedores } from "@/api";
 
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -12,7 +12,7 @@ import CampoAnexos, { anexosParaPayload } from "../compartilhadas/CampoAnexos";
 import type { AnexoForm } from "../compartilhadas/CampoAnexos";
 import CampoDescricao from "../compartilhadas/CampoDescricao";
 import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
-import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
+import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos"; //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 
@@ -25,29 +25,25 @@ export default function NovoProjeto() {
 
   const [titulo, setTitulo] = useState("");
   const [vendedor, setVendedor] = useState("");
-  const [timeResponsavelId, setTimeResponsavelId] = useState("");
   const [prioridade, setPrioridade] = useState<PrioridadeValor | "">("");
   const [tipoSistema, setTipoSistema] = useState("");
   const [dataAssinatura, setDataAssinatura] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [equipamentos, setEquipamentos] = useState<EquipamentoForm[]>([]);
+  const [equipamentos, setEquipamentos] = useState<EquipamentoForm[]>([]); //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
   const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
   const [vendedores, setVendedores] = useState<{ id_usuario: number; nome: string }[]>([]);
-  const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoVendedores, setCarregandoVendedores] = useState(true);
-  const [carregandoTimes, setCarregandoTimes] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     async function carregar() {
       try {
-        const [respostaVendedores, respostaTimes] = await Promise.all([getVendedores(), getTimes()]);
+        const respostaVendedores = await getVendedores();
         setVendedores(respostaVendedores.vendedores);
-        setTimes(respostaTimes.times);
       } catch (error) {
         setErro(
           error instanceof Error
@@ -56,7 +52,6 @@ export default function NovoProjeto() {
         );
       } finally {
         setCarregandoVendedores(false);
-        setCarregandoTimes(false);
       }
     }
 
@@ -78,7 +73,6 @@ export default function NovoProjeto() {
     try {
       const resposta = await createProjeto({
         nome: titulo.trim(),
-        id_time_responsavel: timeResponsavelId,
         vendedor_nome: vendedor,
         prioridade,
         tipo_sistema: tipoSistema,
@@ -166,26 +160,6 @@ export default function NovoProjeto() {
           <SeletorPrioridade value={prioridade} onChange={setPrioridade} />
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
-          <Select
-            id="time-responsavel"
-            label="Time responsável"
-            value={timeResponsavelId}
-            onChange={(event) => setTimeResponsavelId(event.target.value)}
-            disabled={carregandoTimes}
-            required
-          >
-            <option value="" hidden>
-              {carregandoTimes ? "Carregando..." : "Selecione o time responsável"}
-            </option>
-            {times.map((time) => (
-              <option key={time.id} value={time.id}>
-                {time.nome_time}
-              </option>
-            ))}
-          </Select>
-        </div>
-
         {/* LINHA 2: tipo de sistema e datas */}
         <div className="mt-6 grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
           <Select
@@ -242,11 +216,6 @@ export default function NovoProjeto() {
             placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
             modelo={MODELO_DESCRICAO}
           />
-        </div>
-
-        {/* EQUIPAMENTOS E MATERIAIS */}
-        <div className="mt-6">
-          <CampoEquipamentos value={equipamentos} onChange={setEquipamentos} />
         </div>
 
         {/* ANEXOS + AÇÕES */}

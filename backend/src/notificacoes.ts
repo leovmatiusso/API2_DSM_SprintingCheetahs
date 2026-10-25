@@ -5,62 +5,6 @@ import { pool } from "./db.js";
 import type { User } from "./users.js";
 
 export async function ensureNotificationSchema(): Promise<void> {
-  const [projectColumns] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM projetos`);
-  const projectColumnNames = new Set(projectColumns.map((column) => column.Field));
-  if (!projectColumnNames.has("id_time_responsavel")) {
-    await pool.query(`ALTER TABLE projetos ADD COLUMN id_time_responsavel INT NULL AFTER vendedor_id`);
-  }
-
-  const [projectIndexes] = await pool.query<RowDataPacket[]>(`SHOW INDEX FROM projetos`);
-  const projectIndexNames = new Set(projectIndexes.map((index) => index.Key_name));
-  if (!projectIndexNames.has("idx_projetos_time_responsavel")) {
-    await pool.query(`ALTER TABLE projetos ADD INDEX idx_projetos_time_responsavel (id_time_responsavel)`);
-  }
-
-  const [projectConstraints] = await pool.query<RowDataPacket[]>(
-    `SELECT CONSTRAINT_NAME
-       FROM information_schema.TABLE_CONSTRAINTS
-      WHERE CONSTRAINT_SCHEMA = DATABASE()
-        AND TABLE_NAME = 'projetos'
-        AND CONSTRAINT_NAME = 'fk_projeto_time_responsavel'`,
-  );
-  if (!projectConstraints.length) {
-    await pool.query(
-      `ALTER TABLE projetos
-       ADD CONSTRAINT fk_projeto_time_responsavel
-       FOREIGN KEY (id_time_responsavel) REFERENCES time(id_time)
-       ON DELETE SET NULL ON UPDATE CASCADE`,
-    );
-  }
-
-  const [maintenanceColumns] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM manutencoes`);
-  const maintenanceColumnNames = new Set(maintenanceColumns.map((column) => column.Field));
-  if (!maintenanceColumnNames.has("id_time_responsavel")) {
-    await pool.query(`ALTER TABLE manutencoes ADD COLUMN id_time_responsavel INT NULL AFTER responsavel_id`);
-  }
-
-  const [maintenanceIndexes] = await pool.query<RowDataPacket[]>(`SHOW INDEX FROM manutencoes`);
-  const maintenanceIndexNames = new Set(maintenanceIndexes.map((index) => index.Key_name));
-  if (!maintenanceIndexNames.has("idx_manutencao_time_responsavel")) {
-    await pool.query(`ALTER TABLE manutencoes ADD INDEX idx_manutencao_time_responsavel (id_time_responsavel)`);
-  }
-
-  const [maintenanceTeamConstraints] = await pool.query<RowDataPacket[]>(
-    `SELECT CONSTRAINT_NAME
-       FROM information_schema.TABLE_CONSTRAINTS
-      WHERE CONSTRAINT_SCHEMA = DATABASE()
-        AND TABLE_NAME = 'manutencoes'
-        AND CONSTRAINT_NAME = 'fk_manutencao_time_responsavel'`,
-  );
-  if (!maintenanceTeamConstraints.length) {
-    await pool.query(
-      `ALTER TABLE manutencoes
-       ADD CONSTRAINT fk_manutencao_time_responsavel
-       FOREIGN KEY (id_time_responsavel) REFERENCES time(id_time)
-       ON DELETE SET NULL ON UPDATE CASCADE`,
-    );
-  }
-
   const [tables] = await pool.query<RowDataPacket[]>(`SHOW TABLES LIKE 'notificacoes'`);
   if (!tables.length) {
     await pool.query(`

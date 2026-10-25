@@ -89,20 +89,20 @@ async function podeCriarNaOrigem(
       ? `SELECT 1
            FROM projetos p
           WHERE p.projeto_id = ?
-            AND (p.id_time_responsavel = ? OR EXISTS (
+            AND EXISTS (
               SELECT 1 FROM os o
                WHERE o.projeto_id = p.projeto_id AND o.id_time_responsavel = ?
-            ))
+            )
           LIMIT 1`
       : `SELECT 1
            FROM manutencoes m
           WHERE m.manutencao_id = ?
-            AND (m.id_time_responsavel = ? OR EXISTS (
+            AND EXISTS (
               SELECT 1 FROM os o
                WHERE o.manutencao_id = m.manutencao_id AND o.id_time_responsavel = ?
-            ))
+            )
           LIMIT 1`,
-    [id, Number(user.time_id), Number(user.time_id)],
+    [id, Number(user.time_id)],
   );
   return rows.length > 0;
 }

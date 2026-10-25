@@ -8,6 +8,7 @@ import type { Role, User } from "./users.js";
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
 const PERFIS_COM_DASHBOARD: Role[] = [
+  "superusuario",
   "gestor",
   "comercial",
   "suporte",

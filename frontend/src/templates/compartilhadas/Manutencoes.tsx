@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wrench } from "lucide-react";
+import { ChevronDown, Wrench } from "lucide-react";
 
-import { getManutencoes } from "@/api";
+import { atualizarManutencao, getManutencoes } from "@/api";
 import type { ManutencaoResumo } from "@/api";
 
 import { Selo, Ticket, TicketLinha } from "./Ticket";
@@ -12,6 +12,10 @@ import {
   STATUS_ITEM_CLASSE,
   STATUS_ITEM_LABEL,
 } from "./osEstilos";
+import {
+  STATUS_MANUTENCAO_LABEL,
+  type StatusManutencaoValor,
+} from "../compartilhadas/SeletorStatusManutencao";
 
 export default function Manutencoes() {
   const navigate = useNavigate();
@@ -46,6 +50,23 @@ export default function Manutencoes() {
     };
   }, []);
 
+  // Função para atualizar o status diretamente no card
+  const handleMudarStatusCard = async (
+    id: string,
+    novoStatus: StatusManutencaoValor,
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    e.stopPropagation(); // Evita que o clique no select abra a página de detalhes
+    try {
+      await atualizarManutencao(id, { status_manutencao: novoStatus } as any);
+      setManutencoes((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, status_manutencao: novoStatus } : m))
+      );
+    } catch (error) {
+      console.error("Erro ao atualizar status da manutenção", error);
+    }
+  };
+
   return (
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
@@ -73,7 +94,7 @@ export default function Manutencoes() {
           <p className="text-text-muted text-sm">Nenhuma manutenção disponível.</p>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {manutencoes.map((manutencao) => (
+            {manutencoes.map((manutencao: any) => (
               <Ticket
                 key={manutencao.id}
                 titulo={manutencao.resumo || "Resumo"}
@@ -82,16 +103,38 @@ export default function Manutencoes() {
                 <TicketLinha rotulo="Responsável">
                   <span className="font-normal">{manutencao.responsavel ?? "—"}</span>
                 </TicketLinha>
+                
                 <TicketLinha rotulo="Prioridade">
                   <Selo classe={PRIORIDADE_CLASSE[manutencao.prioridade]}>
                     {PRIORIDADE_LABEL[manutencao.prioridade] ?? manutencao.prioridade}
                   </Selo>
                 </TicketLinha>
-                <TicketLinha rotulo="Status">
-                  <Selo classe={STATUS_ITEM_CLASSE[manutencao.status]}>
-                    {STATUS_ITEM_LABEL[manutencao.status]}
-                  </Selo>
-                </TicketLinha>
+                <div className="flex items-center py-1">
+                  <span className="text-text text-sm font-semibold mr-2">Status:</span>
+                  <div
+                    className="relative w-36"
+                    onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={manutencao.status_manutencao || "aberta"}
+                      onChange={(e) =>
+                        handleMudarStatusCard(
+                          manutencao.id,
+                          e.target.value as StatusManutencaoValor,
+                          e
+                        )
+                      }
+                      className="border-border bg-primary-muted text-primary w-full appearance-none rounded-lg px-2.5 py-1 text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer">
+                      {Object.entries(STATUS_MANUTENCAO_LABEL).map(([val, label]) => (
+                        <option key={val} value={val} className="bg-bg text-text">
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-primary">
+                      <ChevronDown size={12} />
+                    </div>
+                  </div>
+                </div>
               </Ticket>
             ))}
           </div>

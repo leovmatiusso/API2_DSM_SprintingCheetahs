@@ -302,7 +302,6 @@ async function abrirAnexoPorCaminho(
 
 export interface ProjetoPayload {
   nome: string;
-  id_time_responsavel: string;
   data_assinatura_contrato: string;
   data_vencimento_contrato: string;
   data_limite: string;
@@ -385,7 +384,6 @@ export { API_URL };
 
 export interface ManutencaoPayload {
   resumo: string;
-  id_time_responsavel: string;
 
   tipo_manutencao:
     | "preventiva"
@@ -421,7 +419,7 @@ export interface ManutencaoPayload {
 }
 
 export function getProjetosParaManutencao(): Promise<{
-  projetos: { id_projeto: number; nome: string; id_time_responsavel: number | null }[];
+  projetos: { id_projeto: number; nome: string }[];
 }> {
   return request("/manutencoes/projetos");
 }
@@ -597,7 +595,12 @@ export function atualizarOrdemServico(
   });
 }
 
-export function atualizarProjeto(id: string, dados: Partial<Projeto>) {
+export function atualizarProjeto(
+  id: string,
+  dados: Partial<Omit<Projeto, "equipamentos">> & {
+    equipamentos?: { nome_equipamento: string; quantidade: number }[];
+  },
+) {
   return request(`/projetos/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(dados),
@@ -613,6 +616,7 @@ export function atualizarManutencao(
     data_limite?: string;
     data_inicio_problema?: string;
     prioridade?: "baixa" | "media" | "alta" | "critica";
+    status_manutencao?: string;
     descricao_situacao?: string;
     equipamentos?: { nome_equipamento: string; quantidade: number }[];
   }

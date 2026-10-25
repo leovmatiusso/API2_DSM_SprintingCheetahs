@@ -13,36 +13,6 @@ DEALLOCATE PREPARE migration_stmt;
 
 SET @ddl = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = @schema_name AND TABLE_NAME = 'projetos' AND COLUMN_NAME = 'id_time_responsavel') = 0,
-  'ALTER TABLE projetos ADD COLUMN id_time_responsavel INT NULL AFTER vendedor_id',
-  'SELECT 1'
-);
-PREPARE migration_stmt FROM @ddl;
-EXECUTE migration_stmt;
-DEALLOCATE PREPARE migration_stmt;
-
-SET @ddl = IF(
-  (SELECT COUNT(*) FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = @schema_name AND TABLE_NAME = 'projetos' AND INDEX_NAME = 'idx_projetos_time_responsavel') = 0,
-  'ALTER TABLE projetos ADD INDEX idx_projetos_time_responsavel (id_time_responsavel)',
-  'SELECT 1'
-);
-PREPARE migration_stmt FROM @ddl;
-EXECUTE migration_stmt;
-DEALLOCATE PREPARE migration_stmt;
-
-SET @ddl = IF(
-  (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE CONSTRAINT_SCHEMA = @schema_name AND TABLE_NAME = 'projetos' AND CONSTRAINT_NAME = 'fk_projeto_time_responsavel') = 0,
-  'ALTER TABLE projetos ADD CONSTRAINT fk_projeto_time_responsavel FOREIGN KEY (id_time_responsavel) REFERENCES `time`(id_time) ON DELETE SET NULL ON UPDATE CASCADE',
-  'SELECT 1'
-);
-PREPARE migration_stmt FROM @ddl;
-EXECUTE migration_stmt;
-DEALLOCATE PREPARE migration_stmt;
-
-SET @ddl = IF(
-  (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @schema_name AND TABLE_NAME = 'notificacoes' AND COLUMN_NAME = 'usuario_destino_id') = 0,
   'ALTER TABLE notificacoes ADD COLUMN usuario_destino_id INT NULL AFTER usuario_origem_id',
   'SELECT 1'

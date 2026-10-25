@@ -257,7 +257,7 @@ export default function OrdemServicoDetalhe() {
             </div>
 
             {/* Status, departamento, time e prioridade */}
-            <div className="mb-6 flex flex-wrap gap-x-8 gap-y-4">
+            <div className="my-6 grid grid-cols-5 gap-x-4 gap-y-6 [&>*>*]:w-full">
               <CampoCaixa rotulo="Status">
                 <SeletorStatusOS
                   status={ordem.status}
@@ -414,14 +414,14 @@ export default function OrdemServicoDetalhe() {
       </div>
 
       {/* MODAL DE EDIÇÃO DA O.S. (Fundo sólido/opaco garantido para Light e Dark) */}
-      {modalEdicaoAberto && (
+    {modalEdicaoAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 md:p-8">
+          <div className="border-border bg-bg text-text w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Editar Ordem de Serviço</h2>
+              <h2 className="text-text text-xl font-bold">Editar Ordem de Serviço</h2>
               <button
                 onClick={() => setModalEdicaoAberto(false)}
-                className="text-gray-400 hover:text-slate-700 dark:hover:text-white"
+                className="text-text-muted hover:text-text cursor-pointer bg-transparent"
               >
                 <X size={20} />
               </button>
@@ -429,7 +429,7 @@ export default function OrdemServicoDetalhe() {
 
             {erroEdicao && (
               <div
-                className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/50 dark:border-red-900 dark:text-red-300"
+                className="border-danger/30 bg-danger/10 text-danger mb-6 rounded-lg border px-4 py-3 text-sm"
                 role="alert"
               >
                 {erroEdicao}
@@ -486,13 +486,13 @@ export default function OrdemServicoDetalhe() {
 
               {/* DESCRIÇÃO */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="text-text mb-1.5 block text-sm font-semibold">
                   Descrição
                 </label>
                 <textarea
                   value={descricaoEdit}
                   onChange={(e) => setDescricaoEdit(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 bg-white p-3 text-sm text-slate-900 focus:ring-2 focus:ring-primary focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="border-border bg-bg text-text w-full rounded-lg border p-3.5 text-sm leading-6 focus:ring-2 focus:ring-primary focus:outline-none"
                   rows={4}
                   placeholder="Descreva detalhadamente as instruções para a O.S..."
                   required
@@ -520,49 +520,6 @@ export default function OrdemServicoDetalhe() {
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {confirmarConclusao && ordem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !atualizandoStatus) {
-              setConfirmarConclusao(false);
-            }
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirmar-conclusao-titulo"
-            className="border-border bg-bg w-full max-w-md rounded-xl border p-5 shadow-xl sm:p-6"
-          >
-            <div className="flex items-start gap-3">
-              <div className="bg-warning-alt text-warning-alt-inverted flex size-10 shrink-0 items-center justify-center rounded-full">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <h2 id="confirmar-conclusao-titulo" className="text-text m-0 text-lg font-semibold">
-                  Concluir ordem de serviço?
-                </h2>
-                <p className="text-text-muted mt-2 mb-0 text-sm leading-5">
-                  Confirma a conclusão de <span className="text-text font-medium">{ordem.titulo}</span>?
-                  Essa ação atualizará o status para Concluída.
-                </p>
-              </div>
-            </div>
-            {erroStatus && <p className="text-danger mt-4 mb-0 text-sm" role="alert">{erroStatus}</p>}
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" disabled={atualizandoStatus} onClick={() => setConfirmarConclusao(false)}>
-                Cancelar
-              </Button>
-              <Button variant="primary" disabled={atualizandoStatus} onClick={concluirOS}>
-                {atualizandoStatus ? "Concluindo..." : "Confirmar conclusão"}
-              </Button>
-            </div>
-          </section>
         </div>
       )}
     </main>

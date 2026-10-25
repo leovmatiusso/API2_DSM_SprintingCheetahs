@@ -18,8 +18,11 @@ const PERFIS_COM_ACESSO: Role[] = [
 
 const TIPOS = ["preventiva", "corretiva", "adaptativa", "evolutiva"] as const;
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
+const STATUS_MANUTENCAO = ["aberta", "em_andamento", "concluida", "cancelada"] as const;
+
 type Tipo = (typeof TIPOS)[number];
 type Prioridade = (typeof PRIORIDADES)[number];
+type StatusManutencao = (typeof STATUS_MANUTENCAO)[number];
 
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
@@ -70,6 +73,7 @@ function mapManutencaoResumo(m: RowDataPacket) {
     id: String(m.manutencao_id),
     resumo: (m.resumo as string | null) ?? "",
     prioridade: m.prioridade as string,
+    status_manutencao: (m.status_manutencao as string) ?? "aberta",
     responsavel: (m.responsavel_nome as string | null) ?? null,
     time: m.id_time_responsavel ? { id: String(m.id_time_responsavel), nome: m.time_nome as string } : null,
     status:
@@ -163,6 +167,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         manutencao: {
           ...mapManutencaoResumo(m),
           tipo_manutencao: m.tipo_manutencao as string,
+          status_manutencao: m.status_manutencao as string,
           data_limite: (m.data_limite as string | null) ?? null,
           projeto:
             m.projeto_id === null
@@ -230,6 +235,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       data_limite,
       data_inicio_problema,
       prioridade,
+      status_manutencao,
       descricao_situacao,
       equipamentos = [],
       anexos = [],
@@ -241,6 +247,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       data_limite?: string;
       data_inicio_problema?: string;
       prioridade?: string;
+      status_manutencao?: string;
       descricao_situacao?: string;
       equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
       anexos?: {
@@ -272,6 +279,10 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     const prioridadeFinal = (prioridade ?? "").toLowerCase() as Prioridade;
     if (!PRIORIDADES.includes(prioridadeFinal)) {
       return res.status(400).json({ message: "Prioridade inválida." });
+    }
+    const statusFinal = (status_manutencao ?? "aberta").toLowerCase() as StatusManutencao;
+    if (!STATUS_MANUTENCAO.includes(statusFinal)) {
+      return res.status(400).json({ message: "Status de manutenção inválido." });
     }
     if (!descricao_situacao?.trim() || descricao_situacao.length > 5000) {
       return res.status(400).json({ message: "Informe a descrição (até 5000 caracteres)." });
@@ -351,11 +362,12 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
           `INSERT INTO manutencoes
             (data_inicio_problema, tipo_manutencao, descricao_situacao, status, prioridade,
              resumo, responsavel_id, id_time_responsavel, projeto_id, data_limite)
-           VALUES (?, ?, ?, 'aberta', ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             data_inicio_problema,
             tipo_manutencao,
             descricao_situacao.trim(),
+            statusFinal,
             prioridadeFinal,
             resumo.trim(),
             user.id,
@@ -418,7 +430,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         await connection.commit();
         return res.status(201).json({
           message: "Manutenção criada com sucesso!",
-          manutencao: { manutencao_id: manutencaoId, status: "aberta" },
+          manutencao: { manutencao_id: manutencaoId, status: statusFinal },
         });
       } catch (error) {
         await connection.rollback();
@@ -447,6 +459,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       data_limite,
       data_inicio_problema,
       prioridade,
+      status_manutencao,
       descricao_situacao,
       equipamentos,
     } = (req.body ?? {}) as Record<string, unknown>;
@@ -502,6 +515,14 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         }
         sets.push("prioridade = ?");
         valores.push(prioridade.toLowerCase());
+      }
+
+      if (status_manutencao !== undefined) {
+        if (typeof status_manutencao !== "string" || !STATUS_MANUTENCAO.includes(status_manutencao.toLowerCase() as StatusManutencao)) {
+          return res.status(400).json({ message: "Status de manutenção inválido." });
+        }
+        sets.push("status = ?");
+        valores.push(status_manutencao.toLowerCase());
       }
 
       if (descricao_situacao !== undefined) {
@@ -619,6 +640,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         manutencao: {
           ...mapManutencaoResumo(m),
           tipo_manutencao: m.tipo_manutencao as string,
+          status_manutencao: m.status_manutencao as string,
           data_limite: (m.data_limite as string | null) ?? null,
           projeto:
             m.projeto_id === null

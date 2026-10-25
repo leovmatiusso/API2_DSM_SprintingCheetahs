@@ -9,11 +9,10 @@ import {
   ScrollText,
   UserRound,
   UserRoundCog,
-  Users,
   X,
 } from "lucide-react";
 
-import { abrirAnexoProjeto, atualizarProjeto, getProjeto, getTimes, getVendedores } from "@/api";
+import { abrirAnexoProjeto, atualizarProjeto, getProjeto, getVendedores } from "@/api";
 import type { Projeto, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -44,7 +43,6 @@ export default function ProjetoDetalhe() {
 
   const [titulo, setTitulo] = useState("");
   const [vendedor, setVendedor] = useState("");
-  const [timeResponsavelId, setTimeResponsavelId] = useState("");
   const [prioridade, setPrioridade] = useState<PrioridadeValor | "">("media");
   const [tipoSistema, setTipoSistema] = useState("");
   const [dataAssinatura, setDataAssinatura] = useState("");
@@ -55,9 +53,7 @@ export default function ProjetoDetalhe() {
 
   // Listas auxiliares para selects do modal
   const [vendedores, setVendedores] = useState<{ id_usuario: number; nome: string }[]>([]);
-  const [times, setTimes] = useState<{ id?: string; id_time?: number; nome_time: string }[]>([]);
   const [carregandoVendedores, setCarregandoVendedores] = useState(false);
-  const [carregandoTimes, setCarregandoTimes] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -71,9 +67,6 @@ export default function ProjetoDetalhe() {
           setProjeto(p);
           setTitulo(p.nome || "");
           setVendedor(p.vendedor || "");
-          setTimeResponsavelId(
-            p.id_time_responsavel ? String(p.id_time_responsavel) : p.time?.id ? String(p.time.id) : ""
-          );
           setPrioridade(p.prioridade || "media");
           setTipoSistema(p.tipo_sistema || "");
           setDataAssinatura(p.data_assinatura_contrato ? p.data_assinatura_contrato.split("T")[0] : "");
@@ -108,18 +101,15 @@ export default function ProjetoDetalhe() {
 
   const abrirModalEdicao = async () => {
     setModalAberto(true);
-    if (vendedores.length === 0 || times.length === 0) {
+    if (vendedores.length === 0) {
       setCarregandoVendedores(true);
-      setCarregandoTimes(true);
       try {
-        const [respostaVendedores, respostaTimes] = await Promise.all([getVendedores(), getTimes()]);
+        const respostaVendedores = await getVendedores();
         setVendedores(respostaVendedores.vendedores);
-        setTimes(respostaTimes.times || []);
       } catch (e) {
         console.error("Erro ao carregar dados auxiliares para edição", e);
       } finally {
         setCarregandoVendedores(false);
-        setCarregandoTimes(false);
       }
     }
   };
@@ -139,7 +129,6 @@ export default function ProjetoDetalhe() {
 
       const dadosAtualizadosPayload = {
         nome: titulo.trim(),
-        id_time_responsavel: timeResponsavelId,
         vendedor_nome: vendedor,
         prioridade,
         tipo_sistema: tipoSistema,
@@ -155,14 +144,6 @@ export default function ProjetoDetalhe() {
       const resposta = await getProjeto(projetoId);
       setProjeto(resposta.projeto);
       
-      // Atualiza também o estado do ID do time após recarregar
-      if (resposta.projeto) {
-        const p = resposta.projeto as any;
-        setTimeResponsavelId(
-          p.id_time_responsavel ? String(p.id_time_responsavel) : p.time?.id ? String(p.time.id) : ""
-        );
-      }
-
       setModalAberto(false);
     } catch (error) {
       setErroEdicao(
@@ -217,11 +198,6 @@ export default function ProjetoDetalhe() {
             <DetalhePainel
               campos={[
                 {
-                  icone: Users,
-                  rotulo: "Time responsável",
-                  valor: (projeto as any).time?.nome ?? "—",
-                },
-                {
                   icone: UserRoundCog,
                   rotulo: "Responsável",
                   valor: projeto.responsavel ?? "—",
@@ -272,14 +248,14 @@ export default function ProjetoDetalhe() {
       </div>
 
       {/* MODAL DE EDIÇÃO */}
-      {modalAberto && (
+{modalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 md:p-8">
+          <div className="border-border bg-bg text-text w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Editar Projeto</h2>
+              <h2 className="text-text text-xl font-bold">Editar Projeto</h2>
               <button
                 onClick={() => setModalAberto(false)}
-                className="text-gray-400 hover:text-slate-700 dark:hover:text-white"
+                className="text-text-muted hover:text-text cursor-pointer bg-transparent"
               >
                 <X size={20} />
               </button>
@@ -287,7 +263,7 @@ export default function ProjetoDetalhe() {
 
             {erroEdicao && (
               <div
-                className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/50 dark:border-red-900 dark:text-red-300"
+                className="border-danger/30 bg-danger/10 text-danger mb-6 rounded-lg border px-4 py-3 text-sm"
                 role="alert"
               >
                 {erroEdicao}
@@ -328,30 +304,6 @@ export default function ProjetoDetalhe() {
                 </Select>
 
                 <SeletorPrioridade value={prioridade} onChange={setPrioridade} />
-              </div>
-
-              {/* TIME RESPONSÁVEL */}
-              <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
-                <Select
-                  id="edit-time-responsavel"
-                  label="Time responsável"
-                  value={timeResponsavelId}
-                  onChange={(event) => setTimeResponsavelId(event.target.value)}
-                  disabled={carregandoTimes}
-                  required
-                >
-                  <option value="" hidden>
-                    {carregandoTimes ? "Carregando..." : "Selecione o time responsável"}
-                  </option>
-                  {times.map((time) => {
-                    const timeIdStr = String(time.id ?? time.id_time ?? "");
-                    return (
-                      <option key={timeIdStr} value={timeIdStr}>
-                        {time.nome_time}
-                      </option>
-                    );
-                  })}
-                </Select>
               </div>
 
               {/* LINHA 2: Tipo de sistema e Datas */}
@@ -403,13 +355,13 @@ export default function ProjetoDetalhe() {
 
               {/* DESCRIÇÃO */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="text-text mb-1.5 block text-sm font-semibold">
                   Descrição
                 </label>
                 <textarea
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 bg-white p-3 text-sm text-slate-900 focus:ring-2 focus:ring-primary focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="border-border bg-bg text-text w-full rounded-lg border p-3.5 text-sm leading-6 focus:ring-2 focus:ring-primary focus:outline-none"
                   rows={4}
                   placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
                 />
@@ -437,7 +389,7 @@ export default function ProjetoDetalhe() {
             </form>
           </div>
         </div>
-      )}
+      )}  
     </main>
   );
 }

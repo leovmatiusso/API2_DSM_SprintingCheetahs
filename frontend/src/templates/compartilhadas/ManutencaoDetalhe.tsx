@@ -4,6 +4,8 @@ import {
   Calendar,
   ChartNoAxesCombined,
   ClipboardList,
+  ChevronDown,
+  Clock,
   File,
   FileSignature,
   Link,
@@ -16,7 +18,6 @@ import {
   atualizarManutencao,
   getManutencao,
   getProjetosParaManutencao,
-  getTimes,
 } from "@/api";
 import type { Manutencao, ManutencaoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
@@ -30,6 +31,7 @@ import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
 import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
+import SeletorStatusManutencao, { STATUS_MANUTENCAO_LABEL, type StatusManutencaoValor } from "../compartilhadas/SeletorStatusManutencao";
 
 const TIPOS_MANUTENCAO = [
   { value: "preventiva", label: "Preventiva" },
@@ -46,6 +48,21 @@ export default function ManutencaoDetalhe() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
+  const [atualizandoStatusRapido, setAtualizandoStatusRapido] = useState(false);
+
+  const handleMudarStatusDireto = async (novoStatus: StatusManutencaoValor) => {
+    if (!manutencaoId || !manutencao) return;
+    try {
+      setAtualizandoStatusRapido(true);
+      await atualizarManutencao(manutencaoId, { status_manutencao: novoStatus } as any);
+      setManutencao((prev: any) => (prev ? { ...prev, status_manutencao: novoStatus } : null));
+      setStatusManutencao(novoStatus);
+    } catch (e) {
+      console.error("Erro ao atualizar status", e);
+    } finally {
+      setAtualizandoStatusRapido(false);
+    }
+  };
 
   // Estados do Modal de Edição
   const [modalAberto, setModalAberto] = useState(false);
@@ -55,16 +72,15 @@ export default function ManutencaoDetalhe() {
   const [resumo, setResumo] = useState("");
   const [tipoManutencao, setTipoManutencao] = useState("");
   const [projetoId, setProjetoId] = useState("");
-  const [timeResponsavelId, setTimeResponsavelId] = useState("");
   const [prioridade, setPrioridade] = useState<PrioridadeValor | "">("media");
   const [dataInicioProblema, setDataInicioProblema] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
   const [equipamentosEdit, setEquipamentosEdit] = useState<EquipamentoForm[]>([]);
+  const [statusManutencao, setStatusManutencao] = useState<StatusManutencaoValor | "">("aberta");
 
   // Listas auxiliares
-  const [projetos, setProjetos] = useState<{ id_projeto: number; nome: string; id_time_responsavel: number | null }[]>([]);
-  const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
+  const [projetos, setProjetos] = useState<{ id_projeto: number; nome: string }[]>([]);
   const [carregandoAux, setCarregandoAux] = useState(false);
 
   useEffect(() => {
@@ -80,7 +96,6 @@ export default function ManutencaoDetalhe() {
           setResumo(m.resumo || "");
           setTipoManutencao(m.tipo_manutencao || "");
           setProjetoId(m.projeto?.id || "");
-          setTimeResponsavelId(m.time?.id || "");
           setPrioridade(m.prioridade || "media");
           setDataInicioProblema(m.data_inicio_problema ? m.data_inicio_problema.split("T")[0] : "");
           setDataLimite(m.data_limite ? m.data_limite.split("T")[0] : "");
@@ -111,15 +126,11 @@ export default function ManutencaoDetalhe() {
 
   const abrirModalEdicao = async () => {
     setModalAberto(true);
-    if (projetos.length === 0 || times.length === 0) {
+    if (projetos.length === 0) {
       setCarregandoAux(true);
       try {
-        const [respProj, respTimes] = await Promise.all([
-          getProjetosParaManutencao(),
-          getTimes(),
-        ]);
+        const respProj = await getProjetosParaManutencao();
         setProjetos(respProj.projetos);
-        setTimes(respTimes.times);
       } catch (e) {
         console.error("Erro ao carregar dados auxiliares", e);
       } finally {
@@ -145,7 +156,6 @@ export default function ManutencaoDetalhe() {
         resumo: resumo.trim(),
         tipo_manutencao: tipoManutencao as any,
         projeto_id: projetoId ? projetoId : null,
-        id_time_responsavel: timeResponsavelId,
         prioridade: prioridade as any,
         data_inicio_problema: dataInicioProblema,
         data_limite: dataLimite,
@@ -181,30 +191,30 @@ export default function ManutencaoDetalhe() {
           </div>
         ) : (
           <>
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="bg-primary-muted text-primary flex h-14 w-14 shrink-0 items-center justify-center rounded-full">
-                  <Wrench size={28} />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-text m-0 text-2xl leading-tight font-bold break-words md:text-[32px]">
-                    {manutencao.resumo}
-                  </h1>
-                  <p className="text-text-muted mt-1 mb-0 text-sm">
-                    Detalhes da manutenção e ordens de serviço associadas
-                  </p>
-                </div>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary-muted text-primary flex h-14 w-14 shrink-0 items-center justify-center rounded-full">
+                <Wrench size={28} />
               </div>
-
-              <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={abrirModalEdicao}>
-                  Editar Manutenção
-                </Button>
-                <Button variant="outline" onClick={() => navigate("/manutencoes")}>
-                  Voltar
-                </Button>
+              <div className="min-w-0">
+                <h1 className="text-text m-0 text-2xl leading-tight font-bold break-words md:text-[32px]">
+                  {manutencao.resumo}
+                </h1>
+                <p className="text-text-muted mt-1 mb-0 text-sm">
+                  Detalhes da manutenção e ordens de serviço associadas
+                </p>
               </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={abrirModalEdicao}>
+                Editar Manutenção
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/manutencoes")}>
+                Voltar
+              </Button>
+            </div>
+          </div>
 
             <DetalhePainel
               campos={[
@@ -212,6 +222,29 @@ export default function ManutencaoDetalhe() {
                   icone: FileSignature,
                   rotulo: "Tipo",
                   valor: manutencao.tipo_manutencao,
+                },
+                {
+                  icone: Clock,
+                  rotulo: "Status",
+                  valor: (
+                    <div className="relative inline-block w-full max-w-[160px]">
+                      <select
+                        value={(manutencao as any).status_manutencao || "aberta"}
+                        onChange={(e) => handleMudarStatusDireto(e.target.value as StatusManutencaoValor)}
+                        disabled={atualizandoStatusRapido}
+                        className="border-border bg-primary-muted text-primary w-full appearance-none rounded-lg px-3 py-1.5 pr-8 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+                      >
+                        {Object.entries(STATUS_MANUTENCAO_LABEL).map(([val, label]) => (
+                          <option key={val} value={val} className="bg-bg text-text">
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-primary">
+                        <ChevronDown size={14} />
+                      </div>
+                    </div>
+                  ),
                 },
                 {
                   icone: Calendar,
@@ -251,12 +284,12 @@ export default function ManutencaoDetalhe() {
       {/* MODAL DE EDIÇÃO */}
       {modalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 md:p-8">
+          <div className="border-border bg-bg text-text w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Editar Manutenção</h2>
+              <h2 className="text-text text-xl font-bold">Editar Manutenção</h2>
               <button
                 onClick={() => setModalAberto(false)}
-                className="text-gray-400 hover:text-slate-700 dark:hover:text-white"
+                className="text-text-muted hover:text-text cursor-pointer bg-transparent"
               >
                 <X size={20} />
               </button>
@@ -264,7 +297,7 @@ export default function ManutencaoDetalhe() {
 
             {erroEdicao && (
               <div
-                className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/50 dark:border-red-900 dark:text-red-300"
+                className="border-danger/30 bg-danger/10 text-danger mb-6 rounded-lg border px-4 py-3 text-sm"
                 role="alert"
               >
                 {erroEdicao}
@@ -306,20 +339,13 @@ export default function ManutencaoDetalhe() {
                 <SeletorPrioridade value={prioridade} onChange={setPrioridade} />
               </div>
 
-              {/* LINHA 2: Projeto e Time responsável */}
+              {/* LINHA 2: Projeto vinculado */}
               <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2">
                 <Select
                   id="edit-projeto"
                   label="Projeto vinculado (Opcional)"
                   value={projetoId}
-                  onChange={(event) => {
-                    const novoProjId = event.target.value;
-                    setProjetoId(novoProjId);
-                    const projEncontrado = projetos.find((p) => String(p.id_projeto) === novoProjId);
-                    if (projEncontrado?.id_time_responsavel) {
-                      setTimeResponsavelId(String(projEncontrado.id_time_responsavel));
-                    }
-                  }}
+                  onChange={(event) => setProjetoId(event.target.value)}
                   disabled={carregandoAux}
                 >
                   <option value="">Nenhum projeto</option>
@@ -329,26 +355,7 @@ export default function ManutencaoDetalhe() {
                     </option>
                   ))}
                 </Select>
-
-                <Select
-                  id="edit-time"
-                  label="Time responsável"
-                  value={timeResponsavelId}
-                  onChange={(event) => setTimeResponsavelId(event.target.value)}
-                  disabled={carregandoAux}
-                  required
-                >
-                  <option value="" hidden>
-                    {carregandoAux ? "Carregando..." : "Selecione o time responsável"}
-                  </option>
-                  {times.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nome_time}
-                    </option>
-                  ))}
-                </Select>
               </div>
-
               {/* LINHA 3: Datas */}
               <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2">
                 <Input
@@ -372,13 +379,13 @@ export default function ManutencaoDetalhe() {
 
               {/* DESCRIÇÃO */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="text-text mb-1.5 block text-sm font-semibold">
                   Descrição da situação
                 </label>
                 <textarea
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 bg-white p-3 text-sm text-slate-900 focus:ring-2 focus:ring-primary focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="border-border bg-bg text-text w-full rounded-lg border p-3.5 text-sm leading-6 focus:ring-2 focus:ring-primary focus:outline-none"
                   rows={4}
                   placeholder="Descreva detalhadamente a situação e os procedimentos..."
                   required
