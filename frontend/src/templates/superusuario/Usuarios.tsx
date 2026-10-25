@@ -230,7 +230,7 @@ export default function Usuarios() {
   }
 
   return (
-    <main className="page min-h-full p-5 md:p-8">
+    <main className="page min-h-full md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
         {/* Cabeçalho */}
         <header className="mb-8 flex items-center justify-between gap-4">
@@ -330,7 +330,7 @@ export default function Usuarios() {
         )}
 
         {/* Listagem */}
-        <section className="card content min-h-[620px] rounded-2xl border border-border p-5 md:p-6">
+        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5  md:p-6">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="w-full md:max-w-[70%]">
               <Input

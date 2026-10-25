@@ -50,8 +50,8 @@ export default function Manutencoes() {
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
         <section className="mb-8 flex items-center gap-4">
-          <div className="bg-primary-muted text-primary flex h-14 w-14 shrink-0 items-center justify-center rounded-full">
-            <Wrench size={28} />
+          <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+            <Wrench size={32} />
           </div>
           <div>
             <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">

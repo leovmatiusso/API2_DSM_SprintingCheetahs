@@ -371,7 +371,7 @@ export default function Times() {
         )}
 
         {/* Listagem */}
-        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5 shadow-sm md:p-6">
+        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5  md:p-6">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="w-full md:max-w-[70%]">
               <Input

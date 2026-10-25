@@ -4,7 +4,8 @@ import {
   Home,
   Settings,
   Users,
-  UserRoundPlus,
+  User,
+  ListTodo,
   CirclePlus,
   Wrench,
 } from "lucide-react";
@@ -20,7 +21,7 @@ export const menuItems: SidebarItemConfig[] = [
 
   {
     label: "Usuários",
-    icon: Users,
+    icon: User,
     path: "/usuarios",
     roles: ["superusuario", "gestor"],
   },
@@ -34,7 +35,7 @@ export const menuItems: SidebarItemConfig[] = [
 
   {
     label: "Ordens disponíveis",
-    icon: ClipboardList,
+    icon: ListTodo,
     path: "/os/disponiveis",
     excludedRoles: ["superusuario"],
   },

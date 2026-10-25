@@ -29,7 +29,7 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <main className="bg-bg-secondary text-text min-h-screen p-6">
+    <main className="bg-bg-secondary text-text min-h-screen p-8">
       {/* Conteúdo */}
       <section>
         <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
@@ -82,9 +82,9 @@ export default function Dashboard() {
             </div>
           </section>
 
-          {/* Card - Minhas O.S. por equipe */}
+          {/* Card - O.S. por equipe */}
           <section className="card lg:col-span-4">
-            <div className="mb-6"><p className="text-text text-2xl font-bold">Minhas O.S. por equipe</p></div>
+            <div className="mb-6"><p className="text-text text-2xl font-bold">O.S. por equipe</p></div>
             <div className="space-y-5">
               {[{ nome: "Produção", cor: "bg-blue-300", total: resumo?.ordens.porDepartamento.producao }, { nome: "Software", cor: "bg-green-300", total: resumo?.ordens.porDepartamento.software }, { nome: "Monitoramento", cor: "bg-orange-300", total: resumo?.ordens.porDepartamento.monitoramento }, { nome: "Implantação", cor: "bg-pink-300", total: resumo?.ordens.porDepartamento.implantacao }].map((time) => (
                 <div key={time.nome}>
@@ -104,14 +104,17 @@ export default function Dashboard() {
 
             {/* Mini cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              
               <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black"><ClipboardList size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">Abertas</span></div>
                 <div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.manutencoes.abertas ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Total em aberto</span></div>
               </div>
+
               <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-200 text-black"><Clock size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">Em andamento</span></div>
                 <div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.manutencoes.andamento ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Sendo tratadas</span></div>
               </div>
+
               <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
                 <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 text-black"><CircleAlert size={19} /></div><span className="min-w-0 text-sm leading-tight font-medium">Em alerta</span></div>
                 <div className="mt-3 pl-11"><strong className="block text-3xl font-bold">{resumo?.manutencoes.alerta ?? "—"}</strong><span className="text-text-muted mt-1 block text-xs leading-4">Total em alerta</span></div>

@@ -20,7 +20,7 @@ export default function Header() {
   }
 
   return (
-    <header className="border-border bg-bg mb-8 flex items-center justify-between border-b px-6 py-4">
+    <header className="border-border bg-bg flex items-center justify-between border-b px-6 py-4">
       <div className="flex items-center gap-3 min-w-[450px] w-1/3">
         {/* <Input 
         iconLeft={Search}
