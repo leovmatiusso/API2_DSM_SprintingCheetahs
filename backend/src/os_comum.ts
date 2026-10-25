@@ -19,20 +19,12 @@ export async function ensureOSWorkflowSchema(): Promise<void> {
 }
 
 export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
-export type StatusProjeto = "aberto" | "em_andamento" | "finalizado";
 
-// Status de projeto/manutenção é derivado das suas O.S.:
-// sem O.S. = não iniciado | todas concluídas = concluído | demais = em andamento
+// Status de itens ligados a O.S. é derivado das próprias ordens.
 export function statusDoItem(totalOS: number, osNaoConcluidas: number): StatusItem {
   if (totalOS === 0) return "nao_iniciado";
   if (osNaoConcluidas === 0) return "concluido";
   return "em_andamento";
-}
-
-export function statusDoProjeto(statusSalvo: string, temOSemAndamento: boolean): StatusProjeto {
-  if (statusSalvo === "finalizado") return "finalizado";
-  if (statusSalvo === "em_andamento" || temOSemAndamento) return "em_andamento";
-  return "aberto";
 }
 
 export const SELECT_OS = `

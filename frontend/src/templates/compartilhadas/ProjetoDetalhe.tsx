@@ -13,32 +13,31 @@ import {
   X,
 } from "lucide-react";
 
-import { abrirAnexoProjeto, atualizarProjeto, finalizarProjeto as finalizarProjetoApi, getProjeto, getTimes, getVendedores } from "@/api";
+import { abrirAnexoProjeto, atualizarProjeto, getProjeto, getTimes, getVendedores } from "@/api";
 import type { Projeto, ProjetoAnexo } from "@/api";
+import { getCurrentUser } from "@/auth";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
 import DetalhePainel from "./DetalhePainel";
 import OrdensDoItem from "./OrdensDoItem";
+import SeletorStatusProjeto from "./SeletorStatusProjeto";
 import {
   PRIORIDADE_LABEL,
-  STATUS_PROJETO_CLASSE,
-  STATUS_PROJETO_LABEL,
   formatarData,
 } from "./osEstilos";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
 import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
-import { getCurrentUser } from "@/auth";
 
 const TIPOS_SISTEMA = ["Sistema de Torres", "Sistema de Embarcação", "Sistema de Sonda"];
 
 export default function ProjetoDetalhe() {
   const { projetoId } = useParams<{ projetoId: string }>();
   const navigate = useNavigate();
-  const usuarioComercial = getCurrentUser()?.role === "comercial";
+  const podeAlterarStatus = getCurrentUser()?.role === "comercial";
 
   const [projeto, setProjeto] = useState<Projeto | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -48,9 +47,6 @@ export default function ProjetoDetalhe() {
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroEdicao, setErroEdicao] = useState<string | null>(null);
-  const [confirmarFinalizacao, setConfirmarFinalizacao] = useState(false);
-  const [finalizandoProjeto, setFinalizandoProjeto] = useState(false);
-  const [erroFinalizacao, setErroFinalizacao] = useState<string | null>(null);
 
   const [titulo, setTitulo] = useState("");
   const [vendedor, setVendedor] = useState("");
@@ -62,26 +58,6 @@ export default function ProjetoDetalhe() {
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
   const [equipamentosEdit, setEquipamentosEdit] = useState<EquipamentoForm[]>([]);
-
-  const todasOrdensConcluidas = Boolean(
-    projeto && projeto.ordens.length > 0 && projeto.ordens.every((ordem) => ordem.status === "concluida"),
-  );
-
-  async function confirmarFinalizarProjeto() {
-    if (!projetoId || !usuarioComercial || !todasOrdensConcluidas) return;
-    setFinalizandoProjeto(true);
-    setErroFinalizacao(null);
-    try {
-      await finalizarProjetoApi(projetoId);
-      const resposta = await getProjeto(projetoId);
-      setProjeto(resposta.projeto);
-      setConfirmarFinalizacao(false);
-    } catch (error) {
-      setErroFinalizacao(error instanceof Error ? error.message : "Não foi possível finalizar o projeto.");
-    } finally {
-      setFinalizandoProjeto(false);
-    }
-  }
 
   // Listas auxiliares para selects do modal
   const [vendedores, setVendedores] = useState<{ id_usuario: number; nome: string }[]>([]);
@@ -235,23 +211,6 @@ export default function ProjetoDetalhe() {
               </div>
 
               <div className="flex items-center gap-3">
-                {usuarioComercial && projeto.status !== "finalizado" && (
-                  <div className="flex flex-col items-end gap-1">
-                    <Button
-                      variant="primary"
-                      disabled={!todasOrdensConcluidas || finalizandoProjeto}
-                      onClick={() => {
-                        setErroFinalizacao(null);
-                        setConfirmarFinalizacao(true);
-                      }}
-                    >
-                      Finalizar Projeto
-                    </Button>
-                    {!todasOrdensConcluidas && (
-                      <span className="text-text-muted text-xs">Conclua todas as OS para finalizar</span>
-                    )}
-                  </div>
-                )}
                 <Button variant="outline" onClick={abrirModalEdicao}>
                   Editar Projeto
                 </Button>
@@ -267,9 +226,13 @@ export default function ProjetoDetalhe() {
                   icone: ClipboardList,
                   rotulo: "Status do projeto",
                   valor: (
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_PROJETO_CLASSE[projeto.status]}`}>
-                      {STATUS_PROJETO_LABEL[projeto.status]}
-                    </span>
+                    <SeletorStatusProjeto
+                      projetoId={projeto.id}
+                      projetoNome={projeto.nome}
+                      status={projeto.status}
+                      podeAlterar={podeAlterarStatus}
+                      onStatusChange={(status) => setProjeto((atual) => atual ? { ...atual, status } : atual)}
+                    />
                   ),
                 },
                 {
@@ -328,34 +291,6 @@ export default function ProjetoDetalhe() {
       </div>
 
       {/* MODAL DE EDIÇÃO */}
-      {confirmarFinalizacao && projeto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirmar-finalizacao-projeto"
-            className="border-border bg-bg w-full max-w-md rounded-xl border p-6 shadow-xl"
-          >
-            <h2 id="confirmar-finalizacao-projeto" className="text-text m-0 text-lg font-semibold">
-              Finalizar projeto?
-            </h2>
-            <p className="text-text-muted mt-3 mb-0 text-sm">
-              Tem certeza que deseja finalizar <strong className="text-text">{projeto.nome}</strong>?
-              Todas as OS vinculadas estão concluídas.
-            </p>
-            {erroFinalizacao && <p className="text-danger mt-4 mb-0 text-sm" role="alert">{erroFinalizacao}</p>}
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="outline" disabled={finalizandoProjeto} onClick={() => setConfirmarFinalizacao(false)}>
-                Cancelar
-              </Button>
-              <Button variant="primary" disabled={finalizandoProjeto} onClick={confirmarFinalizarProjeto}>
-                {finalizandoProjeto ? "Finalizando..." : "Confirmar finalização"}
-              </Button>
-            </div>
-          </section>
-        </div>
-      )}
-
       {modalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 md:p-8">

@@ -368,8 +368,14 @@ export function getProjeto(id: string): Promise<{ projeto: Projeto }> {
   return request(`/projetos/${encodeURIComponent(id)}`);
 }
 
-export function finalizarProjeto(id: string): Promise<{ message: string }> {
-  return request(`/projetos/${encodeURIComponent(id)}/finalizar`, { method: "PATCH" });
+export function atualizarStatusProjeto(
+  id: string,
+  status: StatusProjeto,
+): Promise<{ message: string }> {
+  return request(`/projetos/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 }
 
 export function abrirAnexoProjeto(

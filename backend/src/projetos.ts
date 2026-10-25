@@ -4,7 +4,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoProjeto } from "./os_comum.js";
+import { SELECT_OS, filtroVisibilidadeOS, mapOS } from "./os_comum.js";
 import { buildProjectCreatedNotificationMessage, createNotificationsForTime } from "./notificacoes.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
@@ -54,12 +54,7 @@ const SELECT_PROJETO = `
          p.id_time_responsavel,
          t.nome_time AS time_nome,
          DATE_FORMAT(p.data_assinatura_contrato, '%Y-%m-%d') AS data_assinatura_contrato,
-         DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato,
-         (SELECT COUNT(*) FROM os o WHERE o.projeto_id = p.projeto_id) AS total_os,
-         (SELECT COUNT(*) FROM os o
-           WHERE o.projeto_id = p.projeto_id AND o.os_status <> 'concluida') AS os_nao_concluidas,
-         (SELECT COUNT(*) FROM os o
-            WHERE o.projeto_id = p.projeto_id AND o.os_status = 'em andamento') AS os_em_andamento
+         DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato
     FROM projetos p
     LEFT JOIN usuarios resp ON resp.id_usuario = p.responsavel_id
     LEFT JOIN usuarios vend ON vend.id_usuario = p.vendedor_id
@@ -74,7 +69,7 @@ function mapProjetoResumo(p: RowDataPacket) {
     vendedor: (p.vendedor_nome as string | null) ?? null,
     id_time_responsavel: p.id_time_responsavel ? String(p.id_time_responsavel) : null,
     time: p.id_time_responsavel ? { id: String(p.id_time_responsavel), nome: p.time_nome as string } : null,
-    status: statusDoProjeto(String(p.status_projeto ?? "aberto"), Number(p.os_em_andamento) > 0),
+    status: String(p.status_projeto ?? "aberto"),
   };
 }
 
@@ -85,68 +80,40 @@ export async function ensureProjectStatusSchema(): Promise<void> {
       "ALTER TABLE projetos ADD COLUMN status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto' AFTER projeto_id",
     );
   }
-  await pool.query(
-    `UPDATE projetos p SET status = 'em_andamento'
-      WHERE p.status = 'aberto'
-        AND EXISTS (SELECT 1 FROM os o WHERE o.projeto_id = p.projeto_id AND o.os_status = 'em andamento')`,
-  );
 }
 
 export function createProjetosRouter(requireRole: RequireRole): Router {
   const router = Router();
 
-  router.patch("/:projetoId/finalizar", requireRole("comercial"), async (req, res) => {
+  router.patch("/:projetoId/status", requireRole("comercial"), async (req, res) => {
     const projetoId = String(req.params.projetoId);
     if (!/^\d+$/.test(projetoId)) {
       return res.status(404).json({ message: "Projeto não encontrado." });
     }
-
-    const connection = await pool.getConnection();
+    const status = (req.body ?? {}).status;
+    if (typeof status !== "string" || !["aberto", "em_andamento", "finalizado"].includes(status)) {
+      return res.status(400).json({ message: "Selecione um status de projeto válido." });
+    }
     try {
-      await connection.beginTransaction();
-      const [projetos] = await connection.execute<RowDataPacket[]>(
-        "SELECT projeto_id, status FROM projetos WHERE projeto_id = ? FOR UPDATE",
-        [projetoId],
+      const [result] = await pool.execute<ResultSetHeader>(
+        "UPDATE projetos SET status = ? WHERE projeto_id = ?",
+        [status, projetoId],
       );
-      if (!projetos[0]) {
-        await connection.rollback();
-        return res.status(404).json({ message: "Projeto não encontrado." });
+      if (result.affectedRows === 0) {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
+          [projetoId],
+        );
+        if (!rows[0]) return res.status(404).json({ message: "Projeto não encontrado." });
       }
-      if (projetos[0].status === "finalizado") {
-        await connection.commit();
-        return res.json({ message: "O projeto já está finalizado." });
-      }
-
-      const [ordens] = await connection.execute<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total,
-                SUM(CASE WHEN os_status <> 'concluida' THEN 1 ELSE 0 END) AS pendentes
-           FROM os WHERE projeto_id = ?`,
-        [projetoId],
-      );
-      const total = Number(ordens[0]?.total ?? 0);
-      const pendentes = Number(ordens[0]?.pendentes ?? 0);
-      if (total === 0 || pendentes > 0) {
-        await connection.rollback();
-        return res.status(409).json({
-          message: total === 0
-            ? "O projeto precisa ter ao menos uma OS para ser finalizado."
-            : "Todas as OS do projeto precisam estar concluídas antes de finalizar o projeto.",
-        });
-      }
-
-      await connection.execute("UPDATE projetos SET status = 'finalizado' WHERE projeto_id = ?", [projetoId]);
-      await connection.commit();
-      return res.json({ message: "Projeto finalizado com sucesso." });
+      return res.json({ message: "Status do projeto atualizado com sucesso." });
     } catch (error) {
-      await connection.rollback();
-      console.error("Erro ao finalizar projeto:", error);
-      return res.status(500).json({ message: "Não foi possível finalizar o projeto." });
-    } finally {
-      connection.release();
+      console.error("Erro ao atualizar status do projeto:", error);
+      return res.status(500).json({ message: "Não foi possível atualizar o status do projeto." });
     }
   });
 
-router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+  router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
     try {
       const [vendedores] = await pool.execute<(RowDataPacket & { id_usuario: number; nome: string })[]>(
         "SELECT id_usuario, nome FROM usuarios WHERE cargo = 'comercial' AND ativo = TRUE ORDER BY nome",

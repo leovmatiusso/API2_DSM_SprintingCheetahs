@@ -659,13 +659,6 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           });
         }
 
-        if (statusNovo === "em andamento" && os.projeto_id !== null) {
-          await connection.execute(
-            "UPDATE projetos SET status = 'em_andamento' WHERE projeto_id = ? AND status = 'aberto'",
-            [os.projeto_id],
-          );
-        }
-
         const statusEvento = statusNovo === "concluida" || statusNovo === "bloqueado";
         let mensagem = buildStatusNotificationMessage(os.os_status as string | null, statusNovo);
         if (statusEvento) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 
+import { getCurrentUser } from "@/auth";
 import { getProjetos } from "@/api";
 import type { ProjetoResumo } from "@/api";
 
@@ -9,12 +10,12 @@ import { Selo, Ticket, TicketLinha } from "./Ticket";
 import {
   PRIORIDADE_CLASSE,
   PRIORIDADE_LABEL,
-  STATUS_PROJETO_CLASSE,
-  STATUS_PROJETO_LABEL,
 } from "./osEstilos";
+import SeletorStatusProjeto from "./SeletorStatusProjeto";
 
 export default function Projetos() {
   const navigate = useNavigate();
+  const podeAlterarStatus = getCurrentUser()?.role === "comercial";
 
   const [projetos, setProjetos] = useState<ProjetoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -88,9 +89,9 @@ export default function Projetos() {
                   </Selo>
                 </TicketLinha>
                 <TicketLinha rotulo="Status">
-                  <Selo classe={STATUS_PROJETO_CLASSE[projeto.status]}>
-                    {STATUS_PROJETO_LABEL[projeto.status]}
-                  </Selo>
+                  <SeletorStatusProjeto projetoId={projeto.id} projetoNome={projeto.nome} status={projeto.status} podeAlterar={podeAlterarStatus} onStatusChange={(status) => {
+                    setProjetos((atuais) => atuais.map((item) => item.id === projeto.id ? { ...item, status } : item));
+                  }} />
                 </TicketLinha>
               </Ticket>
             ))}
