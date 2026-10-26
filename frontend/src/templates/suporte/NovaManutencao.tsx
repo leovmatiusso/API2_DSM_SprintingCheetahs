@@ -1,437 +1,247 @@
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ClipboardList,
-  Paperclip,
-  Upload,
-  X,
-  ChevronDown,
-} from "lucide-react";
+import { CirclePlus } from "lucide-react";
 
-import { getCurrentUser, logout } from "@/auth";
-import { createManutencao } from "@/api";
+import { createManutencao, getProjetosParaManutencao } from "@/api";
 
 import Button from "@/components/ui/Button";
-
-{  /* imports para o formulário */}
-import { FormEvent, useEffect, useState } from "react";
-
-import "@/style/NovaManutencao.css";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
-{/* variável dos equipamentos */}
-const EQUIPAMENTOS_DISPONIVEIS = [
-  "Aerostato",
-  "Torre",
-  "Câmera óptica",
-  "Câmera térmica",
-  "Switch",
-  "Roteador",
-  "Cabo de rede",
-  "Conector RJ45",
-  "Patch Cord",
-  "Sensor de movimento",
-];
+import CampoAnexos, { anexosParaPayload } from "../compartilhadas/CampoAnexos";
+import type { AnexoForm } from "../compartilhadas/CampoAnexos";
+import CampoDescricao from "../compartilhadas/CampoDescricao";
+import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos"; //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
+import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
+import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
+import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 
-{  /* variáveis para os campos */}
-const tiposManutencao = [
+const TIPOS_MANUTENCAO = [
   { value: "preventiva", label: "Preventiva" },
   { value: "corretiva", label: "Corretiva" },
   { value: "adaptativa", label: "Adaptativa" },
   { value: "evolutiva", label: "Evolutiva" },
-];
+] as const;
 
-const prioridades = [
-  { value: "baixa", label: "Baixa" },
-  { value: "media", label: "Média" },
-  { value: "alta", label: "Alta" },
-  { value: "critica", label: "Crítica" },
-];
+type TipoManutencao = (typeof TIPOS_MANUTENCAO)[number]["value"];
 
-{
-  /* interfaces que definem o tipo dos objetos aceitos pelo form */
-}
-interface Equipamento {
-  nome: string;
-  quantidade: number;
-}
-
-interface Anexo {
-  nome: string;
-  tamanho: string;
-  arquivo: File;
-}
+const MODELO_DESCRICAO = "Problema:\n\nImpacto para o cliente:\n\nObservações:";
 
 export default function NovaManutencao() {
   const navigate = useNavigate();
 
-  const user = getCurrentUser();
-
-  if (!user) return null;
-
-  function sair() {
-    logout();
-    navigate("/login", { replace: true });
-  }
-
-  {
-    /* variaveis dos campos do form */
-  }
-  const [tipoManutencao, setTipoManutencao] = useState("");
-  const [responsavel, setResponsavel] = useState("");
+  const [resumo, setResumo] = useState("");
   const [dataInicio, setDataInicio] = useState("");
-  const [prioridade, setPrioridade] = useState("");
-  const [prioridadeAberta, setPrioridadeAberta] = useState(false);
-
+  const [prioridade, setPrioridade] = useState<PrioridadeValor | "">("");
+  const [tipo, setTipo] = useState<TipoManutencao | "">("");
+  const [projetoId, setProjetoId] = useState("");
+  const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
+  const [equipamentos, setEquipamentos] = useState<EquipamentoForm[]>([]); //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
+  const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
-  const [buscaEquipamento, setBuscaEquipamento] = useState("");
-  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
-  const [dropdownEquipamentoAberto, setDropdownEquipamentoAberto] = useState(false);
+  const [projetos, setProjetos] = useState<
+    { id_projeto: number; nome: string }[]
+  >([]);
+  const [carregandoProjetos, setCarregandoProjetos] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const [anexos, setAnexos] = useState<Anexo[]>([]);
-
-  {
-    /* função de remover equipamento */
-  }
-  function removerEquipamento(nome: string) {
-    setEquipamentos((prev) => prev.filter((eq) => eq.nome !== nome));
-  }
-
-  {/* função de adicionar equipamento */}
-  function adicionarEquipamento(nome: string) {
-    setEquipamentos((prev) => {
-      const existente = prev.find((eq) => eq.nome === nome);
-
-      if (existente) {
-        return prev.map((eq) =>
-          eq.nome === nome ? { ...eq, quantidade: eq.quantidade + 1 } : eq,
+  useEffect(() => {
+    async function carregar() {
+      try {
+        const respostaProjetos = await getProjetosParaManutencao();
+        setProjetos(respostaProjetos.projetos);
+      } catch (error) {
+        setErro(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os projetos.",
         );
+      } finally {
+        setCarregandoProjetos(false);
       }
+    }
 
-      return [...prev, { nome, quantidade: 1 }];
-    });
+    carregar();
+  }, []);
 
-    setBuscaEquipamento("");
-    setDropdownEquipamentoAberto(false);
-  }
+  async function enviar(event: FormEvent) {
+    event.preventDefault();
+    if (enviando) return;
+    setErro(null);
 
-  function equipamentosFiltrados() {
-    return EQUIPAMENTOS_DISPONIVEIS.filter((nome) =>
-      nome.toLowerCase().includes(buscaEquipamento.toLowerCase()),
-    );
-  }
-
-  {/* função de upload do arquivo */}
-  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files) return;
-
-    const novosAnexos: Anexo[] = Array.from(files).map((file) => ({
-      nome: file.name,
-      tamanho: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      arquivo: file,
-    }));
-
-    setAnexos((prev) => [...prev, ...novosAnexos]);
-    e.target.value = "";
-  }
-
-  {/* função para remover anexo */}
-  function removerAnexo(nome: string) {
-    setAnexos((prev) => prev.filter((a) => a.nome !== nome));
-  }
-
-  {/* função para submeter o form */}
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-
-    if (!tipoManutencao || !responsavel.trim() || !dataInicio || !prioridade || !descricao.trim()) {
-      alert("Preencha todos os campos obrigatórios.");
+    if (!prioridade) {
+      setErro("Selecione a prioridade.");
+      return;
+    }
+    if (!tipo) {
+      setErro("Selecione o tipo de manutenção.");
       return;
     }
 
+    setEnviando(true);
+
     try {
-      const anexosPayload = await Promise.all(
-        anexos.map(
-          (anexo) =>
-            new Promise<{
-              nome_anexo: string;
-              anexo_tipo: string;
-              anexo_tamanho: number;
-              conteudo_arquivo_base64: string;
-            }>((resolve, reject) => {
-              const reader = new FileReader();
-
-              reader.onload = () => {
-                const resultado = String(reader.result ?? "");
-                const separador = resultado.indexOf(",");
-
-                resolve({
-                  nome_anexo: anexo.arquivo.name,
-                  anexo_tipo: anexo.arquivo.type || "application/octet-stream",
-                  anexo_tamanho: anexo.arquivo.size,
-                  conteudo_arquivo_base64:
-                    separador >= 0 ? resultado.slice(separador + 1) : resultado,
-                });
-              };
-
-              reader.onerror = () => {
-                reject(new Error(`Não foi possível ler o arquivo ${anexo.nome}.`));
-              };
-
-              reader.readAsDataURL(anexo.arquivo);
-            }),
-        ),
-      );
-
-      await createManutencao({
-        tipo_manutencao: tipoManutencao as
-          | "preventiva"
-          | "corretiva"
-          | "adaptativa"
-          | "evolutiva",
-        responsavel_nome: responsavel.trim(),
+      const resposta = await createManutencao({
+        resumo: resumo.trim(),
         data_inicio_problema: dataInicio,
-        prioridade: prioridade as "baixa" | "media" | "alta" | "critica",
+        prioridade,
+        tipo_manutencao: tipo,
+        projeto_id: projetoId || null,
+        data_limite: dataLimite,
         descricao_situacao: descricao.trim(),
-        equipamentos: equipamentos.map(({ nome, quantidade }) => ({
-          nome_equipamento: nome,
-          quantidade,
-        })),
-        anexos: anexosPayload,
+        equipamentos: equipamentosParaPayload(equipamentos),
+        anexos: await anexosParaPayload(anexos),
       });
 
-      alert("Manutenção criada com sucesso!");
-      navigate(-1);
+      // abre a manutenção criada, onde as O.S. podem ser atribuídas
+      navigate(`/manutencoes-totais/${resposta.manutencao.manutencao_id}`);
     } catch (error) {
-      console.error("Erro ao criar manutenção:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível criar a manutenção.",
+      setErro(
+        error instanceof Error ? error.message : "Não foi possível criar a manutenção.",
       );
+    } finally {
+      setEnviando(false);
     }
   }
 
   return (
-    <main className="page">
-      <div className="content">
-        <section className="card">
-          <form onSubmit={handleSubmit}>
-            {/* Título */}
-            <div className="mb-8 flex items-start gap-4">
+    <main className="page nova-os-page min-h-full p-5 md:p-8">
+      <form
+        className="nova-os-card border-border mx-auto w-full max-w-[1140px] rounded-xl border p-6 shadow-sm md:p-9"
+        onSubmit={enviar}
+      >
+        {/* CABEÇALHO */}
+        <div className="mb-8 flex items-center gap-4">
+          <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+            <CirclePlus size={30} />
+          </div>
+          <div>
+            <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]">
+              Nova manutenção
+            </h1>
+            <p className="text-text-muted mt-1 mb-0 text-sm">
+              Crie uma nova manutenção e atribua OS a ela após criação
+            </p>
+          </div>
+        </div>
 
-              <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
-                <ClipboardList className="text-primary" size={30} />
-              </div>
+        {erro && (
+          <div
+            className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
+            role="alert"
+          >
+            {erro}
+          </div>
+        )}
 
-              <div>
-                <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[28px]"> Resumo </h1>
-                <p className="muted text-sm">
-                  Crie uma nova manutenção e atribua OS a ela após criação
-                </p>
-              </div>
-            </div>
+        {/* LINHA 1: resumo e data de início */}
+        <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="xl:col-span-3">
+            <Input
+              id="resumo"
+              label="Resumo da manutenção"
+              value={resumo}
+              onChange={(event) => setResumo(event.target.value)}
+              placeholder="Ex.: Falha na câmera térmica da torre 2"
+              maxLength={255}
+              required
+            />
+          </div>
 
-            {/* Campos principais */}
-            <div className="mb-8 grid grid-cols-4 gap-4">
-              <Select
-                label="Tipo de Manutenção"
-                value={tipoManutencao}
-                onChange={(e) => setTipoManutencao(e.target.value)}
-              >
-                <option value="" className="font-thin">
-                  Selecione
-                </option>
-                {tiposManutencao.map((tipo) => (
-                  <option key={tipo.value} value={tipo.value}>
-                    {tipo.label}{" "}
-                  </option>
-                ))}
-              </Select>
+          <Input
+            id="data-inicio"
+            type="date"
+            label="Data de início do problema"
+            value={dataInicio}
+            onChange={(event) => setDataInicio(event.target.value)}
+            required
+          />
+        </div>
 
-              <Input
-                label="Responsável"
-                type="text"
-                value={responsavel}
-                onChange={(e) => setResponsavel(e.target.value)}
-                placeholder="Nome do responsável"
-              />
+        {/* LINHA 2: prioridade, tipo, projeto e data limite */}
+        <div className="mt-6 grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
+          <SeletorPrioridade value={prioridade} onChange={setPrioridade} />
 
-              <Input
-                label="Data de início do problema "
-                type="date"
-                value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-              />
+          <Select
+            id="tipo-manutencao"
+            label="Tipo de manutenção"
+            value={tipo}
+            onChange={(event) => setTipo(event.target.value as TipoManutencao | "")}
+            required
+          >
+            <option value="" hidden>
+              Selecione
+            </option>
+            {TIPOS_MANUTENCAO.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
 
-              {/* PRIORIDADE ESTILIZADA */}
-              <div>
-                <label className="text-text-muted mb-2 block text-sm font-semibold">
-                  Prioridade
-                </label>
+          <Select
+            id="projeto"
+            label="Projeto"
+            value={projetoId}
+            onChange={(event) => {
+              const id = event.target.value;
+              setProjetoId(id);
+            }}
+            disabled={carregandoProjetos}
+          >
+            <option value="">
+              {carregandoProjetos ? "Carregando..." : "Sem projeto vinculado"}
+            </option>
+            {projetos.map((projeto) => (
+              <option key={projeto.id_projeto} value={String(projeto.id_projeto)}>
+                {projeto.nome}
+              </option>
+            ))}
+          </Select>
 
-                <div className="relative w-full">
-                  <button
-                    type="button"
-                    className="prioridade-select border-border hover:border-border-hover flex h-11 w-full cursor-pointer items-center justify-between rounded-lg border px-3 transition outline-none"
-                    onClick={() => setPrioridadeAberta(!prioridadeAberta)}
-                  >
-                    <span className={`badge prioridade-${prioridade || "baixa"}`}>
-                      {prioridade
-                        ? prioridades.find((p) => p.value === prioridade)?.label
-                        : "Selecione"}
-                    </span>
+          <Input
+            id="data-limite"
+            type="date"
+            label="Data limite"
+            value={dataLimite}
+            onChange={(event) => setDataLimite(event.target.value)}
+            required
+          />
+        </div>
 
-                    <ChevronDown size={18} className="text-text-muted" />
-                  </button>
+        {/* DESCRIÇÃO */}
+        <div className="mt-6">
+          <CampoDescricao
+            id="descricao"
+            value={descricao}
+            onChange={setDescricao}
+            placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
+            modelo={MODELO_DESCRICAO}
+            required
+          />
+        </div>
 
-                  {prioridadeAberta && (
-                    <div className="prioridade-menu border-border absolute right-0 left-0 z-20 mt-1.5 rounded-lg border p-1.5 shadow-lg">
-                      {prioridades.map((p) => (
-                        <button
-                          key={p.value}
-                          type="button"
-                          onClick={() => {
-                            setPrioridade(p.value);
-                            setPrioridadeAberta(false);
-                          }}
-                          className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md p-1.5"
-                        >
-                          <span className={`badge prioridade-${p.value}`}>{p.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            <div className="mb-8">
-              <label className="text-text-muted block text-sm font-semibold">
-                {" "}
-                Descrição
-                <div className="relative mt-2">
-                  <textarea
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                    placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
-                    rows={5}
-                    className="bg-bg text-text font-normal border-border placeholder:text-text-muted focus:border-primary focus:ring-primary min-h-33 w-full resize-y rounded-lg border p-3.5 text-sm leading-6 transition outline-none read-only:opacity-70 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    className="border-border bg-primary/15 text-primary absolute right-3 bottom-3 flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium"
-                  >
-                    <ClipboardList className="size-3.5" />
-                    Usar modelo de descrição
-                  </button>
-                </div>
-              </label>
-            </div>
-
-            {/* Campo de equipamento e anexos */}
-            <div className="grid grid-cols-[1fr_auto_1fr] gap-6">
-              <div className="flex flex-col gap-4">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    label="Equipamentos e materiais"
-                    value={buscaEquipamento}
-                    onChange={(e) => {
-                      setBuscaEquipamento(e.target.value);
-                      setDropdownEquipamentoAberto(true);
-                    }}
-                    onFocus={() => setDropdownEquipamentoAberto(true)}
-                    onBlur={() => setTimeout(() => setDropdownEquipamentoAberto(false), 150)}
-                    placeholder="Buscar equipamentos e materiais"
-                  />
-
-                  {dropdownEquipamentoAberto && (
-                    <div className="border-border bg-bg absolute right-0 left-0 z-20 mt-1.5 max-h-56 overflow-y-auto rounded-lg border p-1.5 shadow-lg">
-                      {equipamentosFiltrados().length === 0 ? (
-                        <p className="text-text-muted px-2 py-1.5 text-sm">
-                          Nenhum equipamento encontrado.
-                        </p>
-                      ) : (
-                        equipamentosFiltrados().map((nome) => (
-                          <button
-                            key={nome}
-                            type="button"
-                            onClick={() => adicionarEquipamento(nome)}
-                            className="hover:bg-bg-tertiary flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-text"
-                          >
-                            {nome}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {equipamentos.map((eq) => (
-                    <span
-                      key={eq.nome}
-                      className="bg-primary/15 text-primary flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
-                    >
-                      {eq.quantidade}x {eq.nome}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
-                        onClick={() => removerEquipamento(eq.nome)}
-                      />
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* linha que separa o campo de equipamento com anexo */}
-              <div className="border-border w-px border-l" />
-
-              <div>
-                <p className="mb-3 flex items-center gap-1">
-                  <Paperclip className="h-4 w-4" /> Anexos
-                </p>
-
-                <div className="mb-4 space-y-2">
-                  {anexos.map((anexo) => (
-                    <div key={anexo.nome} className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <ClipboardList className="text-text/50 h-4 w-4" />
-                        {anexo.nome}
-                      </span>
-                      <span className="muted flex items-center gap-3">
-                        {anexo.tamanho}
-                        <X
-                          className="h-3.5 w-3.5 cursor-pointer"
-                          onClick={() => removerAnexo(anexo.nome)}
-                        />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <label className="border-border bg-primary/15 text-primary flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border py-3 text-sm font-medium">
-                  <Upload className="h-4 w-4" />
-                  Upload
-                  <input type="file" multiple className="hidden" onChange={handleUpload} />
-                </label>
-              </div>
-            </div>
-
-            {/* Botões */}
-            <div className="mt-8 flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-                Voltar
-              </Button>
-              <Button type="submit" variant="primary">
-                Criar manutenção
-              </Button>
-            </div>
-          </form>
-        </section>
-      </div>
+        {/* ANEXOS + AÇÕES */}
+        <div className="mt-8">
+          <CampoAnexos
+            anexos={anexos}
+            onChange={setAnexos}
+            acoes={
+              <>
+                <Button type="button" variant="outline" size="lg" onClick={() => navigate(-1)}>
+                  Voltar
+                </Button>
+                <Button type="submit" variant="primary" size="lg" disabled={enviando}>
+                  {enviando ? "Criando..." : "Criar manutenção"}
+                </Button>
+              </>
+            }
+          />
+        </div>
+      </form>
     </main>
   );
 }

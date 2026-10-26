@@ -1,6 +1,7 @@
 -- =====================================================
 -- API2 - Banco de dados para MySQL / AWS RDS
 -- Execute em uma instância MySQL vazia.
+-- ATENÇÃO: este script apaga e recria todas as tabelas.
 -- =====================================================
 
 CREATE DATABASE IF NOT EXISTS API2
@@ -20,6 +21,8 @@ DROP TABLE IF EXISTS os;
 DROP TABLE IF EXISTS time;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS equipamentos;
+DROP TABLE IF EXISTS notificacao_leituras;
+DROP TABLE IF EXISTS notificacoes;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================
@@ -37,7 +40,8 @@ CREATE TABLE usuarios (
         'suporte',
         'producao',
         'software',
-        'implantacao'
+        'implantacao',
+        'monitoramento'
     ) NOT NULL,
     senha_hash VARCHAR(255) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
@@ -84,6 +88,9 @@ CREATE TABLE equipamentos (
 
 -- =====================================================
 -- ORDENS DE SERVIÇO
+-- Toda O.S. nasce de um projeto OU de uma manutenção
+-- (projeto_id / manutencao_id, preenchidos pelo backend).
+-- id_time_responsavel = time que executa a O.S. (define quem a enxerga).
 -- =====================================================
 
 CREATE TABLE os (
@@ -102,9 +109,13 @@ CREATE TABLE os (
     data_limite DATE NOT NULL,
     id_criador INT NOT NULL,
     id_time_responsavel INT NULL,
+    projeto_id INT NULL,
+    manutencao_id INT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_os_criador (id_criador),
     INDEX idx_os_time (id_time_responsavel),
+    INDEX idx_os_projeto (projeto_id),
+    INDEX idx_os_manutencao (manutencao_id),
     INDEX idx_os_status (os_status),
     CONSTRAINT fk_criador_os
         FOREIGN KEY (id_criador) REFERENCES usuarios(id_usuario),
@@ -116,6 +127,8 @@ CREATE TABLE os (
 
 -- =====================================================
 -- PROJETOS
+-- responsavel_id = vendedor responsável (equipe comercial)
+-- O time é definido em cada O.S. do projeto, não no projeto.
 -- =====================================================
 
 CREATE TABLE projetos (
@@ -124,9 +137,13 @@ CREATE TABLE projetos (
     data_assinatura_contrato DATE NULL,
     data_implantacao DATE NULL,
     data_vencimento_contrato DATE NULL,
+    data_limite DATE NULL,
     responsavel_id INT NULL,
     vendedor_id INT NULL,
     tipo_sistema VARCHAR(100) NOT NULL,
+    prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
+    status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto',
+    descricao TEXT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_projeto_responsavel (responsavel_id),
     INDEX idx_projeto_vendedor (vendedor_id),
@@ -140,6 +157,9 @@ CREATE TABLE projetos (
 
 -- =====================================================
 -- MANUTENÇÕES
+-- responsavel_id = responsável (usuário de suporte que criou a manutenção)
+-- projeto_id     = projeto ao qual a manutenção se refere (opcional)
+-- O time é definido em cada O.S. da manutenção, não na manutenção.
 -- =====================================================
 
 CREATE TABLE manutencoes (
@@ -152,6 +172,7 @@ CREATE TABLE manutencoes (
     projeto_id INT NULL,
     resumo VARCHAR(255) NULL,
     responsavel_id INT NULL,
+    data_limite DATE NULL,
     prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
     INDEX idx_manutencao_projeto (projeto_id),
     INDEX idx_manutencao_responsavel (responsavel_id),
@@ -162,6 +183,15 @@ CREATE TABLE manutencoes (
         FOREIGN KEY (responsavel_id) REFERENCES usuarios(id_usuario)
         ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- O.S. vinculadas a projeto/manutenção (criadas após as duas tabelas existirem)
+ALTER TABLE os
+    ADD CONSTRAINT fk_os_projeto
+        FOREIGN KEY (projeto_id) REFERENCES projetos(projeto_id)
+        ON DELETE CASCADE,
+    ADD CONSTRAINT fk_os_manutencao
+        FOREIGN KEY (manutencao_id) REFERENCES manutencoes(manutencao_id)
+        ON DELETE CASCADE;
 
 -- =====================================================
 -- ANEXOS
@@ -243,6 +273,58 @@ CREATE TABLE item_equipamento_manutencao (
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE notificacoes (
+    notificacao_id INT PRIMARY KEY AUTO_INCREMENT,
+    titulo VARCHAR(150) NOT NULL,
+    mensagem VARCHAR(200) NOT NULL,
+    time_id INT NOT NULL,
+    os_id INT NULL,
+    usuario_origem_id INT NULL,
+    data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_notificacoes_time (time_id),
+    INDEX idx_notificacoes_os (os_id),
+    INDEX idx_notificacoes_data (data_criacao),
+
+    CONSTRAINT fk_notificacao_time
+        FOREIGN KEY (time_id)
+        REFERENCES time(id_time)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_notificacao_os
+        FOREIGN KEY (os_id)
+        REFERENCES os(os_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_notificacao_usuario
+        FOREIGN KEY (usuario_origem_id)
+        REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ;
+
+CREATE TABLE notificacao_leituras (
+    notificacao_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    data_leitura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (notificacao_id, usuario_id),
+
+    CONSTRAINT fk_leitura_notificacao
+        FOREIGN KEY (notificacao_id)
+        REFERENCES notificacoes(notificacao_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_leitura_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ;
+
 -- =====================================================
 -- DADOS INICIAIS PARA DESENVOLVIMENTO/TESTE
 -- Senha de todas as contas abaixo: 123456
@@ -256,14 +338,21 @@ INSERT INTO usuarios (nome, email, cargo, senha_hash, ativo, time_id) VALUES
 ('Suporte', 'suporte@empresa.com', 'suporte', 'scrypt:24c3fea94bc378d0c3ce81162201e610:161b1c9ea0ffb3d9b6fc4ac7fe22c1ef9cb0d2399840a61347a30cbe51b04fb1c44c1c46677fa43b52fe4e56ae1756fa6e0a2331dfdc5182abc2b6f7c8139622', TRUE, NULL),
 ('Produção', 'producao@empresa.com', 'producao', 'scrypt:3e15643b6efea99e9c5e8337224ce6da:43e47af515c456c9d3b79e35b4fdc214145daafddf9db3433785dad3ac8574ee1711a04a1f71e882413e0d2a4e95d52bfbf0a0f22cd1ecfc4f717f8737821134', TRUE, NULL),
 ('Software', 'software@empresa.com', 'software', 'scrypt:e0fbf81ea30fb0310350d12fc6e0858b:7dc391979d9f6500ee85685b7ba3229a1928bdbb6bd4cb03ff158a2949b695755918dd4c58a8e132809010cb44a660bd50c31e6b0f2ab8d40c2c7d5ad7296805', TRUE, NULL),
-('Implantação', 'implantacao@empresa.com', 'implantacao', 'scrypt:f79381f899e0a9b58754f1b02fd5b8aa:83f75865934992466e1b8292036a9b77d26823541a59a686ea54d6d32d8a89bc891af6059d32989c4f315befc8981ac0ea57ba7778da739690b1520aaa959366', TRUE, NULL);
+('Implantação', 'implantacao@empresa.com', 'implantacao', 'scrypt:f79381f899e0a9b58754f1b02fd5b8aa:83f75865934992466e1b8292036a9b77d26823541a59a686ea54d6d32d8a89bc891af6059d32989c4f315befc8981ac0ea57ba7778da739690b1520aaa959366', TRUE, NULL),
+('Monitoramento', 'monitoramento@empresa.com', 'monitoramento', 'scrypt:10e30fc14d0eab11e4582007171557a0:15d1449e09830e09fb99910527f8250ce63ef1f3d9a1ad2f4202c010249610a9de8ef7ecb377846da9a0826e3e866a954b0d855962505044d3e699b9827550a8', TRUE, NULL);
 
+-- Times: apenas produção, software, implantação e monitoramento são alocados em times.
+-- Usuários de comercial e suporte não pertencem a times.
 INSERT INTO time (nome_time, email_time, departamento) VALUES
-('Software', NULL, 'Software'),
-('Comercial', NULL, 'Comercial');
+('Software', NULL, 'software'),
+('Produção', NULL, 'producao'),
+('Implantação', NULL, 'implantacao'),
+('Monitoramento', NULL, 'monitoramento');
 
 UPDATE usuarios SET time_id = 1 WHERE id_usuario = 6;
-UPDATE usuarios SET time_id = 2 WHERE id_usuario = 3;
+UPDATE usuarios SET time_id = 2 WHERE id_usuario = 5;
+UPDATE usuarios SET time_id = 3 WHERE id_usuario = 7;
+UPDATE usuarios SET time_id = 4 WHERE id_usuario = 8;
 
 INSERT INTO equipamentos (nome_equipamento) VALUES
 ('aeróstato'),

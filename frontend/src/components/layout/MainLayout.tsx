@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/navigation/Sidebar/Sidebar";
 import Navbar from "@/components/navigation/Navbar/Navbar"
+import { Toaster } from 'sonner';
 
 export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -14,6 +15,15 @@ export default function MainLayout() {
         <Navbar />
         <Outlet />
       </main>
+      <Toaster
+        expand
+        visibleToasts={9}
+        position="bottom-right"
+        offset={24}
+        toastOptions={{
+          unstyled: true,
+        }}
+      />
     </div>
   );
 }

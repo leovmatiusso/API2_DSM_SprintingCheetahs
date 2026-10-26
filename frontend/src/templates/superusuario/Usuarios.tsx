@@ -1,7 +1,6 @@
 import "@/style/Usuarios.css";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Check,
   ChevronDown,
@@ -25,6 +24,7 @@ import type { Role, User } from "@/types";
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import Cadastro from "../compartilhadas/Cadastro";
 
 const roles: {
   value: Role;
@@ -37,10 +37,10 @@ const roles: {
   { value: "producao", label: "Produção" },
   { value: "software", label: "Software" },
   { value: "implantacao", label: "Implantação" },
+  { value: "monitoramento", label: "Monitoramento" },
 ];
 
 export default function Usuarios() {
-  const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const isSuperusuario = currentUser?.role === "superusuario";
 
@@ -56,6 +56,7 @@ export default function Usuarios() {
   const [roleFilter, setRoleFilter] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mostrarCadastro, setMostrarCadastro] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -217,8 +218,20 @@ export default function Usuarios() {
     filteredUsers.length > 0 &&
     filteredUsers.every((user) => selectedUsers.includes(user.id));
 
+  if (mostrarCadastro) {
+    return (
+      <Cadastro
+        onVoltar={() => setMostrarCadastro(false)}
+        onCadastrado={async () => {
+          setMostrarCadastro(false);
+          await load();
+        }}
+      />
+    );
+  }
+
   return (
-    <main className="page min-h-full p-5 md:p-8">
+    <main className="page min-h-full md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
         {/* Cabeçalho */}
         <header className="mb-8 flex items-center justify-between gap-4">
@@ -241,7 +254,7 @@ export default function Usuarios() {
             type="button"
             variant="primary"
             size="lg"
-            onClick={() => navigate("/cadastro")}
+            onClick={() => setMostrarCadastro(true)}
           >
             <span className="flex items-center gap-2">
               <Plus size={19} />
@@ -318,7 +331,7 @@ export default function Usuarios() {
         )}
 
         {/* Listagem */}
-        <section className="card content min-h-[620px] rounded-2xl border border-border p-5 md:p-6">
+        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5  md:p-6">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="w-full md:max-w-[70%]">
               <Input

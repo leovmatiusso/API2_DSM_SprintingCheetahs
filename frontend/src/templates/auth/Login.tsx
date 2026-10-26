@@ -6,6 +6,25 @@ import { saveSession } from "@/auth";
 import Input from "@/components/ui/Input";
 import PasswordInput from "@/components/PasswordInput";
 
+import { toast } from 'sonner';
+
+export function showNotificationToast() {
+  toast.custom((t) => (
+    <div className="flex items-center gap-3 w-full max-w-sm bg-slate-100/95 backdrop-blur-md border border-slate-200/80 shadow-lg rounded-xl p-4 text-slate-800 pointer-events-auto">
+      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900 truncate">Nova OS atribuída a você</p>
+        <p className="text-xs text-slate-600 truncate mt-0.5">OS criada por Manoel Gomes do time Suporte</p>
+        <p className="text-[10px] text-slate-400 mt-1">12h atrás</p>
+      </div>
+    </div>
+  ));
+}
+
 export default function Login() {
   const navigate = useNavigate();
 
@@ -181,6 +200,16 @@ export default function Login() {
               implantacao@empresa.com
               <span className="select-none">— Implantação</span>
             </span>
+
+            <span
+              className="cursor-pointer underline underline-offset-1 hover:font-semibold"
+              onClick={(e) => {
+                logarRapido("monitoramento@empresa.com");
+              }}
+            >
+              monitoramento@empresa.com
+              <span className="select-none">— Monitoramento</span>
+            </span>
           </div>
         </form>
       </section>
@@ -189,5 +218,6 @@ export default function Login() {
         <img src="../../img/fundo_login.png" alt="Imagem da empresa" />
       </section>
     </main>
+    
   );
 }

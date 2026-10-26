@@ -15,6 +15,7 @@ const roleLabels: Record<string, string> = {
   producao: "producao",
   software: "software",
   implantacao: "implantacao",
+  monitoramento: "monitoramento",
 };
 
 export default function MinhaConta() {
