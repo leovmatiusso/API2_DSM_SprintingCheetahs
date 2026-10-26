@@ -1,10 +1,10 @@
 # <div align="center">📌 MVP - Sprint 2 <a id="topo"></a> </div>
-> Status da Sprint: Em andamento 🟧
+> Status da Sprint: Concluída 🟩
 ---
 ### 🎯 Objetivo do MVP
 O foco principal dessa Sprint foi a visualização e painéis descritivos de projetos, manutenções e OS filtradas pelos tipos de usuários.
 
-> <a href=" BOTA O LINK AQUI ">Clique aqui para ver o vídeo da Sprint!</a>
+> <a href="https://www.youtube.com/watch?v=GmjYu4aFVHw">Clique aqui para ver o vídeo da Sprint!</a>
 
 ### 👥 Personas
 
