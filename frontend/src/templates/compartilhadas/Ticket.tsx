@@ -11,16 +11,25 @@ export function Ticket({
   children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ${titulo}`}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       className="nova-os-card border-border cursor-pointer rounded-xl border p-4 text-left shadow-sm transition hover:shadow-md"
     >
       <h3 className="text-text border-border m-0 mb-2 border-b pb-2 text-xl leading-tight font-bold break-words">
         {titulo}
       </h3>
       {children}
-    </button>
+    </div>
   );
 }
 

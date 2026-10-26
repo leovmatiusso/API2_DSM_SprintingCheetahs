@@ -4,7 +4,6 @@ import {
   Calendar,
   ChartNoAxesCombined,
   ClipboardList,
-  ChevronDown,
   Clock,
   File,
   FileSignature,
@@ -31,7 +30,7 @@ import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
 import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
-import SeletorStatusManutencao, { STATUS_MANUTENCAO_LABEL, type StatusManutencaoValor } from "../compartilhadas/SeletorStatusManutencao";
+import SeletorStatusManutencao from "../compartilhadas/SeletorStatusManutencao";
 
 const TIPOS_MANUTENCAO = [
   { value: "preventiva", label: "Preventiva" },
@@ -48,22 +47,6 @@ export default function ManutencaoDetalhe() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
-  const [atualizandoStatusRapido, setAtualizandoStatusRapido] = useState(false);
-
-  const handleMudarStatusDireto = async (novoStatus: StatusManutencaoValor) => {
-    if (!manutencaoId || !manutencao) return;
-    try {
-      setAtualizandoStatusRapido(true);
-      await atualizarManutencao(manutencaoId, { status_manutencao: novoStatus } as any);
-      setManutencao((prev: any) => (prev ? { ...prev, status_manutencao: novoStatus } : null));
-      setStatusManutencao(novoStatus);
-    } catch (e) {
-      console.error("Erro ao atualizar status", e);
-    } finally {
-      setAtualizandoStatusRapido(false);
-    }
-  };
-
   // Estados do Modal de Edição
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -77,7 +60,6 @@ export default function ManutencaoDetalhe() {
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
   const [equipamentosEdit, setEquipamentosEdit] = useState<EquipamentoForm[]>([]);
-  const [statusManutencao, setStatusManutencao] = useState<StatusManutencaoValor | "">("aberta");
 
   // Listas auxiliares
   const [projetos, setProjetos] = useState<{ id_projeto: number; nome: string }[]>([]);
@@ -227,23 +209,14 @@ export default function ManutencaoDetalhe() {
                   icone: Clock,
                   rotulo: "Status",
                   valor: (
-                    <div className="relative inline-block w-full max-w-[160px]">
-                      <select
-                        value={(manutencao as any).status_manutencao || "aberta"}
-                        onChange={(e) => handleMudarStatusDireto(e.target.value as StatusManutencaoValor)}
-                        disabled={atualizandoStatusRapido}
-                        className="border-border bg-primary-muted text-primary w-full appearance-none rounded-lg px-3 py-1.5 pr-8 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
-                      >
-                        {Object.entries(STATUS_MANUTENCAO_LABEL).map(([val, label]) => (
-                          <option key={val} value={val} className="bg-bg text-text">
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-primary">
-                        <ChevronDown size={14} />
-                      </div>
-                    </div>
+                    <SeletorStatusManutencao
+                      manutencaoId={manutencao.id}
+                      manutencaoResumo={manutencao.resumo}
+                      status={manutencao.status_manutencao}
+                      onStatusChange={(status_manutencao) =>
+                        setManutencao((atual) => atual ? { ...atual, status_manutencao } : atual)
+                      }
+                    />
                   ),
                 },
                 {

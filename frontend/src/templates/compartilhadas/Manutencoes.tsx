@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 
-import { atualizarManutencao, getManutencoes } from "@/api";
+import { getManutencoes } from "@/api";
 import type { ManutencaoResumo } from "@/api";
 
 import { Selo, Ticket, TicketLinha } from "./Ticket";
@@ -12,10 +12,7 @@ import {
   STATUS_ITEM_CLASSE,
   STATUS_ITEM_LABEL,
 } from "./osEstilos";
-import {
-  STATUS_MANUTENCAO_LABEL,
-  type StatusManutencaoValor,
-} from "../compartilhadas/SeletorStatusManutencao";
+import SeletorStatusManutencao from "./SeletorStatusManutencao";
 
 export default function Manutencoes() {
   const navigate = useNavigate();
@@ -49,23 +46,6 @@ export default function Manutencoes() {
       ativo = false;
     };
   }, []);
-
-  // Função para atualizar o status diretamente no card
-  const handleMudarStatusCard = async (
-    id: string,
-    novoStatus: StatusManutencaoValor,
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    e.stopPropagation(); // Evita que o clique no select abra a página de detalhes
-    try {
-      await atualizarManutencao(id, { status_manutencao: novoStatus } as any);
-      setManutencoes((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, status_manutencao: novoStatus } : m))
-      );
-    } catch (error) {
-      console.error("Erro ao atualizar status da manutenção", error);
-    }
-  };
 
   return (
     <main className="page min-h-full p-5 md:p-8">
@@ -109,31 +89,18 @@ export default function Manutencoes() {
                     {PRIORIDADE_LABEL[manutencao.prioridade] ?? manutencao.prioridade}
                   </Selo>
                 </TicketLinha>
-                <div className="flex items-center py-1">
-                  <span className="text-text text-sm font-semibold mr-2">Status:</span>
-                  <div
-                    className="relative w-36"
-                    onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={manutencao.status_manutencao || "aberta"}
-                      onChange={(e) =>
-                        handleMudarStatusCard(
-                          manutencao.id,
-                          e.target.value as StatusManutencaoValor,
-                          e
-                        )
-                      }
-                      className="border-border bg-primary-muted text-primary w-full appearance-none rounded-lg px-2.5 py-1 text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer">
-                      {Object.entries(STATUS_MANUTENCAO_LABEL).map(([val, label]) => (
-                        <option key={val} value={val} className="bg-bg text-text">
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-primary">
-                      <ChevronDown size={12} />
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2 py-1">
+                  <span className="text-text mr-1 text-sm font-semibold">Status:</span>
+                  <SeletorStatusManutencao
+                    manutencaoId={manutencao.id}
+                    manutencaoResumo={manutencao.resumo}
+                    status={manutencao.status_manutencao}
+                    onStatusChange={(status_manutencao) =>
+                      setManutencoes((atuais) => atuais.map((item) =>
+                        item.id === manutencao.id ? { ...item, status_manutencao } : item,
+                      ))
+                    }
+                  />
                 </div>
               </Ticket>
             ))}

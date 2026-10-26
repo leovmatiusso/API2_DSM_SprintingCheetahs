@@ -4,7 +4,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
+import { SELECT_OS, filtroVisibilidadeOS, mapOS } from "./os_comum.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -17,7 +17,9 @@ const PERFIS_COM_ACESSO: Role[] = [
 ];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
+const STATUS_PROJETO = ["aberto", "em_andamento", "finalizado"] as const;
 type Prioridade = (typeof PRIORIDADES)[number];
+type StatusProjeto = (typeof STATUS_PROJETO)[number];
 
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
@@ -44,6 +46,7 @@ function dataValida(data: string): boolean {
 const SELECT_PROJETO = `
   SELECT p.projeto_id,
          p.nome,
+         p.status AS status_projeto,
          p.tipo_sistema,
          p.prioridade,
          p.descricao,
@@ -51,10 +54,7 @@ const SELECT_PROJETO = `
          resp.nome AS responsavel_nome,
          vend.nome AS vendedor_nome,
          DATE_FORMAT(p.data_assinatura_contrato, '%Y-%m-%d') AS data_assinatura_contrato,
-         DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato,
-         (SELECT COUNT(*) FROM os o WHERE o.projeto_id = p.projeto_id) AS total_os,
-         (SELECT COUNT(*) FROM os o
-           WHERE o.projeto_id = p.projeto_id AND o.os_status <> 'concluida') AS os_nao_concluidas
+         DATE_FORMAT(p.data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato
     FROM projetos p
     LEFT JOIN usuarios resp ON resp.id_usuario = p.responsavel_id
     LEFT JOIN usuarios vend ON vend.id_usuario = p.vendedor_id`;
@@ -66,8 +66,22 @@ function mapProjetoResumo(p: RowDataPacket) {
     prioridade: p.prioridade as string,
     responsavel: ((p.responsavel_nome ?? p.vendedor_nome) as string | null) ?? null,
     vendedor: (p.vendedor_nome as string | null) ?? null,
-    status: statusDoItem(Number(p.total_os), Number(p.os_nao_concluidas)),
+    status: (p.status_projeto as StatusProjeto | undefined) ?? "aberto",
   };
+}
+
+export async function ensureProjectStatusSchema(): Promise<void> {
+  const [columns] = await pool.query<RowDataPacket[]>("SHOW COLUMNS FROM projetos LIKE 'status'");
+  if (columns.length === 0) {
+    await pool.query(
+      "ALTER TABLE projetos ADD COLUMN status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto' AFTER projeto_id",
+    );
+    await pool.query(
+      `UPDATE projetos p SET status = 'em_andamento'
+        WHERE p.status = 'aberto'
+          AND EXISTS (SELECT 1 FROM os o WHERE o.projeto_id = p.projeto_id AND o.os_status = 'em andamento')`,
+    );
+  }
 }
 
 export function createProjetosRouter(requireRole: RequireRole): Router {
@@ -82,6 +96,36 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Não foi possível carregar os vendedores." });
+    }
+  });
+
+  router.patch("/:projetoId/status", requireRole("comercial"), async (req, res) => {
+    const projetoId = String(req.params.projetoId);
+    if (!/^\d+$/.test(projetoId)) {
+      return res.status(404).json({ message: "Projeto não encontrado." });
+    }
+
+    const status = (req.body ?? {}).status;
+    if (typeof status !== "string" || !STATUS_PROJETO.includes(status as StatusProjeto)) {
+      return res.status(400).json({ message: "Selecione um status de projeto válido." });
+    }
+
+    try {
+      const [result] = await pool.execute<ResultSetHeader>(
+        "UPDATE projetos SET status = ? WHERE projeto_id = ?",
+        [status, projetoId],
+      );
+      if (result.affectedRows === 0) {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
+          [projetoId],
+        );
+        if (!rows[0]) return res.status(404).json({ message: "Projeto não encontrado." });
+      }
+      return res.json({ message: "Status do projeto atualizado com sucesso." });
+    } catch (error) {
+      console.error("Erro ao atualizar status do projeto:", error);
+      return res.status(500).json({ message: "Não foi possível atualizar o status do projeto." });
     }
   });
 

@@ -335,6 +335,7 @@ export function createProjeto(data: ProjetoPayload): Promise<{
 }
 
 export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
+export type StatusProjeto = "aberto" | "em_andamento" | "finalizado";
 
 // Dados do ticket (listagem)
 export interface ProjetoResumo {
@@ -342,7 +343,7 @@ export interface ProjetoResumo {
   nome: string;
   prioridade: "baixa" | "media" | "alta" | "critica";
   responsavel: string | null;
-  status: StatusItem;
+  status: StatusProjeto;
 }
 
 // Dados da tela expandida
@@ -364,6 +365,13 @@ export function getProjetos(): Promise<{ projetos: ProjetoResumo[] }> {
 
 export function getProjeto(id: string): Promise<{ projeto: Projeto }> {
   return request(`/projetos/${encodeURIComponent(id)}`);
+}
+
+export function atualizarStatusProjeto(id: string, status: StatusProjeto): Promise<{ message: string }> {
+  return request(`/projetos/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 }
 
 export function abrirAnexoProjeto(

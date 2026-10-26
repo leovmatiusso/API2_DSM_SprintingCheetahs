@@ -142,6 +142,7 @@ CREATE TABLE projetos (
     vendedor_id INT NULL,
     tipo_sistema VARCHAR(100) NOT NULL,
     prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
+    status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto',
     descricao TEXT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_projeto_responsavel (responsavel_id),

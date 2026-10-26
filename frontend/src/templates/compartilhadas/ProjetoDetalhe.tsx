@@ -9,17 +9,20 @@ import {
   ScrollText,
   UserRound,
   UserRoundCog,
+  Clock,
   X,
 } from "lucide-react";
 
 import { abrirAnexoProjeto, atualizarProjeto, getProjeto, getVendedores } from "@/api";
 import type { Projeto, ProjetoAnexo } from "@/api";
+import { getCurrentUser } from "@/auth";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
 import DetalhePainel from "./DetalhePainel";
 import OrdensDoItem from "./OrdensDoItem";
+import SeletorStatusProjeto from "./SeletorStatusProjeto";
 import { PRIORIDADE_LABEL, formatarData } from "./osEstilos";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
@@ -31,6 +34,7 @@ const TIPOS_SISTEMA = ["Sistema de Torres", "Sistema de Embarcação", "Sistema 
 export default function ProjetoDetalhe() {
   const { projetoId } = useParams<{ projetoId: string }>();
   const navigate = useNavigate();
+  const podeAlterarStatus = getCurrentUser()?.role === "comercial";
 
   const [projeto, setProjeto] = useState<Projeto | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -198,35 +202,55 @@ export default function ProjetoDetalhe() {
             <DetalhePainel
               campos={[
                 {
+                  icone: Clock,
+                  rotulo: "Status do projeto",
+                  valor: (
+                    <SeletorStatusProjeto
+                      projetoId={projeto.id}
+                      projetoNome={projeto.nome}
+                      status={projeto.status}
+                      podeAlterar={podeAlterarStatus}
+                      onStatusChange={(status) => setProjeto((atual) => atual ? { ...atual, status } : atual)}
+                    />
+                  ),
+                },
+
+                {
                   icone: UserRoundCog,
                   rotulo: "Responsável",
                   valor: projeto.responsavel ?? "—",
                 },
+
                 {
                   icone: FileSignature,
                   rotulo: "Data de assinatura do contrato",
                   valor: formatarData(projeto.data_assinatura_contrato),
                 },
+
                 {
                   icone: UserRound,
                   rotulo: "Vendedor",
                   valor: projeto.vendedor ?? "—",
                 },
+
                 {
                   icone: ScrollText,
                   rotulo: "Data de vencimento do contrato",
                   valor: formatarData(projeto.data_vencimento_contrato),
                 },
+
                 {
                   icone: Calendar,
                   rotulo: "Data limite",
                   valor: formatarData(projeto.data_limite),
                 },
+
                 {
                   icone: MonitorCog,
                   rotulo: "Tipo do sistema",
                   valor: projeto.tipo_sistema,
                 },
+                
                 {
                   icone: ChartNoAxesCombined,
                   rotulo: "Prioridade",
