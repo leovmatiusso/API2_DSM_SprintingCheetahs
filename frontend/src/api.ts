@@ -597,7 +597,7 @@ export function atualizarOrdemServico(
     id_time_responsavel?: string | number;
     equipamentos?: { nome_equipamento: string; quantidade: number }[];
   }
-): Promise<{ message: string; ordem: OrdemServicoDetalhe }> {
+): Promise<{ message: string }> {
   return request(`/os/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(data),

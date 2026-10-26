@@ -483,6 +483,143 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     }
   });
 
+  // ---------------------------------------------------
+  // Edição dos dados de uma O.S. existente
+  // ---------------------------------------------------
+  router.put("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
+    const osId = String(req.params.osId);
+    const {
+      os_titulo,
+      os_descricao,
+      prioridade,
+      data_limite,
+      id_time_responsavel,
+      equipamentos,
+    } = (req.body ?? {}) as {
+      os_titulo?: string;
+      os_descricao?: string;
+      prioridade?: string;
+      data_limite?: string;
+      id_time_responsavel?: string | number;
+      equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
+    };
+
+    if (!/^\d+$/.test(osId)) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+    if (!os_titulo?.trim() || os_titulo.trim().length > 150) {
+      return res.status(400).json({ message: "Informe um título válido (até 150 caracteres)." });
+    }
+    if (!os_descricao?.trim() || os_descricao.trim().length > 5000) {
+      return res.status(400).json({ message: "Informe a descrição (até 5000 caracteres)." });
+    }
+    if (!prioridade || !PRIORIDADES.includes(prioridade.toLowerCase() as Prioridade)) {
+      return res.status(400).json({ message: "Prioridade inválida." });
+    }
+    if (!data_limite || !dataValida(data_limite)) {
+      return res.status(400).json({ message: "Informe um prazo válido." });
+    }
+    if (id_time_responsavel == null || !/^\d+$/.test(String(id_time_responsavel))) {
+      return res.status(400).json({ message: "Selecione um time responsável válido." });
+    }
+    if (equipamentos !== undefined && !Array.isArray(equipamentos)) {
+      return res.status(400).json({ message: "Equipamentos em formato inválido." });
+    }
+
+    const itens = new Map<string, { nome: string; quantidade: number }>();
+    for (const equipamento of equipamentos ?? []) {
+      const nome = equipamento?.nome_equipamento?.trim();
+      const quantidade = Number(equipamento?.quantidade);
+      if (!nome || nome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
+        return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
+      }
+      const key = nome.toLocaleLowerCase();
+      const existente = itens.get(key);
+      if (existente) existente.quantidade += quantidade;
+      else itens.set(key, { nome, quantidade });
+    }
+
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `${SELECT_OS} WHERE o.os_id = ? LIMIT 1`,
+        [osId],
+      );
+      const os = rows[0];
+      if (
+        !os ||
+        !podeAcessarOSNoFluxo(user, {
+          id_time_responsavel: os.id_time_responsavel as number | null,
+          projeto_id: os.projeto_id as number | null,
+          manutencao_id: os.manutencao_id as number | null,
+          os_status: os.os_status as string,
+          time_responsavel_id: os.time_responsavel_id as number | null,
+        })
+      ) {
+        return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        const [times] = await connection.execute<RowDataPacket[]>(
+          "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+          [String(id_time_responsavel)],
+        );
+        if (!times[0]) {
+          await connection.rollback();
+          return res.status(400).json({ message: "Time responsável inválido." });
+        }
+
+        await connection.execute(
+          `UPDATE os
+              SET os_titulo = ?, os_descricao = ?, prioridade = ?, data_limite = ?, id_time_responsavel = ?
+            WHERE os_id = ?`,
+          [
+            os_titulo.trim(),
+            os_descricao.trim(),
+            prioridade.toLowerCase(),
+            data_limite,
+            String(id_time_responsavel),
+            osId,
+          ],
+        );
+
+        if (equipamentos !== undefined) {
+          await connection.execute("DELETE FROM item_equipamento_os WHERE os_id = ?", [osId]);
+          for (const item of itens.values()) {
+            await connection.execute(
+              "INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)",
+              [item.nome],
+            );
+            const [equipamentosRows] = await connection.execute<RowDataPacket[]>(
+              "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
+              [item.nome],
+            );
+            const equipamentoId = equipamentosRows[0]?.equipamento_id;
+            if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
+            await connection.execute(
+              "INSERT INTO item_equipamento_os (os_id, equipamento_id, quantidade) VALUES (?, ?, ?)",
+              [osId, equipamentoId, item.quantidade],
+            );
+          }
+        }
+
+        await connection.commit();
+        return res.json({ message: "Ordem de serviço atualizada com sucesso." });
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error("Erro ao editar O.S.:", error);
+      return res.status(500).json({ message: "Não foi possível atualizar a ordem de serviço." });
+    }
+  });
+
   router.put("/:osId/status", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
