@@ -1,13 +1,12 @@
 import {
   BarChart3,
   ClipboardList,
-  FilePlus2,
   Home,
   Settings,
   Users,
-  UserRoundPlus,
+  User,
+  ListTodo,
   CirclePlus,
-  LayersPlus,
   Wrench,
 } from "lucide-react";
 
@@ -22,7 +21,7 @@ export const menuItems: SidebarItemConfig[] = [
 
   {
     label: "Usuários",
-    icon: Users,
+    icon: User,
     path: "/usuarios",
     roles: ["superusuario", "gestor"],
   },
@@ -36,37 +35,23 @@ export const menuItems: SidebarItemConfig[] = [
 
   {
     label: "Ordens disponíveis",
-    icon: ClipboardList,
+    icon: ListTodo,
     path: "/os/disponiveis",
-    roles: ["gestor"],
+    excludedRoles: ["superusuario"],
   },
 
   {
     label: "Projetos",
     icon: ClipboardList,
     path: "/projetos-totais",
-    roles: ["comercial"],
+    excludedRoles: ["superusuario", "suporte"],
   },
 
   {
     label: "Manutenções",
     icon: Wrench,
     path: "/manutencoes-totais",
-    roles: ["suporte"],
-  },
-
-  {
-    label: "Minhas O.S.",
-    icon: ClipboardList,
-    path: "/os/minhas",
-    roles: ["producao", "software", "implantacao"],
-  },
-
-  {
-    label: "Nova O.S.",
-    icon: FilePlus2,
-    path: "/os/nova-os",
-    roles: ["comercial"],
+    excludedRoles: ["superusuario", "comercial"],
   },
 
   {
@@ -74,13 +59,6 @@ export const menuItems: SidebarItemConfig[] = [
     icon: CirclePlus,
     path: "/novo-projeto",
     roles: ["comercial"],
-  },
-  
-  {
-    label: "Nova OS",
-    icon: FilePlus2,
-    path: "/os/nova-os",
-    roles: ["suporte"],
   },
 
   {
@@ -112,26 +90,18 @@ export const menuItems: SidebarItemConfig[] = [
   },
 
   {
+    label: "Execução",
+    icon: ClipboardList,
+    path: "/execucao/monitoramento",
+    roles: ["monitoramento"],
+  },
+
+  {
     label: "Relatórios",
     icon: BarChart3,
     path: "/relatorios",
     roles: ["gestor"],
   },
-
-  {
-    label: "Cadastrar",
-    icon: UserRoundPlus,
-    path: "/cadastro",
-    roles: ["superusuario", "gestor"],
-  },
-
-  {
-    label: "Cadastrar Times",
-    icon: UserRoundPlus,
-    path: "/cadastro-times",
-    roles: ["superusuario", "gestor"],
-  },
-
 
   {
     label: "Minha conta",

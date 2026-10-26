@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { UserRound } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -45,9 +46,21 @@ const roles: {
     value: "implantacao",
     label: "Implantação",
   },
+  {
+    value: "monitoramento",
+    label: "Monitoramento",
+  },
 ];
 
-export default function Cadastro() {
+interface CadastroProps {
+  onVoltar: () => void;
+  onCadastrado?: () => void | Promise<void>;
+}
+
+export default function Cadastro({
+  onVoltar,
+  onCadastrado,
+}: CadastroProps) {
   const navigate = useNavigate();
 
   const user = getCurrentUser();
@@ -96,13 +109,16 @@ export default function Cadastro() {
     });
   }
 
+  // Comercial e suporte não pertencem a times
+  const semTime = form.role === "comercial" || form.role === "suporte";
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     setError("");
     setMessage("");
 
-    if (!form.time_id) {
+    if (!semTime && !form.time_id) {
       setError("Selecione o time do usuário.");
 
       return;
@@ -114,7 +130,7 @@ export default function Cadastro() {
         email: form.email,
         password: form.password,
         role: form.role,
-        time_id: form.time_id,
+        time_id: semTime ? "" : form.time_id,
       });
 
       setMessage("Usuário cadastrado com sucesso.");
@@ -126,16 +142,30 @@ export default function Cadastro() {
         role: "comercial",
         time_id: "",
       });
+      await onCadastrado?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao cadastrar usuário.");
     }
   }
 
   return (
-    <main className="page">
+    <main className="page min-h-full p-5 md:p-8">
+      <div className="mx-auto w-full max-w-[1320px]">
+        <header className="mb-8 flex items-center gap-4">
+          <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+            <UserRound size={32} />
+          </div>
+          <div>
+            <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
+              Novo usuário
+            </h1>
+            <p className="text-text-muted m-0 text-sm md:text-base">
+              Cadastre um usuário e configure seu acesso ao sistema.
+            </p>
+          </div>
+        </header>
 
-      <section className="card content flex flex-col gap-5">
-        <h1>Novo usuário</h1>
+        <section className="card content flex flex-col gap-5">
 
         <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
           <Input
@@ -197,6 +227,7 @@ export default function Cadastro() {
             ))}
           </Select>
 
+          {!semTime && (
           <Select
             label={"Time do usuário"}
             value={form.time_id}
@@ -217,14 +248,15 @@ export default function Cadastro() {
               </option>
             ))}
           </Select>
+          )}
 
           <div className="col-span-full space-x-5">
             <Button type="submit" variant="primary" size="lg">
               Cadastrar
             </Button>
 
-            <Button type="button" variant="outline" size="lg" onClick={() => navigate("/usuarios")}>
-              Visualizar usuários
+            <Button type="button" variant="outline" size="lg" onClick={onVoltar}>
+              Voltar para usuários
             </Button>
           </div>
         </form>
@@ -233,6 +265,7 @@ export default function Cadastro() {
 
         {error && <div className="error">{error}</div>}
       </section>
+      </div>
     </main>
   );
 }

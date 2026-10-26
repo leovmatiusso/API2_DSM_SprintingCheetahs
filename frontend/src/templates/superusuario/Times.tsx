@@ -2,7 +2,6 @@ import "@/style/Usuarios.css";
 import "@/style/Times.css";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Check,
   ClipboardList,
@@ -22,6 +21,7 @@ import type { Role, Time, User } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import CadastroTimes from "../compartilhadas/CadastroTimes";
 
 const equipes: {
   value: Role;
@@ -33,10 +33,10 @@ const equipes: {
   { value: "producao", label: "Produção" },
   { value: "software", label: "Software" },
   { value: "implantacao", label: "Implantação" },
+  { value: "monitoramento", label: "Monitoramento" },
 ];
 
 export default function Times() {
-  const navigate = useNavigate();
   const currentUser = getCurrentUser();
 
   const isAllowed =
@@ -61,6 +61,7 @@ export default function Times() {
   const [departamento, setDepartamento] = useState("");
   const [responsavelId, setResponsavelId] = useState("");
   const [pessoasVinculadas, setPessoasVinculadas] = useState<string[]>([]);
+  const [mostrarTime, setMostrarTime] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -171,6 +172,11 @@ export default function Times() {
     return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
   }
 
+  // Comercial e suporte não pertencem a times
+  const usuariosElegiveis = users.filter(
+    (user) => user.role !== "comercial" && user.role !== "suporte",
+  );
+
   const filteredTimes = times.filter((time) => {
     const query = search.trim().toLowerCase();
     const matchesSearch =
@@ -213,6 +219,18 @@ export default function Times() {
     filteredTimes.length > 0 &&
     filteredTimes.every((time) => selectedTimes.includes(time.id));
 
+  if (mostrarTime) {
+    return (
+      <CadastroTimes
+        onVoltar={() => setMostrarTime(false)}
+        onCadastrado={async () => {
+          setMostrarTime(false);
+          await load();
+        }}
+      />
+    );
+  }
+
   return (
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
@@ -237,7 +255,7 @@ export default function Times() {
             type="button"
             variant="primary"
             size="lg"
-            onClick={() => navigate("/cadastro-times")}
+            onClick={() => setMostrarTime(true)}
           >
             <span className="flex items-center gap-2">
               <Plus size={19} />
@@ -272,7 +290,12 @@ export default function Times() {
                 required
               >
                 <option value="">Selecione uma equipe</option>
-                {equipes.map((equipe) => (
+                {equipes
+                  .filter(
+                    (equipe) =>
+                      equipe.value !== "comercial" && equipe.value !== "suporte",
+                  )
+                  .map((equipe) => (
                   <option key={equipe.value} value={equipe.value}>
                     {equipe.label}
                   </option>
@@ -286,7 +309,7 @@ export default function Times() {
                 required
               >
                 <option value="">Selecione um usuário</option>
-                {users.map((user) => (
+                {usuariosElegiveis.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} — {user.email}
                   </option>
@@ -299,7 +322,7 @@ export default function Times() {
                 onChange={(e) => adicionarPessoa(e.target.value)}
               >
                 <option value="">Adicionar usuário</option>
-                {users
+                {usuariosElegiveis
                   .filter((user) => !pessoasVinculadas.includes(user.id))
                   .map((user) => (
                     <option key={user.id} value={user.id}>
@@ -349,7 +372,7 @@ export default function Times() {
         )}
 
         {/* Listagem */}
-        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5 shadow-sm md:p-6">
+        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5  md:p-6">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="w-full md:max-w-[70%]">
               <Input
@@ -369,7 +392,12 @@ export default function Times() {
                 onChange={(e) => setDepartmentFilter(e.target.value)}
               >
                 <option value="">Selecione uma equipe</option>
-                {equipes.map((equipe) => (
+                {equipes
+                  .filter(
+                    (equipe) =>
+                      equipe.value !== "comercial" && equipe.value !== "suporte",
+                  )
+                  .map((equipe) => (
                   <option key={equipe.value} value={equipe.value}>
                     {equipe.label}
                   </option>

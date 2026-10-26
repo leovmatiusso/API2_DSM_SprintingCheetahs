@@ -10,6 +10,7 @@ Perfis:
 - Produção: atende O.S. atribuídas à produção.
 - Software: atende O.S. atribuídas ao software.
 - Implantação: atende O.S. atribuídas à implantação e anexa laudos.
+- Monitoramento: atende O.S. atribuídas ao monitoramento.
 
 IMPORTANTE
 A função não é mais escolhida na tela de login. O usuário informa apenas email e senha; o backend identifica o perfil pelo cadastro. Isso evita que alguém tente selecionar uma função de maior privilégio.
@@ -23,6 +24,7 @@ suporte@empresa.com      Suporte
 producao@empresa.com     Produção
 software@empresa.com     Software
 implantacao@empresa.com  Implantação
+monitoramento@empresa.com  Monitoramento
 
 SEM BANCO DE DADOS
 Os usuários e sessões ficam em memória para testes. Ao reiniciar o backend, alterações de usuários e senhas são perdidas.
