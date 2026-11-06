@@ -69,34 +69,6 @@ export const menuItems: SidebarItemConfig[] = [
   },
 
   {
-    label: "Execução",
-    icon: ClipboardList,
-    path: "/execucao/producao",
-    roles: ["producao"],
-  },
-
-  {
-    label: "Execução",
-    icon: ClipboardList,
-    path: "/execucao/software",
-    roles: ["software"],
-  },
-
-  {
-    label: "Execução",
-    icon: ClipboardList,
-    path: "/execucao/implantacao",
-    roles: ["implantacao"],
-  },
-
-  {
-    label: "Execução",
-    icon: ClipboardList,
-    path: "/execucao/monitoramento",
-    roles: ["monitoramento"],
-  },
-
-  {
     label: "Relatórios",
     icon: BarChart3,
     path: "/relatorios",
