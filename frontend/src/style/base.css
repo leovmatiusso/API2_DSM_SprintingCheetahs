@@ -32,10 +32,6 @@ body {
   color: var(--color-text);
 }
 
-.card {
-  @apply bg-bg rounded-xl p-7 ring-1 ring-border;
-}
-
 .page {
   min-height: 100vh;
 

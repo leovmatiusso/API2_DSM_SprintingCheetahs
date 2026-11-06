@@ -116,7 +116,7 @@ export default function Header() {
         <button
           type="button"
           onClick={() => setMenuAberto(!menuAberto)}
-          className="hover:bg-bg-tertiary flex items-center gap-2 rounded-lg px-3 py-2 transition"
+          className="hover:bg-bg-tertiary flex items-center gap-2 rounded-xl p-2 transition cursor-pointer"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-purple-700">
             <User size={18} />

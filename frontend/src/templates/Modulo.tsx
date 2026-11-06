@@ -2,6 +2,7 @@ import "@/style/Modulo.css";
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser, logout } from "@/auth";
 import Button from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 export interface ModuloProps {
   title: string;
@@ -25,7 +26,7 @@ export default function Modulo({
   }
   return (
     <main className={`page ${pageClassName}`.trim()}>
-      <section className="card content">
+      <Card className="content">
         <div className="module-heading">
           <div>
             <p className="eyebrow">Navegação / protótipo</p>
@@ -50,7 +51,7 @@ export default function Modulo({
           Esta versão serve como base visual e de navegação. As operações reais serão implementadas
           nas próximas etapas.
         </div>
-      </section>
+      </Card>
     </main>
   );
 }

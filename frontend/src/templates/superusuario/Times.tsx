@@ -21,6 +21,7 @@ import type { Role, Time, User } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import { Card } from "@/components/ui/Card";
 import CadastroTimes from "../compartilhadas/CadastroTimes";
 
 const equipes: {
@@ -269,7 +270,7 @@ export default function Times() {
 
         {/* Formulário de edição */}
         {editing && (
-          <section className="card content mb-6">
+          <Card className="content mb-6">
             <h2 className="text-text mb-5 text-xl font-bold">Editar time</h2>
 
             <form
@@ -368,7 +369,7 @@ export default function Times() {
                 </Button>
               </div>
             </form>
-          </section>
+          </Card>
         )}
 
         {/* Listagem */}

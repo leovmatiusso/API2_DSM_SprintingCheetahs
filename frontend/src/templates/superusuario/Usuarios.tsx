@@ -24,6 +24,7 @@ import type { Role, User } from "@/types";
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import Cadastro from "../compartilhadas/Cadastro";
 
 const roles: {
@@ -268,7 +269,7 @@ export default function Usuarios() {
 
         {/* Formulário de edição */}
         {editing && (
-          <section className="card content mb-6">
+          <Card className="content mb-6">
             <h2 className="text-text mb-5 text-xl font-bold">Editar usuário</h2>
 
             <form
@@ -327,7 +328,7 @@ export default function Usuarios() {
                 </Button>
               </div>
             </form>
-          </section>
+          </Card>
         )}
 
         {/* Listagem */}
