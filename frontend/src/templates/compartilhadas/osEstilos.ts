@@ -21,7 +21,21 @@ export const STATUS_LABEL: Record<OrdemServicoResumo["status"], string> = {
   teste: "Teste",
   bloqueado: "Bloqueado",
   review: "Review",
+  verificacao: "Verificação",
 };
+
+// Para onde o usuário vai depois de concluir uma O.S.
+// Trocar pela rota da aba de histórico quando ela existir.
+export const ROTA_APOS_CONCLUIR_OS = "/os/disponiveis";
+
+export function isTimeSoftware(departamento: string | null | undefined): boolean {
+  return (departamento ?? "").toLowerCase().includes("software");
+}
+
+// Nenhuma O.S. pode ser atribuída ao monitoramento, que apenas verifica as O.S. de outros times.
+export function isTimeMonitoramento(departamento: string | null | undefined): boolean {
+  return (departamento ?? "").toLowerCase().includes("monitoramento");
+}
 
 export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
   aberta: "bg-bg-tertiary text-text-muted",
@@ -30,6 +44,7 @@ export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
   teste: "bg-orange-300/30 text-orange-950",
   bloqueado: "bg-danger-alt text-danger-alt-inverted",
   review: "bg-warning-alt text-warning-alt-inverted",
+  verificacao: "bg-laranja-alt text-laranja-alt-inverted",
 };
 
 // Status de projeto/manutenção (derivado das O.S.)

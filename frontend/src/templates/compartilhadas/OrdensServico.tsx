@@ -42,8 +42,13 @@ export default function OrdensServico() {
   const ordensParaRevisar = ordens.filter(
     (os) => os.status === "review" && os.time?.responsavel_id === currentUser?.id,
   );
-  const idsEmRevisao = new Set(ordensParaRevisar.map((os) => os.id));
-  const outrasOrdens = ordens.filter((os) => !idsEmRevisao.has(os.id));
+  const ordensParaVerificar = ordens.filter(
+    (os) => os.status === "verificacao" && currentUser?.role === "monitoramento",
+  );
+  const idsEmDestaque = new Set(
+    [...ordensParaRevisar, ...ordensParaVerificar].map((os) => os.id),
+  );
+  const outrasOrdens = ordens.filter((os) => !idsEmDestaque.has(os.id));
 
   async function recarregarOrdens() {
     try {
@@ -81,6 +86,24 @@ export default function OrdensServico() {
           <p className="text-text-muted text-sm">Nenhuma ordem de serviço disponível.</p>
         ) : (
           <div className="space-y-9">
+            {ordensParaVerificar.length > 0 && (
+              <section aria-labelledby="ordens-para-verificar">
+                <div className="mb-4 flex items-center gap-3">
+                  <h2 id="ordens-para-verificar" className="text-text m-0 text-lg font-bold">
+                    OS aguardando verificação
+                  </h2>
+                  <span className="bg-laranja-alt text-laranja-alt-inverted rounded-full px-2 py-0.5 text-xs font-semibold">
+                    {ordensParaVerificar.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  {ordensParaVerificar.map((os) => (
+                    <OrdemTicket key={os.id} os={os} onStatusChange={recarregarOrdens} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {ordensParaRevisar.length > 0 && (
               <section aria-labelledby="ordens-para-revisar">
                 <div className="mb-4 flex items-center gap-3">
@@ -101,7 +124,7 @@ export default function OrdensServico() {
 
             {outrasOrdens.length > 0 && (
               <section aria-labelledby="ordens-disponiveis">
-                {ordensParaRevisar.length > 0 && (
+                {idsEmDestaque.size > 0 && (
                   <h2 id="ordens-disponiveis" className="text-text mb-4 mt-0 text-lg font-bold">
                     Outras OS disponíveis
                   </h2>

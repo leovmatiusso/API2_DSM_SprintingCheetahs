@@ -5,6 +5,16 @@ const API_URL = (
   import.meta.env.VITE_API_URL ?? "http://localhost:3001/api"
 ).replace(/\/$/, "");
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -42,7 +52,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new Error(data?.message ?? "Erro na requisição.");
+    throw new ApiError(data?.message ?? "Erro na requisição.", response.status);
   }
 
   return data as T;
@@ -497,7 +507,8 @@ export type OrdemStatus =
   | "concluida"
   | "teste"
   | "bloqueado"
-  | "review";
+  | "review"
+  | "verificacao";
 
 export interface OrdemServicoResumo {
   id: string;
@@ -525,6 +536,11 @@ export interface OrdemServicoDetalhe extends OrdemServicoResumo {
   pedido_pai: PedidoPai | null;
   equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
+  ultima_reprovacao: {
+    justificativa: string;
+    usuario: string | null;
+    data: string;
+  } | null;
 }
 
 export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
@@ -584,6 +600,17 @@ export function atualizarStatusOS(
   return request(`/os/${encodeURIComponent(id)}/status`, {
     method: "PUT",
     body: JSON.stringify({ os_status: status }),
+  });
+}
+
+export function registrarVerificacaoOS(
+  id: number | string,
+  resultado: "aprovada" | "reprovada",
+  justificativa?: string,
+): Promise<{ message: string; os: { id: string; status: OrdemStatus } }> {
+  return request(`/os/${encodeURIComponent(id)}/verificacao`, {
+    method: "POST",
+    body: JSON.stringify({ resultado, justificativa }),
   });
 }
 
