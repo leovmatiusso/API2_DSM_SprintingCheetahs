@@ -11,6 +11,7 @@ CREATE DATABASE IF NOT EXISTS API2
 USE API2;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS os_verificacoes;
 DROP TABLE IF EXISTS item_equipamento_manutencao;
 DROP TABLE IF EXISTS item_equipamento_projeto;
 DROP TABLE IF EXISTS item_equipamento_os;
@@ -103,7 +104,8 @@ CREATE TABLE os (
         'concluida',
         'teste',
         'bloqueado',
-        'review'
+        'review',
+        'verificacao'
     ) NOT NULL DEFAULT 'aberta',
     prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
     data_limite DATE NOT NULL,
@@ -324,6 +326,30 @@ CREATE TABLE notificacao_leituras (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 ) ;
+
+-- =====================================================
+-- VERIFICAÇÕES DE O.S. (decisões da equipe de monitoramento)
+-- Uma O.S. pode ser reprovada várias vezes: cada decisão gera uma linha.
+-- justificativa é obrigatória (validada no backend) quando resultado = 'reprovada'.
+-- =====================================================
+
+CREATE TABLE os_verificacoes (
+    verificacao_id INT PRIMARY KEY AUTO_INCREMENT,
+    os_id INT NOT NULL,
+    resultado ENUM('aprovada', 'reprovada') NOT NULL,
+    justificativa TEXT NULL,
+    usuario_id INT NULL,
+    data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_os_verificacoes_os (os_id, data_criacao),
+    CONSTRAINT fk_verificacao_os
+        FOREIGN KEY (os_id) REFERENCES os(os_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_verificacao_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
 -- =====================================================
 -- DADOS INICIAIS PARA DESENVOLVIMENTO/TESTE

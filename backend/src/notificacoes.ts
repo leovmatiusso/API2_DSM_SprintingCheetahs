@@ -195,6 +195,46 @@ export function buildOSStatusEventMessage(
   return `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong> ${acao} pelo time <strong>${escapeNotificationHtml(timeNome)}</strong>, por <strong>${escapeNotificationHtml(usuarioNome)}</strong>, em ${escapeNotificationHtml(dataEvento)}.`;
 }
 
+export function buildOSEncaminhadaMessage(
+  osId: number | string,
+  osTitulo: string,
+  timeAnterior: string,
+  timeNovo: string,
+  usuarioNome: string,
+): string {
+  return `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong> foi encaminhada do time <strong>${escapeNotificationHtml(timeAnterior)}</strong> para o time <strong>${escapeNotificationHtml(timeNovo)}</strong> por <strong>${escapeNotificationHtml(usuarioNome)}</strong>.`;
+}
+
+export function buildOSAguardandoVerificacaoMessage(
+  osId: number | string,
+  osTitulo: string,
+  timeNome: string,
+  usuarioNome: string,
+): string {
+  return `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong> do time <strong>${escapeNotificationHtml(timeNome)}</strong> foi enviada para verificação por <strong>${escapeNotificationHtml(usuarioNome)}</strong>.`;
+}
+
+// O motivo fica dentro de <strong> e em uma só linha porque o NotificationMessage só
+// decodifica (e reconhece) o conteúdo escapado nesse trecho.
+export function buildOSVerificacaoMessage(
+  osId: number | string,
+  osTitulo: string,
+  resultado: "aprovada" | "reprovada",
+  usuarioNome: string,
+  dataEvento: string,
+  justificativa?: string | null,
+): string {
+  const os = `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong>`;
+  const autor = `<strong>${escapeNotificationHtml(usuarioNome)}</strong> (Monitoramento), em ${escapeNotificationHtml(dataEvento)}`;
+
+  if (resultado === "aprovada") {
+    return `${os} foi aprovada na verificação e concluída por ${autor}.`;
+  }
+
+  const motivo = escapeNotificationHtml((justificativa ?? "").replace(/\s+/g, " ").trim());
+  return `${os} foi reprovada na verificação por ${autor}. Motivo: <strong>${motivo}</strong>`;
+}
+
 export function buildMaintenanceCreatedNotificationMessage(
   resumo: string,
   manutencaoId: number | string,
@@ -244,13 +284,15 @@ export async function createNotificationsForTime(
   payload: {
     titulo: string;
     mensagem: string;
-    timeId: number | string;
+    timeId: number | string | null;
     osId?: number | string | null;
     projetoId?: number | string | null;
     manutencaoId?: number | string | null;
     usuarioOrigemId?: number | string | null;
     incluirUsuarioOrigemComoDestino?: boolean;
     incluirResponsavelDoTimeComoDestino?: boolean;
+    // Usuários de fora do time que também devem ser avisados (repetidos e inativos são ignorados).
+    usuariosDestinoExtras?: Array<number | string | null | undefined>;
   },
 ): Promise<number> {
   await ensureNotificationSchema();
@@ -291,6 +333,22 @@ export async function createNotificationsForTime(
       );
       if (origemAtiva[0]) destinatarios.push(origemAtiva[0]);
     }
+  }
+
+  const extras = [
+    ...new Set(
+      (payload.usuariosDestinoExtras ?? [])
+        .filter((id) => id !== null && id !== undefined)
+        .map(String),
+    ),
+  ].filter((id) => !destinatarios.some((destinatario) => String(destinatario.id_usuario) === id));
+  if (extras.length) {
+    const [extrasAtivos] = await connection.execute<RowDataPacket[]>(
+      `SELECT id_usuario FROM usuarios
+        WHERE ativo = TRUE AND id_usuario IN (${extras.map(() => "?").join(", ")})`,
+      extras,
+    );
+    destinatarios.push(...extrasAtivos);
   }
 
   if (!destinatarios.length) {

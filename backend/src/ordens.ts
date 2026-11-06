@@ -4,13 +4,16 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { validarTransicaoOS } from "./os_fluxo.js";
+import { isTimeMonitoramento, isTimeSoftware, validarTransicaoOS } from "./os_fluxo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
+  buildOSAguardandoVerificacaoMessage,
   buildOSCreatedNotificationMessage,
   buildOSCreatedNotificationTitle,
+  buildOSEncaminhadaMessage,
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
+  buildOSVerificacaoMessage,
   buildStatusNotificationMessage,
   createNotificationsForTime,
   shouldCreateStatusNotification,
@@ -27,7 +30,7 @@ const PERFIS_COM_ACESSO: Role[] = [
 ];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
-const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review"] as const;
+const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review", "verificacao"] as const;
 type Prioridade = (typeof PRIORIDADES)[number];
 type StatusOS = (typeof STATUS_OS)[number];
 
@@ -52,7 +55,10 @@ function podeAcessarOSNoFluxo(
 ): boolean {
   return (
     podeVerOS(user, os) ||
-    ((os.os_status === "review" || os.os_status === "bloqueado") && isResponsavelDoTime(user, os))
+    ((os.os_status === "review" || os.os_status === "bloqueado" || os.os_status === "verificacao") &&
+      isResponsavelDoTime(user, os)) ||
+    // O monitoramento enxerga a O.S. de outro time apenas enquanto ela aguarda a sua verificação.
+    (os.os_status === "verificacao" && user.role === "monitoramento")
   );
 }
 
@@ -121,10 +127,12 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
 
     try {
       const filtro = filtroVisibilidadeOS(user);
+      const emVerificacao = user.role === "monitoramento" ? "OR o.os_status = 'verificacao'" : "";
       const [rows] = await pool.execute<RowDataPacket[]>(
         `${SELECT_OS}
           WHERE (${filtro.sql})
-             OR (o.os_status IN ('review', 'bloqueado') AND t.responsavel_id = ?)
+             OR (o.os_status IN ('review', 'bloqueado', 'verificacao') AND t.responsavel_id = ?)
+             ${emVerificacao}
           ORDER BY o.data_criacao DESC, o.os_id DESC`,
         [...filtro.params, Number(user.id)],
       );
@@ -164,8 +172,31 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           time_responsavel_id: os.time_responsavel_id as number | null,
         })
       ) {
+        // Depois da decisão, a O.S. sai da visão do monitoramento. O 410 permite à tela
+        // redirecionar com um aviso, em vez de mostrar erro (ex.: notificação antiga).
+        if (os && user.role === "monitoramento") {
+          const [decisoes] = await pool.execute<RowDataPacket[]>(
+            "SELECT 1 FROM os_verificacoes WHERE os_id = ? LIMIT 1",
+            [osId],
+          );
+          if (decisoes.length) {
+            return res.status(410).json({ message: "Esta O.S. já foi verificada." });
+          }
+        }
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
+
+      const [verificacoes] = await pool.execute<RowDataPacket[]>(
+        `SELECT v.resultado, v.justificativa, u.nome AS usuario_nome,
+                DATE_FORMAT(v.data_criacao, '%d/%m/%Y %H:%i') AS data_verificacao
+           FROM os_verificacoes v
+           LEFT JOIN usuarios u ON u.id_usuario = v.usuario_id
+          WHERE v.os_id = ?
+          ORDER BY v.data_criacao DESC, v.verificacao_id DESC
+          LIMIT 1`,
+        [os.os_id],
+      );
+      const ultimaVerificacao = verificacoes[0];
 
       const [equipamentos] = await pool.execute<RowDataPacket[]>(
         `SELECT e.nome_equipamento, i.quantidade
@@ -226,6 +257,14 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         ordem: {
           ...mapOS(os),
           pedido_pai: pedidoPai,
+          ultima_reprovacao:
+            ultimaVerificacao?.resultado === "reprovada"
+              ? {
+                  justificativa: (ultimaVerificacao.justificativa as string | null) ?? "",
+                  usuario: (ultimaVerificacao.usuario_nome as string | null) ?? null,
+                  data: ultimaVerificacao.data_verificacao as string,
+                }
+              : null,
           equipamentos: equipamentos.map((e) => ({
             nome: e.nome_equipamento as string,
             quantidade: Number(e.quantidade),
@@ -360,11 +399,14 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       }
 
       const [times] = await pool.execute<RowDataPacket[]>(
-        "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+        "SELECT id_time, departamento FROM time WHERE id_time = ? LIMIT 1",
         [String(id_time_responsavel)],
       );
       const time = times[0];
       if (!time) return res.status(400).json({ message: "Time responsável inválido." });
+      if (isTimeMonitoramento(time.departamento as string | null)) {
+        return res.status(400).json({ message: "Uma O.S. não pode ser atribuída ao time de monitoramento." });
+      }
 
       const itens = new Map<string, { nome: string; quantidade: number }>();
       for (const equipamento of equipamentos) {
@@ -559,17 +601,25 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
 
+      if (os.os_status === "verificacao") {
+        return res.status(409).json({ message: "A O.S. não pode ser editada durante a verificação." });
+      }
+
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
 
         const [times] = await connection.execute<RowDataPacket[]>(
-          "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+          "SELECT id_time, nome_time, departamento FROM time WHERE id_time = ? LIMIT 1",
           [String(id_time_responsavel)],
         );
         if (!times[0]) {
           await connection.rollback();
           return res.status(400).json({ message: "Time responsável inválido." });
+        }
+        if (isTimeMonitoramento(times[0].departamento as string | null)) {
+          await connection.rollback();
+          return res.status(400).json({ message: "Uma O.S. não pode ser atribuída ao time de monitoramento." });
         }
 
         await connection.execute(
@@ -606,8 +656,27 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           }
         }
 
+        // Ao mudar de time, a O.S. sai do time atual e o novo time é avisado.
+        const encaminhada = String(os.id_time_responsavel ?? "") !== String(id_time_responsavel);
+        if (encaminhada) {
+          await createNotificationsForTime(connection, {
+            titulo: "O.S. encaminhada para o seu time",
+            mensagem: buildOSEncaminhadaMessage(
+              osId,
+              os_titulo.trim(),
+              (os.nome_time as string | null) ?? "sem time",
+              times[0].nome_time as string,
+              user.name,
+            ),
+            timeId: String(id_time_responsavel),
+            osId,
+            usuarioOrigemId: user.id,
+            incluirResponsavelDoTimeComoDestino: true,
+          });
+        }
+
         await connection.commit();
-        return res.json({ message: "Ordem de serviço atualizada com sucesso." });
+        return res.json({ message: "Ordem de serviço atualizada com sucesso.", encaminhada });
       } catch (error) {
         await connection.rollback();
         throw error;
@@ -636,7 +705,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
-          o.projeto_id, o.manutencao_id, t.nome_time,
+          o.projeto_id, o.manutencao_id, t.nome_time, t.departamento,
           t.responsavel_id AS time_responsavel_id
            FROM os o
            LEFT JOIN time t ON t.id_time = o.id_time_responsavel
@@ -669,7 +738,12 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           message: "Cadastre o responsável do time antes de enviar esta O.S. para Review.",
         });
       }
-      const erroTransicao = validarTransicaoOS(statusAtual, statusNovo as StatusOS, responsavelDoTime);
+      const erroTransicao = validarTransicaoOS(
+        statusAtual,
+        statusNovo as StatusOS,
+        responsavelDoTime,
+        isTimeSoftware(os.departamento as string | null),
+      );
       if (erroTransicao) {
         return res.status(erroTransicao.status).json({ message: erroTransicao.message });
       }
@@ -717,9 +791,27 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           );
         }
 
+        // Ao entrar em verificação, a equipe de monitoramento também é avisada.
+        let usuariosMonitoramento: number[] = [];
+        if (statusNovo === "verificacao") {
+          mensagem = buildOSAguardandoVerificacaoMessage(
+            os.os_id as number,
+            os.os_titulo as string,
+            (os.nome_time as string | undefined) ?? "time responsável",
+            user.name,
+          );
+          const [monitoramento] = await connection.execute<RowDataPacket[]>(
+            "SELECT id_usuario FROM usuarios WHERE cargo = 'monitoramento' AND ativo = TRUE",
+          );
+          usuariosMonitoramento = monitoramento.map((row) => Number(row.id_usuario));
+        }
+
         await createNotificationsForTime(connection, {
+          usuariosDestinoExtras: usuariosMonitoramento,
           titulo:
-            statusNovo === "review"
+            statusNovo === "verificacao"
+              ? "O.S. aguardando verificação"
+              : statusNovo === "review"
               ? "O.S. aguardando revisão"
               : statusNovo === "teste" && statusAtual === "bloqueado"
                 ? "O.S. liberada para Teste"
@@ -748,6 +840,121 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     } catch (error) {
       console.error("Erro ao atualizar status da O.S.:", error);
       return res.status(500).json({ message: "Não foi possível atualizar o status da ordem de serviço." });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Verificação pelo monitoramento
+  // aprovada: conclui a O.S. | reprovada: bloqueia e devolve ao time de software.
+  // A O.S. nunca muda de time: o time responsável continua sendo o que a executou.
+  // ---------------------------------------------------
+  router.post("/:osId/verificacao", requireRole("monitoramento"), async (req, res) => {
+    const user = res.locals.user as User;
+    const osId = String(req.params.osId);
+    const { resultado, justificativa } = (req.body ?? {}) as {
+      resultado?: unknown;
+      justificativa?: unknown;
+    };
+
+    if (!/^\d+$/.test(osId)) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+    if (resultado !== "aprovada" && resultado !== "reprovada") {
+      return res.status(400).json({ message: "Informe se a verificação foi aprovada ou reprovada." });
+    }
+
+    const motivo = typeof justificativa === "string" ? justificativa.trim() : "";
+    if (resultado === "reprovada" && !motivo) {
+      return res.status(400).json({ message: "O motivo do bloqueio é obrigatório" });
+    }
+    if (motivo.length > 5000) {
+      return res.status(400).json({ message: "O motivo pode ter até 5000 caracteres." });
+    }
+
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
+                m.responsavel_id AS manutencao_responsavel_id,
+                COALESCE(p.vendedor_id, p.responsavel_id) AS projeto_responsavel_id
+           FROM os o
+           LEFT JOIN manutencoes m ON m.manutencao_id = o.manutencao_id
+           LEFT JOIN projetos p ON p.projeto_id = o.projeto_id
+          WHERE o.os_id = ?
+          LIMIT 1`,
+        [osId],
+      );
+
+      const os = rows[0];
+      if (!os) {
+        return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+      if (os.os_status !== "verificacao") {
+        return res.status(409).json({ message: "Esta O.S. já foi verificada." });
+      }
+
+      const statusNovo = resultado === "aprovada" ? "concluida" : "bloqueado";
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        // A condição de status evita duas decisões simultâneas sobre a mesma O.S.
+        const [updateResult] = await connection.execute<ResultSetHeader>(
+          "UPDATE os SET os_status = ? WHERE os_id = ? AND os_status = 'verificacao'",
+          [statusNovo, osId],
+        );
+        if (!updateResult.affectedRows) {
+          await connection.rollback();
+          return res.status(409).json({ message: "Esta O.S. já foi verificada." });
+        }
+
+        await connection.execute(
+          `INSERT INTO os_verificacoes (os_id, resultado, justificativa, usuario_id)
+           VALUES (?, ?, ?, ?)`,
+          [osId, resultado, resultado === "reprovada" ? motivo : null, user.id],
+        );
+
+        const [eventRows] = await connection.execute<RowDataPacket[]>(
+          "SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%d/%m/%Y %H:%i:%s') AS data_evento",
+        );
+
+        await createNotificationsForTime(connection, {
+          titulo: buildOSStatusNotificationTitle(statusNovo),
+          mensagem: buildOSVerificacaoMessage(
+            os.os_id as number,
+            os.os_titulo as string,
+            resultado,
+            user.name,
+            (eventRows[0]?.data_evento as string | undefined) ?? "data não informada",
+            motivo,
+          ),
+          timeId: os.id_time_responsavel as number | null,
+          osId: os.os_id as number,
+          usuarioOrigemId: user.id,
+          incluirResponsavelDoTimeComoDestino: true,
+          usuariosDestinoExtras: [
+            os.manutencao_responsavel_id as number | null,
+            os.projeto_responsavel_id as number | null,
+          ],
+        });
+
+        await connection.commit();
+        return res.json({
+          message:
+            resultado === "aprovada"
+              ? "Verificação aprovada. A O.S. foi concluída."
+              : "Verificação reprovada. A O.S. voltou para a equipe de software.",
+          os: { id: String(os.os_id), status: statusNovo },
+        });
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error("Erro ao registrar verificação da O.S.:", error);
+      return res.status(500).json({ message: "Não foi possível registrar a verificação da ordem de serviço." });
     }
   });
 
