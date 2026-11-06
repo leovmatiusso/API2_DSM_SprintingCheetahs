@@ -103,12 +103,12 @@
 | 15             | Como equipe de produção, software, monitoramento ou implantação quero ser notificado quando uma OS for atribuída a mim, para que eu comece a desenvolve-la o quanto antes                                               | Should     | 8          | E5    | 2      |
 | 16             | Como gestor, quero ser notificado quando um novo projeto ou nova manutenção for criada, para que eu sempre fique ciente do que está acontecendo e possa gerenciar conforme o necessário                                 | Should     | 3          | E5    | 2      |
 | 17             | Como suporte ou equipe comercial, quero ser notificado quando uma OS for concluída ou bloqueada, para que eu possa dar continuidade ao fluxo de trabalho para a próxima equipe                                          | Could      | 5          | E5    | 2      |
-| 18             | Como usuário, quero um filtro no qual apareça as OS por status ou por prioridade, para que eu consiga agir antes que surja um problema                                                                                  | Must       | 5          | E4    | 3      |
-| 19             | Como equipe (produção, software, monitoramento ou implantação) ou gestor, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                      | Must       | 3          | E4    | 3      |
+| 18<sup>★</sup> | Como usuário, quero um filtro no qual apareça as OS por status ou por prioridade, para que eu consiga agir antes que surja um problema                                                                                  | Must       | 5          | E4    | 3      |
+| 19<sup>★</sup> | Como equipe (produção, software, monitoramento ou implantação) ou gestor, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                      | Must       | 3          | E4    | 3      |
 | 20             | Como equipe de produção, software, monitoramento ou implantação, quero receber notificação quando houver mudança relevante na minha OS, para que eu me mantenha atualizado sem precisar checar o sistema o tempo todo   | Could      | 3          | E5    | 3      |
 | 21             | Como equipe de produção, software, monitoramento ou implantação, quero ser notificado quando uma OS crítica for aberta, para que eu reaja rapidamente a casos urgentes                                                  | Could      | 2          | E5    | 3      |
 | 22             | Como usuário, quero ver o histórico completo de uma OS (status, responsáveis, prazos), para que eu tenha rastreabilidade e clareza sobre o que já ocorreu                                                               | Should     | 5          | E6    | 3      |
-| 23             | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                         | Should     | 13         | E6    | 3      |
+| 23<sup>★</sup> | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                         | Should     | 13         | E6    | 3      |
 | 24             | Como equipe de monitoramento, quero aprovar ou reprovar a verificação de uma OS, para que a OS seja encerrada (se aprovada) ou volte para a equipe de software (se reprovada)                                           | Should     | 3          | E7    | 3      |
 | 25             | Como equipe de monitoramento, quero poder anexar relatórios em PDF do resultado dos testes, para que a próxima equipe responsável saiba o que fazer                                                                     | Should     | 3          | E7    | 3      |
 
@@ -153,7 +153,7 @@ O projeto está dividido em três Sprints, seguindo a metodologia ágil Scrum. O
 | :---: | :---: | :---: | :---: |
 | **01** | 07/09 à 27/09 | [📄 Acessar](docs/mvp/mvp-sprint1.md) | ✔️ |
 | **02** | 05/10 à 25/10 | [📄 Acessar](docs/mvp/mvp-sprint2.md) | ✔️ |
-| **03** | 02/11 à 22/11 | - | 📅 |
+| **03** | 02/11 à 22/11 | [📄 Acessar](docs/mvp/mvp-sprint3.md) | 🕒 |
 
 ## Contribuição
 
