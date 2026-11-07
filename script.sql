@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS equipamentos;
 DROP TABLE IF EXISTS notificacao_leituras;
 DROP TABLE IF EXISTS notificacoes;
+DROP TABLE IF EXISTS historico;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================
@@ -324,6 +325,57 @@ CREATE TABLE notificacao_leituras (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 ) ;
+
+CREATE TABLE historico (
+    historico_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    tipo_acao ENUM(
+        'criado',
+        'atualizado',
+        'deletado'
+    ) NOT NULL,
+    os_id INT NOT NULL,
+    id_time_responsavel INT NULL,
+    os_titulo VARCHAR(150) NOT NULL,
+    os_status ENUM(
+        'aberta',
+        'em andamento',
+        'concluida',
+        'teste',
+        'bloqueado',
+        'review'
+    ) NOT NULL DEFAULT 'aberta',
+    data_limite DATE NOT NULL,
+
+    FOREIGN KEY (id_time_responsavel) REFERENCES time(id_time)
+);
+
+DELIMITER //
+
+CREATE TRIGGER trg_insert_os 
+    AFTER INSERT ON os
+    FOR EACH ROW
+    BEGIN
+        INSERT INTO historico(os_id, id_time_responsavel, os_titulo, os_status, data_limite, tipo_acao)
+        VALUES (new.os_id, new.id_time_responsavel, new.os_titulo, new.os_status, new.data_limite, 'criado');
+    END //
+
+CREATE TRIGGER trg_update_os 
+    AFTER UPDATE ON os
+    FOR EACH ROW
+    BEGIN
+        INSERT INTO historico(os_id, id_time_responsavel, os_titulo, os_status, data_limite, tipo_acao)
+        VALUES (new.os_id, new.id_time_responsavel, new.os_titulo, new.os_status, new.data_limite, 'atualizado');
+    END //
+
+CREATE TRIGGER trg_delete_os 
+    AFTER DELETE ON os
+    FOR EACH ROW
+    BEGIN
+        INSERT INTO historico(os_id, id_time_responsavel, os_titulo, os_status, data_limite, tipo_acao)
+        VALUES (old.os_id, old.id_time_responsavel, old.os_titulo, old.os_status, old.data_limite, 'deletado');
+    END //
+
+DELIMITER ;
 
 -- =====================================================
 -- DADOS INICIAIS PARA DESENVOLVIMENTO/TESTE
