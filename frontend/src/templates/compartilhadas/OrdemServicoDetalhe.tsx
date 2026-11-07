@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ClipboardList, File, Link, X } from "lucide-react";
+import { AlertTriangle, ClipboardList, File, History, Link, X } from "lucide-react";
 
 import { abrirAnexoOS, atualizarOrdemServico, atualizarStatusOS, getOrdem } from "@/api";
 import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
+import { Card, CardTitle } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { getCurrentUser } from "@/auth";
@@ -33,6 +34,98 @@ function CampoCaixa({ rotulo, children }: { rotulo: string; children: React.Reac
   );
 }
 
+const eventosHistoricoExemplo = [
+  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Monitor" },
+  { tipo: "status", titulo: "Status alterado", descricao: "Em andamento → Em teste" },
+  { tipo: "responsavel", titulo: "Responsável alterado", descricao: "Responsável atualizado" },
+  { tipo: "prazo", titulo: "Prazo alterado", descricao: "Prazo atualizado para 30/12/2026" },
+  { tipo: "equipamento-removido", titulo: "Equipamento removido", descricao: "Teclado" },
+  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Impressora" },
+  { tipo: "status", titulo: "Status alterado", descricao: "Em teste → Review" },
+  { tipo: "responsavel", titulo: "Responsável alterado", descricao: "Novo responsável definido" },
+  { tipo: "prazo", titulo: "Prazo alterado", descricao: "Prazo atualizado para 05/01/2027" },
+  { tipo: "equipamento-removido", titulo: "Equipamento removido", descricao: "Cabo HDMI" },
+  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Notebook" },
+  { tipo: "status", titulo: "Status alterado", descricao: "Review → Concluída" },
+  { tipo: "responsavel", titulo: "Responsável alterado", descricao: "Responsável atualizado" },
+  { tipo: "prazo", titulo: "Prazo ultrapassado", descricao: "A OS passou do prazo definido" },
+  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Teclado" },
+];
+const itensPorPaginaHistorico = 2;
+const itensPorPaginaHistoricoModal = 7;
+
+function CartaoHistorico({
+  tipo,
+  titulo,
+  descricao,
+}: {
+  tipo: string;
+  titulo: string;
+  descricao: string;
+}) {
+  const corDaFaixa: Record<string, string> = {
+    "equipamento-adicionado": "bg-success",
+    "equipamento-removido": "bg-danger",
+    status: "bg-primary",
+    responsavel: "bg-secondary",
+    prazo: "bg-warning",
+  };
+
+  return (
+    <Card className="w-full overflow-hidden !p-0">
+      <div className="flex items-stretch">
+        <div className={`w-1 shrink-0 ${corDaFaixa[tipo] ?? "bg-primary"}`} aria-hidden="true" />
+        <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4 px-7 py-3">
+          <div>
+            <CardTitle className="text-base">{titulo}</CardTitle>
+            <p className="text-text-muted mt-2 mb-0 text-sm">{descricao}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-text m-0 text-sm font-medium">Nome do usuário</p>
+            <p className="text-text-muted mt-1 mb-0 text-xs">27/12/2026 às 14:25</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function PaginacaoHistorico({
+  pagina,
+  totalPaginas,
+  onMudarPagina,
+}: {
+  pagina: number;
+  totalPaginas: number;
+  onMudarPagina: (pagina: number) => void;
+}) {
+  if (totalPaginas <= 1) return null;
+
+  return (
+    <nav aria-label="Paginação do histórico" className="text-text-muted mt-4 flex items-center justify-center gap-4 text-sm">
+      <button
+        type="button"
+        onClick={() => onMudarPagina(pagina - 1)}
+        disabled={pagina === 0}
+        aria-label="Página anterior"
+        className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        &lt;
+      </button>
+      <span aria-live="polite">Página {pagina + 1} de {totalPaginas}</span>
+      <button
+        type="button"
+        onClick={() => onMudarPagina(pagina + 1)}
+        disabled={pagina >= totalPaginas - 1}
+        aria-label="Próxima página"
+        className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        &gt;
+      </button>
+    </nav>
+  );
+}
+
 export default function OrdemServicoDetalhe() {
   const { osId } = useParams<{ osId: string }>();
   const navigate = useNavigate();
@@ -45,6 +138,20 @@ export default function OrdemServicoDetalhe() {
   const [erroStatus, setErroStatus] = useState<string | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [confirmarConclusao, setConfirmarConclusao] = useState(false);
+  const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [paginaHistorico, setPaginaHistorico] = useState(0);
+  const [paginaHistoricoModal, setPaginaHistoricoModal] = useState(0);
+
+  const totalPaginasHistorico = Math.ceil(eventosHistoricoExemplo.length / itensPorPaginaHistorico);
+  const eventosPrevia = eventosHistoricoExemplo.slice(
+    paginaHistorico * itensPorPaginaHistorico,
+    (paginaHistorico + 1) * itensPorPaginaHistorico,
+  );
+  const totalPaginasHistoricoModal = Math.ceil(eventosHistoricoExemplo.length / itensPorPaginaHistoricoModal);
+  const eventosModal = eventosHistoricoExemplo.slice(
+    paginaHistoricoModal * itensPorPaginaHistoricoModal,
+    (paginaHistoricoModal + 1) * itensPorPaginaHistoricoModal,
+  );
 
   // Estados para o Modal de Edição da O.S.
   const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
@@ -409,9 +516,91 @@ export default function OrdemServicoDetalhe() {
                 )}
               </div>
             </div>
+
+            {/* Histórico da O.S. */}
+            <section className="mt-8 w-full">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary-muted text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+                    <History size={22} />
+                  </div>
+                  <h2 className="text-text m-0 text-xl font-bold">Histórico de alterações</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHistoricoAberto(true)}
+                  className="text-primary hover:text-primary/80 inline-flex items-center gap-1 rounded-md bg-transparent px-2 py-1 text-sm font-semibold transition"
+                >
+                  Ver todas <span aria-hidden="true">&gt;</span>
+                </button>
+              </div>
+              <div className="space-y-3">
+                {eventosPrevia.map((item, index) => (
+                  <CartaoHistorico
+                    key={`${item.titulo}-${index}`}
+                    tipo={item.tipo}
+                    titulo={item.titulo}
+                    descricao={
+                      index === 0 && paginaHistorico === 0
+                        ? ordem.equipamentos[0]?.nome ?? item.descricao
+                        : item.descricao
+                    }
+                  />
+                ))}
+              </div>
+              <PaginacaoHistorico
+                pagina={paginaHistorico}
+                totalPaginas={totalPaginasHistorico}
+                onMudarPagina={setPaginaHistorico}
+              />
+            </section>
           </section>
         )}
       </div>
+
+      {historicoAberto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setHistoricoAberto(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="historico-modal-titulo"
+            className="border-border bg-bg text-text w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary-muted text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+                  <History size={22} />
+                </div>
+                <h2 id="historico-modal-titulo" className="text-text m-0 text-xl font-bold">
+                  Histórico de alterações
+                </h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Fechar histórico"
+                onClick={() => setHistoricoAberto(false)}
+                className="text-text-muted hover:text-text cursor-pointer rounded bg-transparent p-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {eventosModal.map((item, index) => (
+                <CartaoHistorico key={`${item.titulo}-${index}`} tipo={item.tipo} titulo={item.titulo} descricao={item.descricao} />
+              ))}
+            </div>
+            <PaginacaoHistorico
+              pagina={paginaHistoricoModal}
+              totalPaginas={totalPaginasHistoricoModal}
+              onMudarPagina={setPaginaHistoricoModal}
+            />
+          </section>
+        </div>
+      )}
 
       {/* MODAL DE EDIÇÃO DA O.S. (Fundo sólido/opaco garantido para Light e Dark) */}
     {modalEdicaoAberto && (
