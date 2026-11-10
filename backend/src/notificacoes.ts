@@ -19,12 +19,15 @@ export async function ensureNotificationSchema(): Promise<void> {
         usuario_origem_id INT NULL,
         usuario_destino_id INT NOT NULL,
         data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        categoria VARCHAR(50) NOT NULL DEFAULT 'geral',
+        alteracoes TEXT NULL,
         INDEX idx_notificacoes_destino (usuario_destino_id, data_criacao DESC),
         INDEX idx_notificacoes_time (time_id),
         INDEX idx_notificacoes_os (os_id),
         INDEX idx_notificacoes_projeto (projeto_id),
         INDEX idx_notificacoes_manutencao (manutencao_id),
         INDEX idx_notificacoes_projeto_destino (projeto_id, usuario_destino_id),
+        INDEX idx_notificacoes_agrupamento_os (os_id, usuario_destino_id, categoria, data_criacao),
         CONSTRAINT fk_notificacoes_time
           FOREIGN KEY (time_id) REFERENCES time(id_time)
           ON DELETE SET NULL
@@ -74,6 +77,12 @@ export async function ensureNotificationSchema(): Promise<void> {
   if (!columnNames.has("manutencao_id")) {
     await pool.query(`ALTER TABLE notificacoes ADD COLUMN manutencao_id INT NULL AFTER projeto_id`);
   }
+  if (!columnNames.has("categoria")) {
+    await pool.query(`ALTER TABLE notificacoes ADD COLUMN categoria VARCHAR(50) NOT NULL DEFAULT 'geral' AFTER data_criacao`);
+  }
+  if (!columnNames.has("alteracoes")) {
+    await pool.query(`ALTER TABLE notificacoes ADD COLUMN alteracoes TEXT NULL AFTER categoria`);
+  }
 
   const [indexes] = await pool.query<RowDataPacket[]>(`SHOW INDEX FROM notificacoes`);
   const indexNames = new Set(indexes.map((index) => index.Key_name));
@@ -89,6 +98,11 @@ export async function ensureNotificationSchema(): Promise<void> {
   if (!indexNames.has("idx_notificacoes_projeto_destino")) {
     await pool.query(
       `ALTER TABLE notificacoes ADD INDEX idx_notificacoes_projeto_destino (projeto_id, usuario_destino_id)`,
+    );
+  }
+  if (!indexNames.has("idx_notificacoes_agrupamento_os")) {
+    await pool.query(
+      `ALTER TABLE notificacoes ADD INDEX idx_notificacoes_agrupamento_os (os_id, usuario_destino_id, categoria, data_criacao)`,
     );
   }
 
@@ -299,6 +313,86 @@ function escapeNotificationHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+export type OSChangeType = "status" | "prazo" | "time" | "prioridade" | "descricao";
+
+const OS_CHANGE_LABELS: Record<OSChangeType, string> = {
+  status: "status",
+  prazo: "prazo",
+  time: "time responsável",
+  prioridade: "prioridade",
+  descricao: "descrição",
+};
+
+export function buildOSChangeNotificationMessage(
+  osId: number | string,
+  osTitulo: string,
+  changes: OSChangeType[],
+  usuarioNome: string,
+): string {
+  const labels = [...new Set(changes)].map((change) => OS_CHANGE_LABELS[change]).join(", ");
+  return `A O.S. #${escapeNotificationHtml(String(osId))} - <strong>${escapeNotificationHtml(osTitulo)}</strong> foi atualizada por <strong>${escapeNotificationHtml(usuarioNome)}</strong>. Alterações: <strong>${escapeNotificationHtml(labels)}</strong>.`;
+}
+
+type TimeNotificationPayload = {
+  timeId: number | string | null;
+  usuarioOrigemId?: number | string | null;
+  incluirUsuarioOrigemComoDestino?: boolean;
+  incluirResponsavelDoTimeComoDestino?: boolean;
+  usuariosDestinoExtras?: Array<number | string | null | undefined>;
+  titulo?: string;
+  mensagem?: string;
+};
+
+async function findNotificationRecipients(
+  connection: ConnectionLike,
+  payload: TimeNotificationPayload,
+): Promise<RowDataPacket[]> {
+  const origemId = payload.usuarioOrigemId === null || payload.usuarioOrigemId === undefined
+    ? null
+    : String(payload.usuarioOrigemId);
+  const [destinatarios] = await connection.execute<RowDataPacket[]>(
+    `SELECT id_usuario
+       FROM usuarios
+      WHERE time_id = ?
+        AND ativo = TRUE
+        AND (? IS NULL OR id_usuario <> ?)
+      ORDER BY id_usuario`,
+    [String(payload.timeId), origemId, origemId],
+  );
+
+  if (payload.incluirResponsavelDoTimeComoDestino) {
+    const [responsaveis] = await connection.execute<RowDataPacket[]>(
+      `SELECT t.responsavel_id AS id_usuario
+         FROM time t
+         JOIN usuarios u ON u.id_usuario = t.responsavel_id
+        WHERE t.id_time = ?
+          AND u.ativo = TRUE
+          AND (? IS NULL OR t.responsavel_id <> ?)
+        LIMIT 1`,
+      [String(payload.timeId), origemId, origemId],
+    );
+    const responsavelId = responsaveis[0]?.id_usuario;
+    if (responsavelId !== undefined && !destinatarios.some((item) => String(item.id_usuario) === String(responsavelId))) {
+      destinatarios.push({ id_usuario: responsavelId } as RowDataPacket);
+    }
+  }
+
+  const extras = [...new Set(
+    (payload.usuariosDestinoExtras ?? [])
+      .filter((id) => id !== null && id !== undefined && String(id) !== origemId)
+      .map(String),
+  )].filter((id) => !destinatarios.some((item) => String(item.id_usuario) === id));
+  if (extras.length) {
+    const [extrasAtivos] = await connection.execute<RowDataPacket[]>(
+      `SELECT id_usuario FROM usuarios WHERE ativo = TRUE AND id_usuario IN (${extras.map(() => "?").join(", ")})`,
+      extras,
+    );
+    destinatarios.push(...extrasAtivos);
+  }
+
+  return destinatarios;
+}
+
 export async function createNotificationsForTime(
   connection: ConnectionLike,
   payload: {
@@ -317,59 +411,7 @@ export async function createNotificationsForTime(
 ): Promise<number> {
   await ensureNotificationSchema();
 
-  const [destinatarios] = await connection.execute<RowDataPacket[]>(
-    `SELECT id_usuario
-       FROM usuarios
-      WHERE time_id = ?
-        AND ativo = TRUE
-      ORDER BY id_usuario`,
-    [String(payload.timeId)],
-  );
-
-  if (payload.incluirResponsavelDoTimeComoDestino) {
-    const [responsaveis] = await connection.execute<RowDataPacket[]>(
-      `SELECT t.responsavel_id AS id_usuario
-         FROM time t
-         JOIN usuarios u ON u.id_usuario = t.responsavel_id
-        WHERE t.id_time = ? AND u.ativo = TRUE
-        LIMIT 1`,
-      [String(payload.timeId)],
-    );
-    const responsavelId = responsaveis[0]?.id_usuario;
-    if (
-      responsavelId !== undefined &&
-      !destinatarios.some((destinatario) => String(destinatario.id_usuario) === String(responsavelId))
-    ) {
-      destinatarios.push({ id_usuario: responsavelId } as RowDataPacket);
-    }
-  }
-
-  if (payload.incluirUsuarioOrigemComoDestino && payload.usuarioOrigemId !== undefined && payload.usuarioOrigemId !== null) {
-    const origemId = String(payload.usuarioOrigemId);
-    if (!destinatarios.some((destinatario) => String(destinatario.id_usuario) === origemId)) {
-      const [origemAtiva] = await connection.execute<RowDataPacket[]>(
-        `SELECT id_usuario FROM usuarios WHERE id_usuario = ? AND ativo = TRUE LIMIT 1`,
-        [origemId],
-      );
-      if (origemAtiva[0]) destinatarios.push(origemAtiva[0]);
-    }
-  }
-
-  const extras = [
-    ...new Set(
-      (payload.usuariosDestinoExtras ?? [])
-        .filter((id) => id !== null && id !== undefined)
-        .map(String),
-    ),
-  ].filter((id) => !destinatarios.some((destinatario) => String(destinatario.id_usuario) === id));
-  if (extras.length) {
-    const [extrasAtivos] = await connection.execute<RowDataPacket[]>(
-      `SELECT id_usuario FROM usuarios
-        WHERE ativo = TRUE AND id_usuario IN (${extras.map(() => "?").join(", ")})`,
-      extras,
-    );
-    destinatarios.push(...extrasAtivos);
-  }
+  const destinatarios = await findNotificationRecipients(connection, payload);
 
   if (!destinatarios.length) {
     return 0;
@@ -398,6 +440,126 @@ export async function createNotificationsForTime(
        ON DUPLICATE KEY UPDATE notificacao_id = notificacao_id`,
     values,
   );
+
+  return destinatarios.length;
+}
+
+export async function createOSChangeNotifications(
+  connection: ConnectionLike,
+  payload: TimeNotificationPayload & {
+    osId: number | string;
+    osTitulo: string;
+    usuarioNome: string;
+    changes: OSChangeType[];
+    titulo?: string;
+    mensagem?: string;
+  },
+): Promise<number> {
+  await ensureNotificationSchema();
+  const changes = [...new Set(payload.changes)];
+  if (!changes.length) return 0;
+
+  const destinatarios = await findNotificationRecipients(connection, payload);
+  for (const change of changes) {
+    const titulo = payload.titulo ?? "Atualização da O.S.";
+    const mensagem = payload.mensagem ?? buildOSChangeNotificationMessage(payload.osId, payload.osTitulo, [change], payload.usuarioNome);
+    for (const destinatario of destinatarios) {
+      await connection.execute(
+        `INSERT INTO notificacoes
+          (titulo, mensagem, time_id, os_id, usuario_origem_id, usuario_destino_id, categoria, alteracoes)
+         VALUES (?, ?, ?, ?, ?, ?, 'alteracao_os', ?)`,
+        [
+          titulo,
+          mensagem,
+          payload.timeId === null ? null : Number(payload.timeId),
+          Number(payload.osId),
+          payload.usuarioOrigemId == null ? null : Number(payload.usuarioOrigemId),
+          Number(destinatario.id_usuario),
+          JSON.stringify([change]),
+        ],
+      );
+    }
+  }
+
+  return destinatarios.length;
+}
+
+export type EntityUpdate = {
+  descricao: string;
+  titulo?: string;
+};
+
+export async function createEntityUpdateNotifications(
+  connection: ConnectionLike,
+  payload: {
+    entidade: "projeto" | "manutencao";
+    entidadeId: number | string;
+    entidadeNome: string;
+    usuarioOrigemId: number | string;
+    usuarioNome: string;
+    atualizacoes: EntityUpdate[];
+  },
+): Promise<number> {
+  await ensureNotificationSchema();
+  if (!payload.atualizacoes.length) return 0;
+
+  const isProject = payload.entidade === "projeto";
+  const entidadeLabel = isProject ? "Projeto" : "Manutenção";
+  const foreignKey = isProject ? "projeto_id" : "manutencao_id";
+  const categoria = isProject ? "alteracao_projeto" : "alteracao_manutencao";
+  const [destinatarios] = await connection.execute<RowDataPacket[]>(
+    isProject
+      ? `SELECT DISTINCT u.id_usuario, u.time_id
+           FROM usuarios u
+           JOIN os o ON o.id_time_responsavel = u.time_id
+          WHERE (o.projeto_id = ? OR o.manutencao_id IN (
+                   SELECT m.manutencao_id FROM manutencoes m WHERE m.projeto_id = ?
+                 ))
+            AND u.ativo = TRUE
+            AND u.id_usuario <> ?
+          ORDER BY u.id_usuario`
+      : `SELECT DISTINCT u.id_usuario, u.time_id
+           FROM usuarios u
+           JOIN os o ON o.id_time_responsavel = u.time_id
+          WHERE o.${foreignKey} = ?
+            AND u.ativo = TRUE
+            AND u.id_usuario <> ?
+          ORDER BY u.id_usuario`,
+    isProject
+      ? [Number(payload.entidadeId), Number(payload.entidadeId), Number(payload.usuarioOrigemId)]
+      : [Number(payload.entidadeId), Number(payload.usuarioOrigemId)],
+  );
+  if (!destinatarios.length) return 0;
+
+  for (const atualizacao of payload.atualizacoes) {
+    const titulo = atualizacao.titulo ?? (isProject ? "Atualização do projeto" : "Atualização da manutenção");
+    const mensagem = `${entidadeLabel} #${escapeNotificationHtml(String(payload.entidadeId))} — <strong>${escapeNotificationHtml(payload.entidadeNome)}</strong> foi ${isProject ? "atualizado" : "atualizada"} por <strong>${escapeNotificationHtml(payload.usuarioNome)}</strong>. ${escapeNotificationHtml(atualizacao.descricao)}`;
+    const projetoId = isProject ? Number(payload.entidadeId) : null;
+    const manutencaoId = isProject ? null : Number(payload.entidadeId);
+    const placeholders = destinatarios.map(() => "(?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)").join(", ");
+    const values: unknown[] = [];
+
+    for (const destinatario of destinatarios) {
+      values.push(
+        titulo,
+        mensagem,
+        destinatario.time_id === null ? null : Number(destinatario.time_id),
+        projetoId,
+        manutencaoId,
+        Number(payload.usuarioOrigemId),
+        Number(destinatario.id_usuario),
+        categoria,
+        null,
+      );
+    }
+
+    await connection.execute(
+      `INSERT INTO notificacoes
+        (titulo, mensagem, time_id, os_id, projeto_id, manutencao_id, usuario_origem_id, usuario_destino_id, categoria, alteracoes)
+       VALUES ${placeholders}`,
+      values,
+    );
+  }
 
   return destinatarios.length;
 }
@@ -450,9 +612,11 @@ export async function createCriticalOSNotificationsForDepartments(
   const [destinatarios] = await connection.execute<RowDataPacket[]>(
     `SELECT id_usuario, time_id
        FROM usuarios
-      WHERE ativo = TRUE AND time_id IN (${timeIds.map(() => "?").join(", ")})
+       WHERE ativo = TRUE
+         AND id_usuario <> ?
+         AND time_id IN (${timeIds.map(() => "?").join(", ")})
       ORDER BY id_usuario`,
-    timeIds,
+    [String(payload.usuarioOrigemId), ...timeIds],
   );
   if (!destinatarios.length) return 0;
 
@@ -519,24 +683,17 @@ export async function createCriticalRelatedNotification(
   );
   let timeIds = [...new Set(linkedTeams.map((time) => String(time.id_time)))];
 
-  if (!timeIds.length) {
-    const [times] = await connection.execute<RowDataPacket[]>(
-      `SELECT id_time
-         FROM time
-        WHERE LOWER(TRIM(departamento)) IN ('producao', 'software', 'monitoramento', 'implantacao')
-        ORDER BY id_time`,
-    );
-    timeIds = [...new Set(times.map((time) => String(time.id_time)))];
-  }
   if (!timeIds.length) return 0;
 
   await ensureNotificationSchema();
   const [users] = await connection.execute<RowDataPacket[]>(
     `SELECT DISTINCT id_usuario, time_id
        FROM usuarios
-      WHERE ativo = TRUE AND time_id IN (${timeIds.map(() => "?").join(", ")})
+       WHERE ativo = TRUE
+         AND id_usuario <> ?
+         AND time_id IN (${timeIds.map(() => "?").join(", ")})
       ORDER BY id_usuario`,
-    timeIds,
+    [String(payload.usuarioOrigemId), ...timeIds],
   );
   const recipients = [...new Map(users.map((user) => [String(user.id_usuario), user])).values()];
   if (!recipients.length) return 0;
@@ -708,6 +865,30 @@ export function createNotificacoesRouter(requireAuth: RequestHandler): Router {
     } catch (error) {
       console.error("Erro ao marcar notificação como lida:", error);
       return res.status(500).json({ message: "Não foi possível atualizar o status da notificação." });
+    }
+  });
+
+  router.delete("/:notificacaoId", requireAuth, async (req, res) => {
+    const user = res.locals.user as User;
+    const notId = req.params.notificacaoId;
+    if (!/^\d+$/.test(notId)) {
+      return res.status(404).json({ message: "Notificação não encontrada." });
+    }
+
+    try {
+      const [result] = await pool.execute<ResultSetHeader>(
+        `DELETE FROM notificacoes
+          WHERE notificacao_id = ?
+            AND usuario_destino_id = ?`,
+        [Number(notId), Number(user.id)],
+      );
+      if (!result.affectedRows) {
+        return res.status(404).json({ message: "Notificação não encontrada." });
+      }
+      return res.json({ message: "Notificação apagada." });
+    } catch (error) {
+      console.error("Erro ao apagar notificação:", error);
+      return res.status(500).json({ message: "Não foi possível apagar a notificação." });
     }
   });
 

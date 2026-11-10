@@ -1,7 +1,7 @@
 import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getNotificacoes, marcarNotificacaoComoLida } from "@/api";
+import { apagarNotificacao, getNotificacoes, getNotificacoesNaoLidas, marcarNotificacaoComoLida } from "@/api";
 import NotificationToast from "./NotificationToast";
 import type { NotificationType } from "./notification.config";
 
@@ -57,6 +57,10 @@ function getNotificationType(item: Awaited<ReturnType<typeof getNotificacoes>>["
 }
 
 function getToastTitle(item: Awaited<ReturnType<typeof getNotificacoes>>["notificacoes"][number]) {
+  if (item.titulo.toLowerCase().startsWith("atualização ")) {
+    return item.titulo;
+  }
+
   switch (getNotificationType(item)) {
     case "novaOS":
       return "Nova Ordem de Serviço";
@@ -79,6 +83,9 @@ function getToastTitle(item: Awaited<ReturnType<typeof getNotificacoes>>["notifi
 
 function getToastDescription(item: Awaited<ReturnType<typeof getNotificacoes>>["notificacoes"][number]) {
   const type = getNotificationType(item);
+  if (item.titulo.toLowerCase().startsWith("atualização ")) {
+    return item.mensagem || "Uma atualização foi registrada.";
+  }
   if (type === "osCritica" || type === "projetoCritico" || type === "manutencaoCritica") {
     return item.mensagem || "Uma situação crítica foi registrada.";
   }
@@ -146,6 +153,7 @@ export function useNotifications(userId: string | null) {
     ids: new Set(),
     skipInitialResults: true,
   });
+  const initialLoadUserId = useRef<string | null>(null);
   activeUserId.current = userId;
 
   const refresh = useCallback(async () => {
@@ -166,11 +174,13 @@ export function useNotifications(userId: string | null) {
 
     try {
       setLoading(true);
+      const isInitialLoad = initialLoadUserId.current !== userId;
+      if (isInitialLoad) initialLoadUserId.current = userId;
       const response = await getNotificacoes();
       if (activeUserId.current !== userId) return;
 
       const state = seenState.current;
-      const newNotifications = state.skipInitialResults
+      const newNotifications = isInitialLoad || state.skipInitialResults
         ? []
         : response.notificacoes.filter((item) => !state.ids.has(item.id));
 
@@ -191,6 +201,27 @@ export function useNotifications(userId: string | null) {
           maintenanceId: item.manutencao_id,
         })),
       );
+
+      if (isInitialLoad) {
+        try {
+          const { total } = await getNotificacoesNaoLidas();
+          if (activeUserId.current === userId && total > 0) {
+            toast.custom(
+              (toastId) => createElement(NotificationToast, {
+                title: "Notificações pendentes",
+                description: `Você possui ${total} notificação${total === 1 ? "" : "ões"} não lida${total === 1 ? "" : "s"}.`,
+                time: "agora",
+                toastId,
+                type: "success",
+                duration: TOAST_DURATION,
+              }),
+              { duration: Infinity },
+            );
+          }
+        } catch {
+          // A lista continua disponível mesmo se a contagem falhar.
+        }
+      }
 
       newNotifications.forEach((item) => {
         const type = getNotificationType(item);
@@ -245,12 +276,18 @@ export function useNotifications(userId: string | null) {
     );
   }, []);
 
+  const deleteNotification = useCallback(async (notificationId: string) => {
+    await apagarNotificacao(notificationId);
+    setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
+  }, []);
+
   return {
     notifications,
     hasUnread: notifications.some((notification) => !notification.read),
     loading,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
     refresh,
   };
 }

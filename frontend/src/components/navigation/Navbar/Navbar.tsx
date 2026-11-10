@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, Search, User } from "lucide-react";
+import { Bell, ChevronDown, Search, Trash2, User } from "lucide-react";
 import { getCurrentUser, logout } from "@/auth";
 import { isCriticalNotificationType, notificationConfig } from "@/components/ui/Notification/notification.config";
 import NotificationMessage from "@/components/ui/Notification/NotificationMessage";
@@ -12,7 +12,7 @@ export default function Header() {
   const [notificacaoAberto, setNotificacaoAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const user = getCurrentUser();
-  const { notifications, hasUnread, markAsRead, markAllAsRead, refresh } = useNotifications(user?.id ?? null);
+  const { notifications, hasUnread, markAsRead, markAllAsRead, deleteNotification, refresh } = useNotifications(user?.id ?? null);
 
   function sair() {
     logout();
@@ -65,52 +65,67 @@ export default function Header() {
                     const { color, icon: Icon } = notificationConfig[notification.type];
                     const isCritical = isCriticalNotificationType(notification.type);
                     return (
-                      <button
+                      <div
                         key={notification.id}
-                        type="button"
-                        title={notification.description}
-                        onClick={() => {
-                          if (!notification.read) {
-                            void markAsRead(notification.id);
-                          }
-                          if (notification.projectId) {
-                            navigate(`/projetos-totais/${notification.projectId}`);
-                          } else if (notification.maintenanceId) {
-                            navigate(`/manutencoes-totais/${notification.maintenanceId}`);
-                          } else if (notification.osId) {
-                            navigate(`/os/disponiveis/${notification.osId}`);
-                          }
-                        }}
-                        className={`border-border cursor-pointer flex w-full relative items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${isCritical ? "border-l-4 border-l-[#E24056] bg-[#E24056]/10 hover:bg-[#E24056]/15" : notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
+                        className={`group/notification border-border relative isolate z-0 flex w-full items-start border-b last:border-b-0 hover:z-10 focus-within:z-10 ${isCritical ? "border-l-4 border-l-[#E24056] bg-[#E24056]/10 hover:bg-[#E24056]/15" : notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-bg-tertiary"}`}
                       >
-                        <div
-                          className="flex size-12 shrink-0 items-center justify-center rounded-full"
-                          style={{ color: color, backgroundColor: `${color}20`  }}
+                        <button
+                          type="button"
+                          title={notification.description}
+                          onClick={() => {
+                            if (!notification.read) {
+                              void markAsRead(notification.id);
+                            }
+                            if (notification.projectId) {
+                              navigate(`/projetos-totais/${notification.projectId}`);
+                            } else if (notification.maintenanceId) {
+                              navigate(`/manutencoes-totais/${notification.maintenanceId}`);
+                            } else if (notification.osId) {
+                              navigate(`/os/disponiveis/${notification.osId}`);
+                            }
+                          }}
+                          className="relative z-0 flex min-w-0 flex-1 items-center gap-4 px-4 py-4 text-left transition-colors"
                         >
-                          <Icon className="size-7" strokeWidth={1.7} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold">
-                              {notification.title}
-                            </p>
-                            {isCritical && (
-                              <span className="flex min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded bg-[#E24056] px-1.5 py-1 text-[9px] leading-none font-extrabold text-white">
-                                CRÍTICA
-                              </span>
-                            )}
+                          <div
+                            className="flex size-12 shrink-0 items-center justify-center rounded-full"
+                            style={{ color: color, backgroundColor: `${color}20`  }}
+                          >
+                            <Icon className="size-7" strokeWidth={1.7} />
                           </div>
-                          <p className="text-text/70 truncate text-xs font-medium">
-                              <NotificationMessage message={notification.description} />
-                          </p>
-                          <p className="text-text-muted mt-0.5 text-[10px] font-medium">
-                            {notification.time}
-                          </p>
-                        </div>
-                        {!notification.read && (
-                          <div className={`absolute size-2 top-5 right-5 rounded-full ${isCritical ? "bg-[#E24056]" : "bg-primary"}`}></div>
-                        )}
-                      </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold">
+                                {notification.title}
+                              </p>
+                              {!notification.read && (
+                                <span className={`size-2 shrink-0 rounded-full ${isCritical ? "bg-[#E24056]" : "bg-primary"}`} />
+                              )}
+                              {isCritical && (
+                                <span className="flex min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded bg-[#E24056] px-1.5 py-1 text-[9px] leading-none font-extrabold text-white">
+                                  CRÍTICA
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 max-h-10 overflow-hidden text-xs font-medium transition-[max-height] duration-300 ease-in-out group-hover/notification:max-h-[60vh] group-hover/notification:overflow-y-auto group-focus-within/notification:max-h-[60vh] group-focus-within/notification:overflow-y-auto [@media(hover:none)]:max-h-none">
+                              <p className="text-text/70 line-clamp-2 wrap-break-word group-hover/notification:line-clamp-none group-focus-within/notification:line-clamp-none [@media(hover:none)]:line-clamp-none">
+                                <NotificationMessage message={notification.description} />
+                              </p>
+                            </div>
+                            <p className="text-text-muted mt-0.5 text-[10px] font-medium">
+                              {notification.time}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Apagar notificação: ${notification.title}`}
+                          title="Apagar notificação"
+                          onClick={() => void deleteNotification(notification.id)}
+                          className="text-text-muted hover:text-red-600 relative z-20 mt-4 mr-2 shrink-0 cursor-pointer rounded-lg bg-inherit p-2 transition-colors"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

@@ -8,7 +8,6 @@ import {
   isCriticalPriority,
   isTimeMonitoramento,
   isTimeSoftware,
-  shouldNotifyCriticalPriority,
   validarTransicaoOS,
 } from "./os_fluxo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
@@ -16,15 +15,15 @@ import {
   buildOSAguardandoVerificacaoMessage,
   buildOSCreatedNotificationMessage,
   buildOSCreatedNotificationTitle,
-  buildOSEncaminhadaMessage,
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
   buildOSVerificacaoMessage,
   buildStatusNotificationMessage,
-  createCriticalOSNotificationForTimeId,
   createCriticalOSNotificationsForDepartments,
+  createOSChangeNotifications,
   createNotificationsForTime,
   shouldCreateStatusNotification,
+  type OSChangeType,
 } from "./notificacoes.js";
 
 const PERFIS_COM_ACESSO: Role[] = [
@@ -674,7 +673,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           return res.status(400).json({ message: "Uma O.S. não pode ser atribuída ao time de monitoramento." });
         }
 
-        await connection.execute(
+        const [updateResult] = await connection.execute<ResultSetHeader>(
           `UPDATE os
               SET os_titulo = ?, os_descricao = ?, prioridade = ?, data_limite = ?, id_time_responsavel = ?
             WHERE os_id = ?`,
@@ -709,32 +708,22 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         }
 
         // Ao mudar de time, a O.S. sai do time atual e o novo time é avisado.
-        const encaminhada = String(os.id_time_responsavel ?? "") !== String(id_time_responsavel);
-        if (encaminhada) {
-          await createNotificationsForTime(connection, {
-            titulo: "O.S. encaminhada para o seu time",
-            mensagem: buildOSEncaminhadaMessage(
-              osId,
-              os_titulo.trim(),
-              (os.nome_time as string | null) ?? "sem time",
-              times[0].nome_time as string,
-              user.name,
-            ),
-            timeId: String(id_time_responsavel),
-            osId,
-            usuarioOrigemId: user.id,
-            incluirResponsavelDoTimeComoDestino: true,
-          });
-        }
+        const changes: OSChangeType[] = [];
+        if (String(os.data_limite ?? "") !== data_limite) changes.push("prazo");
+        if (String(os.prioridade ?? "").trim().toLowerCase() !== prioridade.trim().toLowerCase()) changes.push("prioridade");
+        if (String(os.os_descricao ?? "").trim() !== os_descricao.trim()) changes.push("descricao");
 
-        if (shouldNotifyCriticalPriority(os.prioridade as string | null, prioridade)) {
-          await createCriticalOSNotificationForTimeId(connection, {
-            evento: "prioridade elevada",
+        const encaminhada = String(os.id_time_responsavel ?? "") !== String(id_time_responsavel);
+        if (encaminhada) changes.push("time");
+        if (changes.length && updateResult.affectedRows > 0) {
+          await createOSChangeNotifications(connection, {
+            timeId: String(id_time_responsavel),
             osId,
             osTitulo: os_titulo.trim(),
-            timeId: String(id_time_responsavel),
-            timeNome: times[0].nome_time as string,
             usuarioOrigemId: user.id,
+            usuarioNome: user.name,
+            changes,
+            incluirResponsavelDoTimeComoDestino: true,
           });
         }
 
@@ -869,7 +858,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           usuariosMonitoramento = monitoramento.map((row) => Number(row.id_usuario));
         }
 
-        await createNotificationsForTime(connection, {
+        await createOSChangeNotifications(connection, {
           usuariosDestinoExtras: usuariosMonitoramento,
           titulo:
             statusNovo === "verificacao"
@@ -885,6 +874,9 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           timeId: Number(os.id_time_responsavel),
           osId: os.os_id,
           usuarioOrigemId: user.id,
+          usuarioNome: user.name,
+          osTitulo: os.os_titulo as string,
+          changes: ["status"],
           incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
           incluirResponsavelDoTimeComoDestino: statusNovo === "review",
         });
@@ -981,7 +973,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           "SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%d/%m/%Y %H:%i:%s') AS data_evento",
         );
 
-        await createNotificationsForTime(connection, {
+        await createOSChangeNotifications(connection, {
           titulo: buildOSStatusNotificationTitle(statusNovo),
           mensagem: buildOSVerificacaoMessage(
             os.os_id as number,
@@ -994,6 +986,9 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           timeId: os.id_time_responsavel as number | null,
           osId: os.os_id as number,
           usuarioOrigemId: user.id,
+          usuarioNome: user.name,
+          osTitulo: os.os_titulo as string,
+          changes: ["status"],
           incluirResponsavelDoTimeComoDestino: true,
           usuariosDestinoExtras: [
             os.manutencao_responsavel_id as number | null,
