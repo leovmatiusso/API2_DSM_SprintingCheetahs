@@ -11,7 +11,7 @@ import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
-import { createOrdensRouter } from "./ordens.js";
+import { createOrdensRouter, ensureOSVerificationSchema } from "./ordens.js";
 import {
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
@@ -918,6 +918,7 @@ async function startServer() {
   try {
     await ensureProjectStatusSchema();
     await ensureNotificationSchema();
+    await ensureOSVerificationSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);
     });

@@ -40,6 +40,12 @@ function saveSeenIds(userId: string, ids: Set<string>) {
 }
 
 function getNotificationType(item: Awaited<ReturnType<typeof getNotificacoes>>["notificacoes"][number]): NotificationType {
+  const tituloNormalizado = item.titulo.toLowerCase();
+  if (tituloNormalizado.includes("crít") || tituloNormalizado.includes("crit")) {
+    if (item.projeto_id) return "projetoCritico";
+    if (item.manutencao_id) return "manutencaoCritica";
+    return "osCritica";
+  }
   if (item.projeto_id) return "novoProjeto";
   if (item.manutencao_id) return "novaManutencao";
   if (item.titulo === "Ordem de Serviço concluída") return "osConcluida";
@@ -73,6 +79,9 @@ function getToastTitle(item: Awaited<ReturnType<typeof getNotificacoes>>["notifi
 
 function getToastDescription(item: Awaited<ReturnType<typeof getNotificacoes>>["notificacoes"][number]) {
   const type = getNotificationType(item);
+  if (type === "osCritica" || type === "projetoCritico" || type === "manutencaoCritica") {
+    return item.mensagem || "Uma situação crítica foi registrada.";
+  }
   if (type === "novaOS") {
     const titulo = item.os_titulo ? `: ${item.os_titulo}` : "";
     const time = item.time_nome ? ` para o time ${item.time_nome}` : "";

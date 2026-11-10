@@ -24,7 +24,7 @@ export async function ensureNotificationSchema(): Promise<void> {
         INDEX idx_notificacoes_os (os_id),
         INDEX idx_notificacoes_projeto (projeto_id),
         INDEX idx_notificacoes_manutencao (manutencao_id),
-        UNIQUE INDEX uq_notificacoes_projeto_destino (projeto_id, usuario_destino_id),
+        INDEX idx_notificacoes_projeto_destino (projeto_id, usuario_destino_id),
         CONSTRAINT fk_notificacoes_time
           FOREIGN KEY (time_id) REFERENCES time(id_time)
           ON DELETE SET NULL
@@ -83,9 +83,12 @@ export async function ensureNotificationSchema(): Promise<void> {
   if (!indexNames.has("idx_notificacoes_manutencao")) {
     await pool.query(`ALTER TABLE notificacoes ADD INDEX idx_notificacoes_manutencao (manutencao_id)`);
   }
-  if (!indexNames.has("uq_notificacoes_projeto_destino")) {
+  if (indexNames.has("uq_notificacoes_projeto_destino")) {
+    await pool.query(`ALTER TABLE notificacoes DROP INDEX uq_notificacoes_projeto_destino`);
+  }
+  if (!indexNames.has("idx_notificacoes_projeto_destino")) {
     await pool.query(
-      `ALTER TABLE notificacoes ADD UNIQUE INDEX uq_notificacoes_projeto_destino (projeto_id, usuario_destino_id)`,
+      `ALTER TABLE notificacoes ADD INDEX idx_notificacoes_projeto_destino (projeto_id, usuario_destino_id)`,
     );
   }
 
@@ -177,6 +180,23 @@ export function buildStatusNotificationMessage(
 
 export function buildOSCreatedNotificationTitle(): string {
   return "Nova ordem de serviço";
+}
+
+export function buildOSCriticalNotificationMessage(
+  osId: number | string,
+  osTitulo: string,
+  evento: "aberta" | "prioridade elevada",
+  timeNome: string,
+): string {
+  const os = `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong>`;
+  if (evento === "aberta") {
+    return `${os} crítica foi aberta para o time <strong>${escapeNotificationHtml(timeNome)}</strong>.`;
+  }
+  return `A prioridade da ${os} foi elevada para crítica no time <strong>${escapeNotificationHtml(timeNome)}</strong>.`;
+}
+
+export function buildOSCriticalNotificationTitle(evento: "aberta" | "prioridade elevada"): string {
+  return evento === "aberta" ? "Ordem de Serviço crítica" : "Prioridade da OS elevada para crítica";
 }
 
 export function buildOSStatusNotificationTitle(status: "concluida" | "bloqueado"): string {
@@ -380,6 +400,180 @@ export async function createNotificationsForTime(
   );
 
   return destinatarios.length;
+}
+
+type CriticalOSNotificationEvent = "aberta" | "prioridade elevada";
+
+interface CriticalOSNotificationPayload {
+  evento: CriticalOSNotificationEvent;
+  osId: number | string;
+  osTitulo: string;
+  timeId: number | string;
+  timeNome: string;
+  usuarioOrigemId: number | string;
+}
+
+async function createCriticalOSNotificationForTime(
+  connection: ConnectionLike,
+  payload: CriticalOSNotificationPayload,
+): Promise<number> {
+  return createNotificationsForTime(connection, {
+    titulo: buildOSCriticalNotificationTitle(payload.evento),
+    mensagem: buildOSCriticalNotificationMessage(
+      payload.osId,
+      payload.osTitulo,
+      payload.evento,
+      payload.timeNome,
+    ),
+    timeId: payload.timeId,
+    osId: payload.osId,
+    usuarioOrigemId: payload.usuarioOrigemId,
+  });
+}
+
+export async function createCriticalOSNotificationsForDepartments(
+  connection: ConnectionLike,
+  payload: Omit<CriticalOSNotificationPayload, "timeId"> & { timeIdResponsavel: number | string },
+): Promise<number> {
+  const [times] = await connection.execute<RowDataPacket[]>(
+    `SELECT id_time
+       FROM time
+      WHERE LOWER(TRIM(departamento)) IN ('producao', 'software', 'monitoramento', 'implantacao')
+         OR id_time = ?
+      ORDER BY id_time`,
+    [payload.timeIdResponsavel],
+  );
+  const timeIds = [...new Set(times.map((time) => String(time.id_time)))];
+  if (!timeIds.length) return 0;
+
+  await ensureNotificationSchema();
+  const [destinatarios] = await connection.execute<RowDataPacket[]>(
+    `SELECT id_usuario, time_id
+       FROM usuarios
+      WHERE ativo = TRUE AND time_id IN (${timeIds.map(() => "?").join(", ")})
+      ORDER BY id_usuario`,
+    timeIds,
+  );
+  if (!destinatarios.length) return 0;
+
+  const titulo = buildOSCriticalNotificationTitle(payload.evento);
+  const mensagem = buildOSCriticalNotificationMessage(
+    payload.osId,
+    payload.osTitulo,
+    payload.evento,
+    payload.timeNome,
+  );
+  const values: unknown[] = [];
+  const placeholders = destinatarios.map(() => "(?, ?, ?, ?, NULL, NULL, ?, ?)").join(", ");
+  for (const destinatario of destinatarios) {
+    values.push(
+      titulo,
+      mensagem,
+      Number(destinatario.time_id),
+      Number(payload.osId),
+      Number(payload.usuarioOrigemId),
+      Number(destinatario.id_usuario),
+    );
+  }
+
+  await connection.execute<ResultSetHeader>(
+    `INSERT INTO notificacoes
+       (titulo, mensagem, time_id, os_id, projeto_id, manutencao_id, usuario_origem_id, usuario_destino_id)
+     VALUES ${placeholders}
+     ON DUPLICATE KEY UPDATE notificacao_id = notificacao_id`,
+    values,
+  );
+
+  return destinatarios.length;
+}
+
+export async function createCriticalOSNotificationForTimeId(
+  connection: ConnectionLike,
+  payload: CriticalOSNotificationPayload,
+): Promise<number> {
+  return createCriticalOSNotificationForTime(connection, payload);
+}
+
+export async function createCriticalRelatedNotification(
+  connection: ConnectionLike,
+  payload: {
+    entidade: "projeto" | "manutencao";
+    evento: "criada" | "prioridade elevada";
+    entidadeId: number | string;
+    entidadeNome: string;
+    usuarioOrigemId: number | string;
+  },
+): Promise<number> {
+  const [linkedTeams] = await connection.execute<RowDataPacket[]>(
+    payload.entidade === "projeto"
+      ? `SELECT DISTINCT o.id_time_responsavel AS id_time
+           FROM os o
+          WHERE o.id_time_responsavel IS NOT NULL
+            AND (o.projeto_id = ? OR o.manutencao_id IN (
+              SELECT m.manutencao_id FROM manutencoes m WHERE m.projeto_id = ?
+            ))`
+      : `SELECT DISTINCT o.id_time_responsavel AS id_time
+           FROM os o
+          WHERE o.manutencao_id = ? AND o.id_time_responsavel IS NOT NULL`,
+    payload.entidade === "projeto" ? [payload.entidadeId, payload.entidadeId] : [payload.entidadeId],
+  );
+  let timeIds = [...new Set(linkedTeams.map((time) => String(time.id_time)))];
+
+  if (!timeIds.length) {
+    const [times] = await connection.execute<RowDataPacket[]>(
+      `SELECT id_time
+         FROM time
+        WHERE LOWER(TRIM(departamento)) IN ('producao', 'software', 'monitoramento', 'implantacao')
+        ORDER BY id_time`,
+    );
+    timeIds = [...new Set(times.map((time) => String(time.id_time)))];
+  }
+  if (!timeIds.length) return 0;
+
+  await ensureNotificationSchema();
+  const [users] = await connection.execute<RowDataPacket[]>(
+    `SELECT DISTINCT id_usuario, time_id
+       FROM usuarios
+      WHERE ativo = TRUE AND time_id IN (${timeIds.map(() => "?").join(", ")})
+      ORDER BY id_usuario`,
+    timeIds,
+  );
+  const recipients = [...new Map(users.map((user) => [String(user.id_usuario), user])).values()];
+  if (!recipients.length) return 0;
+
+  const nomeEntidade = payload.entidade === "projeto" ? "projeto" : "manutenção";
+  const titulo = payload.evento === "criada"
+    ? payload.entidade === "projeto" ? "Projeto crítico criado" : "Manutenção crítica criada"
+    : `Prioridade ${payload.entidade === "projeto" ? "do projeto" : "da manutenção"} elevada para crítica`;
+  const entidade = `<strong>${escapeNotificationHtml(payload.entidadeNome)}</strong> (#${escapeNotificationHtml(String(payload.entidadeId))})`;
+  const mensagem = payload.evento === "criada"
+    ? `${payload.entidade === "projeto" ? "O projeto" : "A manutenção"} ${entidade} foi ${payload.entidade === "projeto" ? "criado" : "criada"} com prioridade crítica.`
+    : `A prioridade ${payload.entidade === "projeto" ? "do projeto" : "da manutenção"} ${entidade} foi elevada para crítica.`;
+  const projetoId = payload.entidade === "projeto" ? Number(payload.entidadeId) : null;
+  const manutencaoId = payload.entidade === "manutencao" ? Number(payload.entidadeId) : null;
+  const placeholders = recipients.map(() => "(?, ?, ?, NULL, ?, ?, ?, ?)").join(", ");
+  const values: unknown[] = [];
+
+  for (const recipient of recipients) {
+    values.push(
+      titulo,
+      mensagem,
+      Number(recipient.time_id),
+      projetoId,
+      manutencaoId,
+      Number(payload.usuarioOrigemId),
+      Number(recipient.id_usuario),
+    );
+  }
+
+  await connection.execute<ResultSetHeader>(
+    `INSERT INTO notificacoes
+       (titulo, mensagem, time_id, os_id, projeto_id, manutencao_id, usuario_origem_id, usuario_destino_id)
+     VALUES ${placeholders}`,
+    values,
+  );
+
+  return recipients.length;
 }
 
 export async function listNotificationsForUser(userId: string | number): Promise<RowDataPacket[]> {

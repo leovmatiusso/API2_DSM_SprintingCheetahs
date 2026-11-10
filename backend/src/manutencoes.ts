@@ -5,6 +5,8 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
+import { isCriticalPriority, shouldNotifyCriticalPriority } from "./os_fluxo.js";
+import { createCriticalRelatedNotification } from "./notificacoes.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -353,6 +355,16 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         );
         const manutencaoId = result.insertId;
 
+        if (isCriticalPriority(prioridadeFinal)) {
+          await createCriticalRelatedNotification(connection, {
+            entidade: "manutencao",
+            evento: "criada",
+            entidadeId: manutencaoId,
+            entidadeNome: resumo.trim(),
+            usuarioOrigemId: user.id,
+          });
+        }
+
         for (const item of itens.values()) {
           await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
           const [rows] = await connection.execute<RowDataPacket[]>(
@@ -395,6 +407,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
   });
 
   router.put("/:manutencaoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
     const manutencaoId = String(req.params.manutencaoId);
 
     if (!/^\d+$/.test(manutencaoId)) {
@@ -549,6 +562,19 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
               [manutencaoId, equipamentoId, item.quantidade],
             );
           }
+        }
+
+        if (
+          typeof prioridade === "string" &&
+          shouldNotifyCriticalPriority(atual.prioridade as string, prioridade)
+        ) {
+          await createCriticalRelatedNotification(connection, {
+            entidade: "manutencao",
+            evento: "prioridade elevada",
+            entidadeId: manutencaoId,
+            entidadeNome: typeof resumo === "string" ? resumo.trim() : String(atual.resumo),
+            usuarioOrigemId: user.id,
+          });
         }
 
         await connection.commit();

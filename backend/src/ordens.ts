@@ -4,7 +4,13 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { isTimeMonitoramento, isTimeSoftware, validarTransicaoOS } from "./os_fluxo.js";
+import {
+  isCriticalPriority,
+  isTimeMonitoramento,
+  isTimeSoftware,
+  shouldNotifyCriticalPriority,
+  validarTransicaoOS,
+} from "./os_fluxo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
   buildOSAguardandoVerificacaoMessage,
@@ -15,6 +21,8 @@ import {
   buildOSStatusNotificationTitle,
   buildOSVerificacaoMessage,
   buildStatusNotificationMessage,
+  createCriticalOSNotificationForTimeId,
+  createCriticalOSNotificationsForDepartments,
   createNotificationsForTime,
   shouldCreateStatusNotification,
 } from "./notificacoes.js";
@@ -66,6 +74,39 @@ function dataValida(data: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
   const parsed = new Date(`${data}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
+}
+
+export async function ensureOSVerificationSchema(): Promise<void> {
+  const [statusColumns] = await pool.query<RowDataPacket[]>("SHOW COLUMNS FROM os LIKE 'os_status'");
+  const statusType = String(statusColumns[0]?.Type ?? "").toLowerCase();
+  if (!statusType.includes("'verificacao'")) {
+    await pool.query(
+      `ALTER TABLE os
+       MODIFY COLUMN os_status ENUM(
+         'aberta', 'em andamento', 'concluida', 'teste', 'bloqueado', 'review', 'verificacao'
+       ) NOT NULL DEFAULT 'aberta'`,
+    );
+  }
+
+  const [verificationTables] = await pool.query<RowDataPacket[]>(`SHOW TABLES LIKE 'os_verificacoes'`);
+  if (!verificationTables.length) {
+    await pool.query(`
+      CREATE TABLE os_verificacoes (
+        verificacao_id INT PRIMARY KEY AUTO_INCREMENT,
+        os_id INT NOT NULL,
+        resultado ENUM('aprovada', 'reprovada') NOT NULL,
+        justificativa TEXT NULL,
+        usuario_id INT NULL,
+        data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_os_verificacoes_os (os_id, data_criacao),
+        CONSTRAINT fk_verificacao_os
+          FOREIGN KEY (os_id) REFERENCES os(os_id)
+          ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT fk_verificacao_usuario
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuario)
+          ON DELETE SET NULL ON UPDATE CASCADE
+      ) ENGINE=InnoDB`);
+  }
 }
 
 // Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
@@ -500,13 +541,24 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         );
         const nomeTime = (timeRow[0]?.nome_time as string | undefined) ?? "time responsável";
 
-        await createNotificationsForTime(connection, {
-          titulo: buildOSCreatedNotificationTitle(),
-          mensagem: buildOSCreatedNotificationMessage(os_titulo.trim(), criadorNome, nomeTime),
-          timeId: Number(time.id_time),
-          osId,
-          usuarioOrigemId: user.id,
-        });
+        if (isCriticalPriority(prioridade)) {
+          await createCriticalOSNotificationsForDepartments(connection, {
+            evento: "aberta",
+            osId,
+            osTitulo: os_titulo.trim(),
+            timeIdResponsavel: time.id_time,
+            timeNome: nomeTime,
+            usuarioOrigemId: user.id,
+          });
+        } else {
+          await createNotificationsForTime(connection, {
+            titulo: buildOSCreatedNotificationTitle(),
+            mensagem: buildOSCreatedNotificationMessage(os_titulo.trim(), criadorNome, nomeTime),
+            timeId: Number(time.id_time),
+            osId,
+            usuarioOrigemId: user.id,
+          });
+        }
 
         await connection.commit();
         return res.status(201).json({
@@ -672,6 +724,17 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
             osId,
             usuarioOrigemId: user.id,
             incluirResponsavelDoTimeComoDestino: true,
+          });
+        }
+
+        if (shouldNotifyCriticalPriority(os.prioridade as string | null, prioridade)) {
+          await createCriticalOSNotificationForTimeId(connection, {
+            evento: "prioridade elevada",
+            osId,
+            osTitulo: os_titulo.trim(),
+            timeId: String(id_time_responsavel),
+            timeNome: times[0].nome_time as string,
+            usuarioOrigemId: user.id,
           });
         }
 

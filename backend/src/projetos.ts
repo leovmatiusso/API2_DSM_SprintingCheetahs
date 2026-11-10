@@ -5,6 +5,8 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS } from "./os_comum.js";
+import { isCriticalPriority, shouldNotifyCriticalPriority } from "./os_fluxo.js";
+import { createCriticalRelatedNotification } from "./notificacoes.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -383,6 +385,16 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
         );
         const projetoId = result.insertId;
 
+        if (isCriticalPriority(prioridadeFinal)) {
+          await createCriticalRelatedNotification(connection, {
+            entidade: "projeto",
+            evento: "criada",
+            entidadeId: projetoId,
+            entidadeNome: nome.trim(),
+            usuarioOrigemId: user.id,
+          });
+        }
+
         for (const item of itens.values()) {
           await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
           const [rows] = await connection.execute<RowDataPacket[]>(
@@ -425,6 +437,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
   });
 
   router.put("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
     const projetoId = String(req.params.projetoId);
 
     if (!/^\d+$/.test(projetoId)) {
@@ -445,7 +458,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
 
     try {
       const [existentes] = await pool.execute<RowDataPacket[]>(
-        "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
+        "SELECT projeto_id, nome, prioridade FROM projetos WHERE projeto_id = ? LIMIT 1",
         [projetoId],
       );
       if (!existentes[0]) {
@@ -574,6 +587,19 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
               [projetoId, equipamentoId, item.quantidade],
             );
           }
+        }
+
+        if (
+          typeof prioridade === "string" &&
+          shouldNotifyCriticalPriority(existentes[0].prioridade as string, prioridade)
+        ) {
+          await createCriticalRelatedNotification(connection, {
+            entidade: "projeto",
+            evento: "prioridade elevada",
+            entidadeId: projetoId,
+            entidadeNome: typeof nome === "string" ? nome.trim() : String(existentes[0].nome),
+            usuarioOrigemId: user.id,
+          });
         }
 
         await connection.commit();

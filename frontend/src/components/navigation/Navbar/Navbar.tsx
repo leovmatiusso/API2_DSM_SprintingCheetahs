@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, Search, User } from "lucide-react";
 import { getCurrentUser, logout } from "@/auth";
-import { notificationConfig } from "@/components/ui/Notification/notification.config";
+import { isCriticalNotificationType, notificationConfig } from "@/components/ui/Notification/notification.config";
 import NotificationMessage from "@/components/ui/Notification/NotificationMessage";
 import { useNotifications } from "@/components/ui/Notification/useNotifications";
 import Input from "@/components/ui/Input";
@@ -63,6 +63,7 @@ export default function Header() {
                   )}
                   {notifications.map((notification) => {
                     const { color, icon: Icon } = notificationConfig[notification.type];
+                    const isCritical = isCriticalNotificationType(notification.type);
                     return (
                       <button
                         key={notification.id}
@@ -80,7 +81,7 @@ export default function Header() {
                             navigate(`/os/disponiveis/${notification.osId}`);
                           }
                         }}
-                        className={`border-border cursor-pointer flex w-full relative items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
+                        className={`border-border cursor-pointer flex w-full relative items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${isCritical ? "border-l-4 border-l-[#E24056] bg-[#E24056]/10 hover:bg-[#E24056]/15" : notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
                       >
                         <div
                           className="flex size-12 shrink-0 items-center justify-center rounded-full"
@@ -89,9 +90,16 @@ export default function Header() {
                           <Icon className="size-7" strokeWidth={1.7} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-text truncate text-sm font-semibold">
-                            {notification.title}
-                          </p>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold">
+                              {notification.title}
+                            </p>
+                            {isCritical && (
+                              <span className="flex min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded bg-[#E24056] px-1.5 py-1 text-[9px] leading-none font-extrabold text-white">
+                                CRÍTICA
+                              </span>
+                            )}
+                          </div>
                           <p className="text-text/70 truncate text-xs font-medium">
                               <NotificationMessage message={notification.description} />
                           </p>
@@ -100,7 +108,7 @@ export default function Header() {
                           </p>
                         </div>
                         {!notification.read && (
-                          <div className="absolute bg-primary size-2 top-5 right-5 rounded-full"></div>
+                          <div className={`absolute size-2 top-5 right-5 rounded-full ${isCritical ? "bg-[#E24056]" : "bg-primary"}`}></div>
                         )}
                       </button>
                     );

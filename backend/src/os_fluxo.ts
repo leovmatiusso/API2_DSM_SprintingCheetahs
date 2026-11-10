@@ -9,6 +9,18 @@ export type StatusOSFluxo =
 
 export type ErroTransicaoOS = { status: 400 | 403 | 409; message: string };
 
+export function isCriticalPriority(prioridade: string | null | undefined): boolean {
+  const normalizada = String(prioridade ?? "").trim().toLowerCase();
+  return normalizada === "critica" || normalizada === "crítica";
+}
+
+export function shouldNotifyCriticalPriority(
+  prioridadeAnterior: string | null | undefined,
+  prioridadeNova: string | null | undefined,
+): boolean {
+  return isCriticalPriority(prioridadeNova) && !isCriticalPriority(prioridadeAnterior);
+}
+
 // O.S. de times de software precisam ser aprovadas pelo monitoramento para serem concluídas.
 export function isTimeSoftware(departamento: string | null | undefined): boolean {
   return String(departamento ?? "").toLowerCase().includes("software");

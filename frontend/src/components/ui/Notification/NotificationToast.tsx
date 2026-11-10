@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { notificationConfig, type NotificationType } from "./notification.config";
+import { isCriticalNotificationType, notificationConfig, type NotificationType } from "./notification.config";
 import NotificationMessage from "./NotificationMessage";
 
 const hoveredToastIds = new Set<string | number>();
@@ -49,6 +49,7 @@ export default function NotificationToast({
   onClick,
 }: NotificationToastProps) {
   const { color, icon: Icon } = notificationConfig[type];
+  const isCritical = isCriticalNotificationType(type);
   const [isClosing, setIsClosing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isAnyToastHovered, setIsAnyToastHovered] = useState(hoveredToastIds.size > 0);
@@ -89,6 +90,8 @@ export default function NotificationToast({
   return (
     <div
       className={`border-border group bg-bg/95 hover:bg-bg flex w-100 flex-col overflow-hidden rounded-xl border shadow-xl/5 backdrop-blur-md ${
+        isCritical ? "border-l-4 border-l-[#E24056]" : ""
+      } ${
         isClosing ? "animate-[toast-out_300ms_ease-in_forwards]" : ""
       }`}
       onMouseEnter={() => {
@@ -125,7 +128,14 @@ export default function NotificationToast({
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-text truncate text-sm font-semibold xl:text-base">{title}</p>
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold xl:text-base">{title}</p>
+              {isCritical && (
+                <span className="flex min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded bg-[#E24056] px-1.5 py-1 text-[9px] leading-none font-extrabold text-white">
+                  CRÍTICA
+                </span>
+              )}
+            </div>
 
             <p className="text-text/75 mt-0.5 truncate text-xs xl:text-sm">
               <NotificationMessage message={description} />

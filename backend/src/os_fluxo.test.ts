@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isTimeMonitoramento, isTimeSoftware, validarTransicaoOS } from "./os_fluxo.js";
+import {
+  isCriticalPriority,
+  isTimeMonitoramento,
+  isTimeSoftware,
+  shouldNotifyCriticalPriority,
+  validarTransicaoOS,
+} from "./os_fluxo.js";
+
+test("notifica OS crítica apenas ao abrir ou elevar a prioridade", () => {
+  assert.equal(isCriticalPriority("critica"), true);
+  assert.equal(isCriticalPriority("Crítica"), true);
+  assert.equal(shouldNotifyCriticalPriority(null, "critica"), true);
+  assert.equal(shouldNotifyCriticalPriority("media", "critica"), true);
+  assert.equal(shouldNotifyCriticalPriority("critica", "media"), false);
+  assert.equal(shouldNotifyCriticalPriority("critica", "critica"), false);
+});
 
 test("identifica times de monitoramento pelo departamento", () => {
   assert.equal(isTimeMonitoramento("monitoramento"), true);
