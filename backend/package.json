@@ -9,6 +9,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "API2_DSM_SprintingCheetahs": "file:..",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
