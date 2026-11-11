@@ -2,7 +2,7 @@ interface ButtonProps {
   children: React.ReactNode;
   type?: "button" | "submit" | "reset";
   onClick?: () => void;
-  variant?: "primary" | "secondary" | "danger" | "outline";
+  variant?: "primary" | "secondary" | "danger" | "outline" | "filter";
   size?: "sm" | "md" | "lg" | "xl";
   disabled?: boolean;
 }
@@ -12,6 +12,7 @@ const variantStyles = {
   outline: "text-primary ring ring-border hover:bg-primary-muted",
   secondary: "bg-secondary text-text hover:bg-secondary-hover",
   danger: "bg-danger text-white hover:bg-danger-hover",
+  filter: "bg-primary-muted text-primary border border-primary hover:bg-primary/25"
 };
 
 const sizeStyles = {

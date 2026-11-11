@@ -4,6 +4,7 @@ import { Check, ChevronDown } from "lucide-react";
 import type { OrdemStatus } from "@/api";
 import { STATUS_CLASSE, STATUS_LABEL } from "./osEstilos";
 
+//SELETOR PARA EDIÇÃO DE STATUS DE OS(DIFERENTE DO SeletorStatusOSFiltro)
 function obterOpcoes(status: OrdemStatus, responsavelDoTime: boolean): OrdemStatus[] {
   if (status === "review") return responsavelDoTime ? ["teste", "bloqueado"] : [];
   if (status === "bloqueado") return responsavelDoTime ? ["teste"] : [];
