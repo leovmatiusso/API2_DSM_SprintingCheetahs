@@ -2,7 +2,6 @@ import "@/style/Usuarios.css";
 
 import { FormEvent, useEffect, useState } from "react";
 import {
-  Check,
   ChevronDown,
   ClipboardList,
   MoreHorizontal,
@@ -54,7 +53,6 @@ export default function Usuarios() {
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mostrarCadastro, setMostrarCadastro] = useState(false);
 
@@ -157,9 +155,6 @@ export default function Usuarios() {
       await deleteUser(userToDelete.id);
       setUserToDelete(null);
       setMessage("Usuário excluído com sucesso.");
-      setSelectedUsers((current) =>
-        current.filter((id) => id !== userToDelete.id),
-      );
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao excluir usuário.");
@@ -192,31 +187,6 @@ export default function Usuarios() {
 
     return matchesSearch && matchesRole;
   });
-
-  function toggleSelected(userId: string) {
-    setSelectedUsers((current) =>
-      current.includes(userId)
-        ? current.filter((id) => id !== userId)
-        : [...current, userId],
-    );
-  }
-
-  function toggleAllVisible() {
-    const visibleIds = filteredUsers.map((user) => user.id);
-    const allVisibleSelected = visibleIds.every((id) =>
-      selectedUsers.includes(id),
-    );
-
-    setSelectedUsers((current) =>
-      allVisibleSelected
-        ? current.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...current, ...visibleIds])],
-    );
-  }
-
-  const allVisibleSelected =
-    filteredUsers.length > 0 &&
-    filteredUsers.every((user) => selectedUsers.includes(user.id));
 
   if (mostrarCadastro) {
     return (
@@ -360,23 +330,6 @@ export default function Usuarios() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleAllVisible}
-            className="bg-primary-muted text-text mb-2 flex min-h-12 w-full items-center gap-3 rounded-lg px-5 text-left text-sm font-semibold"
-          >
-            <span
-              className={`flex h-4 w-4 items-center justify-center rounded border ${
-                allVisibleSelected
-                  ? "border-primary bg-primary text-white"
-                  : "border-border bg-bg"
-              }`}
-            >
-              {allVisibleSelected && <Check size={13} />}
-            </span>
-            {selectedUsers.length} Selecionados
-          </button>
-
           {loading ? (
             <p className="text-text-muted px-5 py-4">Carregando usuários...</p>
           ) : filteredUsers.length === 0 ? (
@@ -388,30 +341,11 @@ export default function Usuarios() {
           ) : (
             <div className="divide-border divide-y">
               {filteredUsers.map((user) => {
-                const selected = selectedUsers.includes(user.id);
-
                 return (
                   <div
                     key={user.id}
-                    className="grid grid-cols-[28px_40px_minmax(130px,1fr)] items-center gap-3 px-3 py-3 sm:grid-cols-[28px_40px_minmax(150px,1.1fr)_minmax(170px,1.2fr)_minmax(120px,0.8fr)_36px] sm:gap-4"
+                    className="grid grid-cols-[40px_minmax(130px,1fr)] items-center gap-3 px-3 py-3 sm:grid-cols-[40px_minmax(150px,1.1fr)_minmax(170px,1.2fr)_minmax(120px,0.8fr)_36px] sm:gap-4"
                   >
-                    <button
-                      type="button"
-                      onClick={() => toggleSelected(user.id)}
-                      aria-label={
-                        selected
-                          ? `Desmarcar ${user.name}`
-                          : `Selecionar ${user.name}`
-                      }
-                      className={`flex h-4 w-4 items-center justify-center rounded border ${
-                        selected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-bg"
-                      }`}
-                    >
-                      {selected && <Check size={13} />}
-                    </button>
-
                     <div className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${user.active ? "bg-primary-muted text-primary" : "bg-primary-muted/50 text-primary/50"}`}>
                       {getInitials(user.name)}
                     </div>
@@ -420,7 +354,7 @@ export default function Usuarios() {
                       {user.name}
                     </span>
 
-                    <span className={`col-span-3 truncate text-sm font-semibold sm:col-span-1 ${user.active ? "text-text-muted" : "text-text-muted/50"}`}>
+                    <span className={`col-span-2 truncate text-sm font-semibold sm:col-span-1 ${user.active ? "text-text-muted" : "text-text-muted/50"}`}>
                       {user.email}
                     </span>
 
