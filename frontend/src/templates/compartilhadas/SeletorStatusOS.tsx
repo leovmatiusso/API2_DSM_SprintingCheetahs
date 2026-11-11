@@ -7,11 +7,15 @@ import { STATUS_CLASSE, STATUS_LABEL } from "./osEstilos";
 function obterOpcoes(
   status: OrdemStatus,
   responsavelDoTime: boolean,
-  timeSoftware: boolean,
+  timeMonitoramento: boolean,
+  superusuario: boolean,
 ): OrdemStatus[] {
+  // O superusuário só envia O.S. em Review para verificação.
+  if (superusuario) return status === "review" && !timeMonitoramento ? ["verificacao"] : [];
   if (status === "review") {
     if (!responsavelDoTime) return [];
-    return timeSoftware ? ["teste", "bloqueado", "verificacao"] : ["teste", "bloqueado"];
+    // Todas as equipes, exceto o próprio monitoramento, podem enviar para verificação.
+    return timeMonitoramento ? ["teste", "bloqueado"] : ["teste", "bloqueado", "verificacao"];
   }
   if (status === "bloqueado") return responsavelDoTime ? ["teste"] : [];
   // Em verificação, a decisão é feita pelos botões de aprovar/reprovar do monitoramento.
@@ -25,18 +29,20 @@ function obterOpcoes(
 export default function SeletorStatusOS({
   status,
   responsavelDoTime = false,
-  timeSoftware = false,
+  timeMonitoramento = false,
+  superusuario = false,
   disabled = false,
   onChange,
 }: {
   status: OrdemStatus;
   responsavelDoTime?: boolean;
-  timeSoftware?: boolean;
+  timeMonitoramento?: boolean;
+  superusuario?: boolean;
   disabled?: boolean;
   onChange: (status: OrdemStatus) => void;
 }) {
   const [aberto, setAberto] = useState(false);
-  const opcoes = obterOpcoes(status, responsavelDoTime, timeSoftware);
+  const opcoes = obterOpcoes(status, responsavelDoTime, timeMonitoramento, superusuario);
 
   if (opcoes.length === 0) {
     return (

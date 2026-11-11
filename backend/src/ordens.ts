@@ -4,7 +4,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { isTimeMonitoramento, isTimeSoftware, validarTransicaoOS } from "./os_fluxo.js";
+import { isTimeMonitoramento, validarTransicaoOS } from "./os_fluxo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
   buildOSAguardandoVerificacaoMessage,
@@ -28,6 +28,10 @@ const PERFIS_COM_ACESSO: Role[] = [
   "implantacao",
   "monitoramento",
 ];
+
+// O superusuário consulta, cria e edita O.S. em qualquer projeto/manutenção
+// e pode enviá-las de Review para verificação.
+const PERFIS_COM_SUPER: Role[] = [...PERFIS_COM_ACESSO, "superusuario"];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
 const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review", "verificacao"] as const;
@@ -69,9 +73,9 @@ function dataValida(data: string): boolean {
 }
 
 // Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
-//  projeto:    gestor e comercial (todos) | produção/software/implantação/monitoramento (só se o
+//  projeto:    gestor, comercial e superusuário (todos) | produção/software/implantação/monitoramento (só se o
 //              projeto tiver O.S. do seu time)
-//  manutenção: gestor e suporte (todas)   | produção/software/implantação/monitoramento (idem)
+//  manutenção: gestor, suporte e superusuário (todas) | produção/software/implantação/monitoramento (idem)
 async function podeCriarNaOrigem(
   user: User,
   tipo: "projeto" | "manutencao",
@@ -79,7 +83,10 @@ async function podeCriarNaOrigem(
 ): Promise<boolean> {
   const tabela = tipo === "projeto" ? "projetos" : "manutencoes";
   const coluna = tipo === "projeto" ? "projeto_id" : "manutencao_id";
-  const donos: Role[] = tipo === "projeto" ? ["gestor", "comercial"] : ["gestor", "suporte"];
+  const donos: Role[] =
+    tipo === "projeto"
+      ? ["gestor", "comercial", "superusuario"]
+      : ["gestor", "suporte", "superusuario"];
 
   if (donos.includes(user.role)) {
     const [rows] = await pool.execute<RowDataPacket[]>(
@@ -122,7 +129,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // gestor: todas | comercial: as de projetos | suporte: as de manutenções
   // demais: apenas as direcionadas ao seu time
   // ---------------------------------------------------
-  router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+  router.get("/", requireRole(...PERFIS_COM_SUPER), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -147,7 +154,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   // Detalhe de uma O.S. (tela expandida)
   // ---------------------------------------------------
-  router.get("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:osId", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
 
@@ -286,7 +293,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   // Download de anexo (mesma regra de acesso)
   // ---------------------------------------------------
-  router.get("/:osId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:osId/anexos/:anexoId", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -333,7 +340,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // Criação - somente a partir de um projeto OU de uma manutenção existente
   // (botão "Nova O.S." na tela expandida do projeto/manutenção)
   // ---------------------------------------------------
-  router.post("/", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.post("/", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
 
     const {
@@ -528,7 +535,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   // Edição dos dados de uma O.S. existente
   // ---------------------------------------------------
-  router.put("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.put("/:osId", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
     const {
@@ -689,7 +696,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     }
   });
 
-  router.put("/:osId/status", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.put("/:osId/status", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
     const statusInput = req.body?.os_status ?? req.body?.status;
@@ -742,7 +749,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         statusAtual,
         statusNovo as StatusOS,
         responsavelDoTime,
-        isTimeSoftware(os.departamento as string | null),
+        isTimeMonitoramento(os.departamento as string | null),
+        user.role === "superusuario",
       );
       if (erroTransicao) {
         return res.status(erroTransicao.status).json({ message: erroTransicao.message });
@@ -943,7 +951,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           message:
             resultado === "aprovada"
               ? "Verificação aprovada. A O.S. foi concluída."
-              : "Verificação reprovada. A O.S. voltou para a equipe de software.",
+              : "Verificação reprovada. A O.S. voltou para a equipe responsável.",
           os: { id: String(os.os_id), status: statusNovo },
         });
       } catch (error) {

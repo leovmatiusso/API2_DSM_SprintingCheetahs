@@ -31,7 +31,6 @@ import {
   formatarData,
   formatarTamanho,
   isTimeMonitoramento,
-  isTimeSoftware,
 } from "./osEstilos";
 
 const ROTA_LISTA_OS = "/os/disponiveis";
@@ -132,9 +131,9 @@ export default function OrdemServicoDetalhe() {
     currentUser?.id && ordem?.time?.responsavel_id === currentUser.id,
   );
   const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
-  const timeSoftware = isTimeSoftware(ordem?.departamento);
-  // O.S. de software só é concluída pela aprovação do monitoramento.
-  const podeConcluir = podeDecidirReview && !timeSoftware;
+  const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
+  // Toda O.S. é concluída pela aprovação do monitoramento (exceto as do próprio monitoramento).
+  const podeConcluir = podeDecidirReview && timeMonitoramento;
   const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
   const emVerificacao = ordem?.status === "verificacao";
 
@@ -408,7 +407,8 @@ export default function OrdemServicoDetalhe() {
                 <SeletorStatusOS
                   status={ordem.status}
                   responsavelDoTime={responsavelDoTime}
-                  timeSoftware={timeSoftware}
+                  timeMonitoramento={timeMonitoramento}
+                  superusuario={currentUser?.role === "superusuario"}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -458,7 +458,7 @@ export default function OrdemServicoDetalhe() {
                   Esta O.S. aguarda a sua verificação
                 </h2>
                 <p className="text-text-muted mt-1 mb-4 text-sm">
-                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe de software.
+                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe responsável.
                 </p>
 
                 {reprovando ? (
@@ -479,7 +479,7 @@ export default function OrdemServicoDetalhe() {
                         setErroMotivo(null);
                       }}
                       maxLength={5000}
-                      placeholder="Explique o que a equipe de software precisa corrigir"
+                      placeholder="Explique o que a equipe responsável precisa corrigir"
                       aria-required="true"
                       aria-invalid={Boolean(erroMotivo)}
                       aria-describedby={erroMotivo ? "erro-motivo-reprovacao" : undefined}

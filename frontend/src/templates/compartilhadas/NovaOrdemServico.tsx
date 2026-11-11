@@ -121,7 +121,7 @@ export default function NovaOrdemServico() {
 
   const user = getCurrentUser();
 
-  const manutencao = user?.role === "suporte";
+  const manutencao = user?.role === "suporte" || Boolean(manutencaoOrigemId);
 
   useEffect(() => {
     let ativo = true;

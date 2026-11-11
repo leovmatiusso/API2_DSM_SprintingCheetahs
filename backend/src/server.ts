@@ -20,7 +20,7 @@ import {
   ensureNotificationSchema,
 } from "./notificacoes.js";
 import { podeVerOS } from "./os_comum.js";
-import { isTimeSoftware } from "./os_fluxo.js";
+import { isTimeMonitoramento } from "./os_fluxo.js";
 import osConcluidasRouter from "./os_concluida.js";
 import { createDashboardRouter } from "./dashboard.js";
 
@@ -830,8 +830,8 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       return res.status(403).json({ message: "Somente o responsável do time pode concluir uma O.S. em revisão." });
     }
 
-    if (isTimeSoftware(rows[0].departamento as string | null)) {
-      return res.status(409).json({ message: "A O.S. de software precisa ser aprovada na verificação do monitoramento." });
+    if (!isTimeMonitoramento(rows[0].departamento as string | null)) {
+      return res.status(409).json({ message: "A O.S. precisa ser aprovada na verificação do monitoramento para ser concluída." });
     }
 
     const connection = await pool.getConnection();

@@ -40,7 +40,9 @@ export default function OrdensServico() {
   }, []);
 
   const ordensParaRevisar = ordens.filter(
-    (os) => os.status === "review" && os.time?.responsavel_id === currentUser?.id,
+    (os) =>
+      os.status === "review" &&
+      (os.time?.responsavel_id === currentUser?.id || currentUser?.role === "superusuario"),
   );
   const ordensParaVerificar = ordens.filter(
     (os) => os.status === "verificacao" && currentUser?.role === "monitoramento",

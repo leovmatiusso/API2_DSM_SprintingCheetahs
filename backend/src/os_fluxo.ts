@@ -9,7 +9,7 @@ export type StatusOSFluxo =
 
 export type ErroTransicaoOS = { status: 400 | 403 | 409; message: string };
 
-// O.S. de times de software precisam ser aprovadas pelo monitoramento para serem concluídas.
+// Identifica times de software pelo departamento.
 export function isTimeSoftware(departamento: string | null | undefined): boolean {
   return String(departamento ?? "").toLowerCase().includes("software");
 }
@@ -23,7 +23,8 @@ export function validarTransicaoOS(
   statusAtual: StatusOSFluxo,
   statusNovo: StatusOSFluxo,
   responsavelDoTime: boolean,
-  timeSoftware = false,
+  timeMonitoramento = false,
+  superusuario = false,
 ): ErroTransicaoOS | null {
   if (statusAtual === statusNovo) return null;
 
@@ -38,15 +39,26 @@ export function validarTransicaoOS(
     };
   }
 
+  // O superusuário só atua enviando uma O.S. em Review para verificação.
+  if (superusuario && !(statusAtual === "review" && statusNovo === "verificacao")) {
+    return {
+      status: 403,
+      message: "O superusuário só pode enviar uma O.S. em Review para verificação.",
+    };
+  }
+
   if (statusNovo === "verificacao") {
     if (statusAtual !== "review") {
       return { status: 409, message: "A O.S. precisa passar por Review antes da verificação." };
     }
-    if (!responsavelDoTime) {
-      return { status: 403, message: "Somente o responsável do time pode enviar a O.S. para verificação." };
+    if (!responsavelDoTime && !superusuario) {
+      return {
+        status: 403,
+        message: "Somente o responsável do time ou o superusuário pode enviar a O.S. para verificação.",
+      };
     }
-    if (!timeSoftware) {
-      return { status: 409, message: "Somente O.S. de times de software passam por verificação." };
+    if (timeMonitoramento) {
+      return { status: 409, message: "O.S. do time de monitoramento não passa por verificação." };
     }
     return null;
   }
@@ -67,8 +79,9 @@ export function validarTransicaoOS(
     if (!["teste", "bloqueado", "concluida"].includes(statusNovo)) {
       return { status: 400, message: "Na revisão, escolha Teste, Bloqueada ou Concluída." };
     }
-    if (statusNovo === "concluida" && timeSoftware) {
-      return { status: 409, message: "A O.S. de software precisa ser aprovada na verificação do monitoramento." };
+    // Toda O.S. (exceto as do próprio monitoramento) só é concluída após a verificação.
+    if (statusNovo === "concluida" && !timeMonitoramento) {
+      return { status: 409, message: "A O.S. precisa ser aprovada na verificação do monitoramento para ser concluída." };
     }
     return null;
   }
