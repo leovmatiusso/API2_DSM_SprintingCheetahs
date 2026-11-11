@@ -26,15 +26,14 @@ import SeletorStatusProjeto from "./SeletorStatusProjeto";
 import { PRIORIDADE_LABEL, formatarData } from "./osEstilos";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
-import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
-import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 
 const TIPOS_SISTEMA = ["Sistema de Torres", "Sistema de Embarcação", "Sistema de Sonda"];
 
 export default function ProjetoDetalhe() {
   const { projetoId } = useParams<{ projetoId: string }>();
   const navigate = useNavigate();
-  const podeAlterarStatus = getCurrentUser()?.role === "comercial";
+  // Todos que veem projetos mudam o status; a opção "Concluído" é limitada no seletor.
+  const podeAlterarStatus = getCurrentUser()?.role !== "suporte";
 
   const [projeto, setProjeto] = useState<Projeto | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -53,7 +52,6 @@ export default function ProjetoDetalhe() {
   const [dataVencimento, setDataVencimento] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [equipamentosEdit, setEquipamentosEdit] = useState<EquipamentoForm[]>([]);
 
   // Listas auxiliares para selects do modal
   const [vendedores, setVendedores] = useState<{ id_usuario: number; nome: string }[]>([]);
@@ -77,12 +75,6 @@ export default function ProjetoDetalhe() {
           setDataVencimento(p.data_vencimento_contrato ? p.data_vencimento_contrato.split("T")[0] : "");
           setDataLimite(p.data_limite ? p.data_limite.split("T")[0] : "");
           setDescricao(p.descricao || "");
-          setEquipamentosEdit(
-            (p.equipamentos || []).map((eq: any) => ({
-              nome: eq.nome,
-              quantidade: eq.quantidade,
-            }))
-          );
         }
       } catch (error) {
         if (ativo) {
@@ -140,7 +132,6 @@ export default function ProjetoDetalhe() {
         data_vencimento_contrato: dataVencimento,
         data_limite: dataLimite,
         descricao: descricao.trim(),
-        equipamentos: equipamentosParaPayload(equipamentosEdit),
       };
 
       await atualizarProjeto(projetoId, dadosAtualizadosPayload);
@@ -258,7 +249,6 @@ export default function ProjetoDetalhe() {
                 },
               ]}
               descricao={projeto.descricao}
-              equipamentos={projeto.equipamentos}
               anexos={projeto.anexos}
               abrirAnexo={(anexo: ProjetoAnexo) => abrirAnexoProjeto(projeto.id, anexo)}
             />
@@ -389,11 +379,6 @@ export default function ProjetoDetalhe() {
                   rows={4}
                   placeholder="Descreva a solicitação, o que precisa ser desenvolvido e demais informações relevantes..."
                 />
-              </div>
-
-              {/* EQUIPAMENTOS E MATERIAIS */}
-              <div>
-                <CampoEquipamentos value={equipamentosEdit} onChange={setEquipamentosEdit} />
               </div>
 
               {/* BOTÕES DE AÇÃO DO MODAL */}

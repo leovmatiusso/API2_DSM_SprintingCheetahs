@@ -2,14 +2,18 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import { atualizarManutencao } from "@/api";
+import { getCurrentUser } from "@/auth";
+
+// Somente gestor, superusuário e suporte concluem a manutenção; os demais mudam para os outros estados.
+const PERFIS_CONCLUEM_MANUTENCAO = ["gestor", "superusuario", "suporte"];
 
 export type StatusManutencaoValor = "aberta" | "em_andamento" | "concluida" | "cancelada";
 
 export const STATUS_MANUTENCAO_LABEL: Record<StatusManutencaoValor, string> = {
-  aberta: "Aberta",
-  em_andamento: "Em andamento",
-  concluida: "Concluída",
-  cancelada: "Cancelada",
+  aberta: "Aberto",
+  em_andamento: "Em Andamento",
+  concluida: "Concluído",
+  cancelada: "Cancelado",
 };
 
 const STATUS_MANUTENCAO_CLASSE: Record<StatusManutencaoValor, string> = {
@@ -33,6 +37,10 @@ export default function SeletorStatusManutencao({
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const podeConcluir = PERFIS_CONCLUEM_MANUTENCAO.includes(getCurrentUser()?.role ?? "");
+  const opcoes = (Object.keys(STATUS_MANUTENCAO_LABEL) as StatusManutencaoValor[]).filter(
+    (opcao) => opcao !== "concluida" || podeConcluir || status === "concluida",
+  );
 
   async function alterarStatus(novoStatus: StatusManutencaoValor) {
     const statusAnterior = status;
@@ -70,7 +78,7 @@ export default function SeletorStatusManutencao({
           aria-label="Selecionar status da manutenção"
           className="border-border bg-bg absolute top-full left-0 z-30 mt-1 min-w-40 overflow-hidden rounded-lg border p-1 shadow-lg"
         >
-          {(Object.keys(STATUS_MANUTENCAO_LABEL) as StatusManutencaoValor[]).map((opcao) => (
+          {opcoes.map((opcao) => (
             <button
               key={opcao}
               type="button"

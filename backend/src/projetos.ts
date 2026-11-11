@@ -6,7 +6,7 @@ import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS } from "./os_comum.js";
 
-const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
+const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial", "superusuario"];
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
   "comercial",
@@ -16,8 +16,13 @@ const PERFIS_COM_ACESSO: Role[] = [
   "monitoramento",
 ];
 
+// O superusuário consulta e edita todos os projetos (e cria O.S. dentro deles).
+const PERFIS_CONSULTA: Role[] = [...PERFIS_COM_ACESSO, "superusuario"];
+
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
-const STATUS_PROJETO = ["aberto", "em_andamento", "finalizado"] as const;
+const STATUS_PROJETO = ["aberto", "em_andamento", "concluido", "cancelado"] as const;
+// Somente comercial, gestor e superusuário concluem o projeto; os demais mudam para os outros estados.
+const PERFIS_CONCLUEM_PROJETO: Role[] = ["comercial", "gestor", "superusuario"];
 type Prioridade = (typeof PRIORIDADES)[number];
 type StatusProjeto = (typeof STATUS_PROJETO)[number];
 
@@ -74,12 +79,24 @@ export async function ensureProjectStatusSchema(): Promise<void> {
   const [columns] = await pool.query<RowDataPacket[]>("SHOW COLUMNS FROM projetos LIKE 'status'");
   if (columns.length === 0) {
     await pool.query(
-      "ALTER TABLE projetos ADD COLUMN status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto' AFTER projeto_id",
+      "ALTER TABLE projetos ADD COLUMN status ENUM('aberto', 'em_andamento', 'concluido', 'cancelado') NOT NULL DEFAULT 'aberto' AFTER projeto_id",
     );
     await pool.query(
       `UPDATE projetos p SET status = 'em_andamento'
         WHERE p.status = 'aberto'
           AND EXISTS (SELECT 1 FROM os o WHERE o.projeto_id = p.projeto_id AND o.os_status = 'em andamento')`,
+    );
+    return;
+  }
+
+  // Bancos antigos usam 'finalizado': passa a ser 'concluido' e ganha 'cancelado'.
+  if (String(columns[0].Type).includes("finalizado")) {
+    await pool.query(
+      "ALTER TABLE projetos MODIFY COLUMN status ENUM('aberto', 'em_andamento', 'finalizado', 'concluido', 'cancelado') NOT NULL DEFAULT 'aberto'",
+    );
+    await pool.query("UPDATE projetos SET status = 'concluido' WHERE status = 'finalizado'");
+    await pool.query(
+      "ALTER TABLE projetos MODIFY COLUMN status ENUM('aberto', 'em_andamento', 'concluido', 'cancelado') NOT NULL DEFAULT 'aberto'",
     );
   }
 }
@@ -87,7 +104,7 @@ export async function ensureProjectStatusSchema(): Promise<void> {
 export function createProjetosRouter(requireRole: RequireRole): Router {
   const router = Router();
 
-router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+router.get("/vendedores", requireRole(...PERFIS_CONSULTA), async (_req, res) => {
     try {
       const [vendedores] = await pool.execute<(RowDataPacket & { id_usuario: number; nome: string })[]>(
         "SELECT id_usuario, nome FROM usuarios WHERE cargo = 'comercial' AND ativo = TRUE ORDER BY nome",
@@ -99,7 +116,9 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
   });
 
-  router.patch("/:projetoId/status", requireRole("comercial"), async (req, res) => {
+  // Todos que enxergam o projeto alteram o status; só comercial, gestor e superusuário concluem.
+  router.patch("/:projetoId/status", requireRole(...PERFIS_CONSULTA), async (req, res) => {
+    const user = res.locals.user as User;
     const projetoId = String(req.params.projetoId);
     if (!/^\d+$/.test(projetoId)) {
       return res.status(404).json({ message: "Projeto não encontrado." });
@@ -111,17 +130,23 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
 
     try {
-      const [result] = await pool.execute<ResultSetHeader>(
+      const filtro = filtroProjeto(user);
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT p.status FROM projetos p WHERE p.projeto_id = ? AND (${filtro.sql}) LIMIT 1`,
+        [projetoId, ...filtro.params],
+      );
+      if (!rows[0]) return res.status(404).json({ message: "Projeto não encontrado." });
+
+      if (status === "concluido" && rows[0].status !== "concluido" && !PERFIS_CONCLUEM_PROJETO.includes(user.role)) {
+        return res.status(403).json({
+          message: "Somente comercial, gestor ou superusuário podem concluir o projeto.",
+        });
+      }
+
+      await pool.execute<ResultSetHeader>(
         "UPDATE projetos SET status = ? WHERE projeto_id = ?",
         [status, projetoId],
       );
-      if (result.affectedRows === 0) {
-        const [rows] = await pool.execute<RowDataPacket[]>(
-          "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
-          [projetoId],
-        );
-        if (!rows[0]) return res.status(404).json({ message: "Projeto não encontrado." });
-      }
       return res.json({ message: "Status do projeto atualizado com sucesso." });
     } catch (error) {
       console.error("Erro ao atualizar status do projeto:", error);
@@ -129,7 +154,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
   });
 
-  router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+  router.get("/", requireRole(...PERFIS_CONSULTA), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -149,7 +174,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
   });
 
-  router.get("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:projetoId", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const user = res.locals.user as User;
     const projetoId = String(req.params.projetoId);
 
@@ -166,15 +191,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
       );
       const p = rows[0];
       if (!p) return res.status(404).json({ message: "Projeto não encontrado." });
-
-      const [equipamentos] = await pool.execute<RowDataPacket[]>(
-        `SELECT e.nome_equipamento, i.quantidade
-           FROM item_equipamento_projeto i
-           JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
-          WHERE i.projeto_id = ?
-          ORDER BY e.nome_equipamento`,
-        [projetoId],
-      );
 
       const [anexos] = await pool.execute<RowDataPacket[]>(
         `SELECT anexo_id, nome_anexo, anexo_tipo, anexo_tamanho
@@ -201,10 +217,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
           data_vencimento_contrato: p.data_vencimento_contrato as string | null,
           data_limite: (p.data_limite as string | null) ?? null,
           vendedor: (p.vendedor_nome as string | null) ?? null,
-          equipamentos: equipamentos.map((e) => ({
-            nome: e.nome_equipamento as string,
-            quantidade: Number(e.quantidade),
-          })),
           anexos: anexos.map((a) => ({
             id: String(a.anexo_id),
             nome: a.nome_anexo as string,
@@ -220,7 +232,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
   });
 
-  router.get("/:projetoId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:projetoId/anexos/:anexoId", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -262,7 +274,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
       vendedor_nome,
       prioridade,
       descricao,
-      equipamentos = [],
       anexos = [],
     } = req.body as {
       nome?: string;
@@ -273,7 +284,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
       vendedor_nome?: string;
       prioridade?: string;
       descricao?: string;
-      equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
       anexos?: {
         nome_anexo?: string;
         anexo_tipo?: string;
@@ -309,8 +319,8 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     if (descricao !== undefined && (typeof descricao !== "string" || descricao.length > 5000)) {
       return res.status(400).json({ message: "A descrição deve ter no máximo 5000 caracteres." });
     }
-    if (!Array.isArray(equipamentos) || !Array.isArray(anexos)) {
-      return res.status(400).json({ message: "Equipamentos ou anexos em formato inválido." });
+    if (!Array.isArray(anexos)) {
+      return res.status(400).json({ message: "Anexos em formato inválido." });
     }
 
     try {
@@ -323,19 +333,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
       );
       if (!vendedores.length || !Boolean(vendedores[0].ativo)) {
         return res.status(400).json({ message: "Vendedor não encontrado ou inativo." });
-      }
-
-      const itens = new Map<string, { nome: string; quantidade: number }>();
-      for (const equipamento of equipamentos) {
-        const equipamentoNome = equipamento?.nome_equipamento?.trim();
-        const quantidade = Number(equipamento?.quantidade);
-        if (!equipamentoNome || equipamentoNome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
-          return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
-        }
-        const key = equipamentoNome.toLocaleLowerCase();
-        const existing = itens.get(key);
-        if (existing) existing.quantidade += quantidade;
-        else itens.set(key, { nome: equipamentoNome, quantidade });
       }
 
       const arquivos: { nome: string; tipo: string; tamanho: number; conteudo: Buffer }[] = [];
@@ -383,21 +380,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
         );
         const projetoId = result.insertId;
 
-        for (const item of itens.values()) {
-          await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
-          const [rows] = await connection.execute<RowDataPacket[]>(
-            "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
-            [item.nome],
-          );
-          const equipamentoId = rows[0]?.equipamento_id;
-          if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-          await connection.execute(
-            `INSERT INTO item_equipamento_projeto (projeto_id, equipamento_id, quantidade)
-             VALUES (?, ?, ?)`,
-            [projetoId, equipamentoId, item.quantidade],
-          );
-        }
-
         for (const arquivo of arquivos) {
           await connection.execute(
             `INSERT INTO anexo
@@ -424,7 +406,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
   });
 
-  router.put("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.put("/:projetoId", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const projetoId = String(req.params.projetoId);
 
     if (!/^\d+$/.test(projetoId)) {
@@ -440,7 +422,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
       vendedor_nome,
       prioridade,
       descricao,
-      equipamentos,
     } = (req.body ?? {}) as Record<string, unknown>;
 
     try {
@@ -538,42 +519,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
             ...valores,
             projetoId,
           ]);
-        }
-
-        if (equipamentos !== undefined) {
-          if (!Array.isArray(equipamentos)) {
-            await connection.rollback();
-            return res.status(400).json({ message: "Equipamentos em formato inválido." });
-          }
-
-          const itens = new Map<string, { nome: string; quantidade: number }>();
-          for (const equipamento of equipamentos as { nome_equipamento?: string; quantidade?: number }[]) {
-            const nome = equipamento?.nome_equipamento?.trim();
-            const quantidade = Number(equipamento?.quantidade);
-            if (!nome || nome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
-              await connection.rollback();
-              return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
-            }
-            const key = nome.toLocaleLowerCase();
-            const existing = itens.get(key);
-            if (existing) existing.quantidade += quantidade;
-            else itens.set(key, { nome, quantidade });
-          }
-
-          await connection.execute("DELETE FROM item_equipamento_projeto WHERE projeto_id = ?", [projetoId]);
-          for (const item of itens.values()) {
-            await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
-            const [rowsEq] = await connection.execute<RowDataPacket[]>(
-              "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
-              [item.nome],
-            );
-            const equipamentoId = rowsEq[0]?.equipamento_id;
-            if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-            await connection.execute(
-              `INSERT INTO item_equipamento_projeto (projeto_id, equipamento_id, quantidade) VALUES (?, ?, ?)`,
-              [projetoId, equipamentoId, item.quantidade],
-            );
-          }
         }
 
         await connection.commit();

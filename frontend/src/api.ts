@@ -319,7 +319,6 @@ export interface ProjetoPayload {
   vendedor_nome: string;
   prioridade: "baixa" | "media" | "alta" | "critica";
   descricao?: string;
-  equipamentos?: { nome_equipamento: string; quantidade: number }[];
   anexos: {
     nome_anexo: string;
     anexo_tipo: string;
@@ -345,7 +344,7 @@ export function createProjeto(data: ProjetoPayload): Promise<{
 }
 
 export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
-export type StatusProjeto = "aberto" | "em_andamento" | "finalizado";
+export type StatusProjeto = "aberto" | "em_andamento" | "concluido" | "cancelado";
 
 // Dados do ticket (listagem)
 export interface ProjetoResumo {
@@ -364,7 +363,6 @@ export interface Projeto extends ProjetoResumo {
   data_vencimento_contrato: string | null;
   data_limite: string | null;
   vendedor: string | null;
-  equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
   ordens: OrdemServicoResumo[];
 }
@@ -423,11 +421,6 @@ export interface ManutencaoPayload {
 
   descricao_situacao: string;
 
-  equipamentos?: {
-    nome_equipamento: string;
-    quantidade: number;
-  }[];
-
   anexos: {
     nome_anexo: string;
     anexo_tipo: string;
@@ -474,7 +467,6 @@ export interface Manutencao extends ManutencaoResumo {
   data_inicio_problema: string | null;
   data_limite: string | null;
   projeto: { id: string; nome: string } | null;
-  equipamentos: { nome: string; quantidade: number }[];
   anexos: ManutencaoAnexo[];
   ordens: OrdemServicoResumo[];
 }
@@ -633,9 +625,7 @@ export function atualizarOrdemServico(
 
 export function atualizarProjeto(
   id: string,
-  dados: Partial<Omit<Projeto, "equipamentos">> & {
-    equipamentos?: { nome_equipamento: string; quantidade: number }[];
-  },
+  dados: Partial<Projeto>,
 ) {
   return request(`/projetos/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -654,7 +644,6 @@ export function atualizarManutencao(
     prioridade?: "baixa" | "media" | "alta" | "critica";
     status_manutencao?: string;
     descricao_situacao?: string;
-    equipamentos?: { nome_equipamento: string; quantidade: number }[];
   }
 ): Promise<{ message: string; manutencao: Manutencao }> {
   return request(`/manutencoes/${encodeURIComponent(id)}`, {

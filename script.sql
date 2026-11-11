@@ -144,7 +144,7 @@ CREATE TABLE projetos (
     vendedor_id INT NULL,
     tipo_sistema VARCHAR(100) NOT NULL,
     prioridade ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
-    status ENUM('aberto', 'em_andamento', 'finalizado') NOT NULL DEFAULT 'aberto',
+    status ENUM('aberto', 'em_andamento', 'concluido', 'cancelado') NOT NULL DEFAULT 'aberto',
     descricao TEXT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_projeto_responsavel (responsavel_id),
@@ -247,33 +247,9 @@ CREATE TABLE item_equipamento_os (
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE item_equipamento_projeto (
-    projeto_id INT NOT NULL,
-    equipamento_id INT NOT NULL,
-    quantidade INT NOT NULL DEFAULT 1,
-    PRIMARY KEY (projeto_id, equipamento_id),
-    CONSTRAINT chk_item_projeto_quantidade CHECK (quantidade > 0),
-    CONSTRAINT fk_item_projeto
-        FOREIGN KEY (projeto_id) REFERENCES projetos(projeto_id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_item_projeto_equipamento
-        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(equipamento_id)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE item_equipamento_manutencao (
-    manutencao_id INT NOT NULL,
-    equipamento_id INT NOT NULL,
-    quantidade INT NOT NULL DEFAULT 1,
-    PRIMARY KEY (manutencao_id, equipamento_id),
-    CONSTRAINT chk_item_manutencao_quantidade CHECK (quantidade > 0),
-    CONSTRAINT fk_item_manutencao
-        FOREIGN KEY (manutencao_id) REFERENCES manutencoes(manutencao_id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_item_manutencao_equipamento
-        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(equipamento_id)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
+-- Equipamentos e materiais existem somente nas O.S. (item_equipamento_os).
+-- As tabelas item_equipamento_projeto e item_equipamento_manutencao foram removidas
+-- (o DROP no início do script limpa bancos antigos).
 
 CREATE TABLE notificacoes (
     notificacao_id INT PRIMARY KEY AUTO_INCREMENT,

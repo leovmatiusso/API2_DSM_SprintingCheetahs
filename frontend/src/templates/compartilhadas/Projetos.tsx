@@ -15,7 +15,8 @@ import SeletorStatusProjeto from "./SeletorStatusProjeto";
 
 export default function Projetos() {
   const navigate = useNavigate();
-  const podeAlterarStatus = getCurrentUser()?.role === "comercial";
+  // Todos que veem projetos mudam o status; a opção "Concluído" é limitada no seletor.
+  const podeAlterarStatus = getCurrentUser()?.role !== "suporte";
 
   const [projetos, setProjetos] = useState<ProjetoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
