@@ -6,10 +6,13 @@ import Modulo from "@/templates/Modulo";
 
 import Times from "@/templates/superusuario/Times";
 import Usuarios from "@/templates/superusuario/Usuarios";
+import HistoricoAtividade from "@/templates/compartilhadas/HistoricoAtividade";
 
 export const superusuarioRoutes = (
   <>
     <Route element={<ProtectedRoute allowedRoles={["superusuario", "gestor"]} />}>
+      <Route path="/historico-atividade" element={<HistoricoAtividade />} />
+
       <Route path="/usuarios" element={<Usuarios />} />
 
       <Route path="/times" element={<Times />} />

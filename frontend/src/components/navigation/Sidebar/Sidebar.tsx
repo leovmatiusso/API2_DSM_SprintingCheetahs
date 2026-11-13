@@ -47,7 +47,7 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
 
   return (
     <aside
-      className={`bg-bg border-border sticky top-0 flex h-dvh shrink-0 flex-col items-center gap-6 pt-4 self-start border-r transition-all duration-300 ${collapsed ? "w-16" : "w-64"}`}
+      className={`bg-bg border-border sticky top-0 hidden h-dvh shrink-0 flex-col items-center gap-6 border-r pt-4 self-start transition-all duration-300 md:flex ${collapsed ? "w-16" : "w-64"}`}
     >
       <div className={`flex h-fit items-center justify-center px-3 w-full ${collapsed ? "mb-7" : "mb-12"} transition-all duration-300`}>
         <div className={`flex items-center gap-3 justify-start w-full`}>
