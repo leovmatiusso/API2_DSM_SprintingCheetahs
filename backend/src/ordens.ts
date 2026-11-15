@@ -38,6 +38,13 @@ const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", 
 type Prioridade = (typeof PRIORIDADES)[number];
 type StatusOS = (typeof STATUS_OS)[number];
 
+const configuredPdfMaxSizeMb = Number(process.env.PDF_REPORT_MAX_SIZE_MB ?? 10);
+const pdfMaxSizeMb =
+  Number.isFinite(configuredPdfMaxSizeMb) && configuredPdfMaxSizeMb > 0
+    ? configuredPdfMaxSizeMb
+    : 10;
+const pdfMaxSizeBytes = Math.floor(pdfMaxSizeMb * 1024 * 1024);
+
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
 function isResponsavelDoTime(
@@ -70,6 +77,39 @@ function dataValida(data: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
   const parsed = new Date(`${data}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
+}
+
+export async function ensureOsReportSchema(): Promise<void> {
+  const [tables] = await pool.query<RowDataPacket[]>("SHOW TABLES LIKE 'anexo'");
+  if (!tables.length) throw new Error("A tabela anexo não existe no banco de dados.");
+
+  const [columns] = await pool.query<RowDataPacket[]>("SHOW COLUMNS FROM anexo LIKE 'id_usuario_envio'");
+  if (!columns.length) {
+    await pool.query("ALTER TABLE anexo ADD COLUMN id_usuario_envio INT NULL AFTER data_anexo");
+  }
+
+  const [indexes] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'anexo'
+        AND INDEX_NAME = 'idx_anexo_usuario_envio' LIMIT 1`,
+  );
+  if (!indexes.length) {
+    await pool.query("ALTER TABLE anexo ADD INDEX idx_anexo_usuario_envio (id_usuario_envio)");
+  }
+
+  const [constraints] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
+      WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'anexo'
+        AND CONSTRAINT_NAME = 'fk_anexo_usuario_envio' LIMIT 1`,
+  );
+  if (!constraints.length) {
+    await pool.query(
+      `ALTER TABLE anexo
+       ADD CONSTRAINT fk_anexo_usuario_envio
+       FOREIGN KEY (id_usuario_envio) REFERENCES usuarios(id_usuario)
+       ON DELETE SET NULL`,
+    );
+  }
 }
 
 // Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
@@ -123,6 +163,193 @@ async function podeCriarNaOrigem(
 
 export function createOrdensRouter(requireRole: RequireRole): Router {
   const router = Router();
+  const requireAccessibleOS: RequestHandler = async (req, res, next) => {
+    const osId = String(req.params.osId);
+    if (!/^\d+$/.test(osId)) {
+      res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      return;
+    }
+
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT o.id_time_responsavel, o.projeto_id, o.manutencao_id, o.os_status,
+                t.responsavel_id AS time_responsavel_id
+           FROM os o
+           LEFT JOIN time t ON t.id_time = o.id_time_responsavel
+          WHERE o.os_id = ? LIMIT 1`,
+        [osId],
+      );
+      const os = rows[0];
+      const user = res.locals.user as User;
+      if (
+        !os ||
+        !podeAcessarOSNoFluxo(user, {
+          id_time_responsavel: os.id_time_responsavel as number | null,
+          projeto_id: os.projeto_id as number | null,
+          manutencao_id: os.manutencao_id as number | null,
+          os_status: os.os_status as string,
+          time_responsavel_id: os.time_responsavel_id as number | null,
+        })
+      ) {
+        res.status(404).json({ message: "Ordem de serviço não encontrada." });
+        return;
+      }
+      next();
+    } catch (error) {
+      console.error("Erro ao validar acesso à O.S.:", error);
+      res.status(500).json({ message: "Não foi possível validar o acesso à ordem de serviço." });
+    }
+  };
+
+  const parsePdfUpload: RequestHandler = (req, res, next) => {
+    void import("multer")
+      .then(({ default: multer }) => {
+        const upload = multer({
+          storage: multer.memoryStorage(),
+          limits: { fileSize: pdfMaxSizeBytes, files: 1 },
+        });
+        upload.single("arquivo")(req, res, (error: unknown) => {
+          if (error instanceof multer.MulterError) {
+            const tooLarge = error.code === "LIMIT_FILE_SIZE";
+            res.status(tooLarge ? 413 : 400).json({
+              message: tooLarge
+                ? `O PDF excede o limite de ${pdfMaxSizeMb} MB.`
+                : "Envie somente um arquivo no campo arquivo.",
+            });
+            return;
+          }
+          if (error) {
+            console.error("Erro ao processar upload de PDF:", error);
+            res.status(400).json({ message: "Não foi possível processar o arquivo enviado." });
+            return;
+          }
+          next();
+        });
+      })
+      .catch((error: unknown) => {
+        console.error("Dependência de upload PDF indisponível:", error);
+        res.status(503).json({
+          message: 'Dependência "multer" ausente. Execute "npm install --prefix backend" na raiz do workspace e reinicie o backend.',
+        });
+      });
+  };
+
+  router.get(
+    "/:osId/relatorios",
+    requireRole(...PERFIS_COM_SUPER),
+    requireAccessibleOS,
+    async (req, res) => {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT anexo_id, nome_anexo, anexo_tipo, anexo_tamanho,
+                  DATE_FORMAT(data_anexo, '%d/%m/%Y %H:%i') AS data_envio
+             FROM anexo
+            WHERE os_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+            ORDER BY data_anexo DESC, anexo_id DESC`,
+          [String(req.params.osId)],
+        );
+        return res.json({
+          relatorios: rows.map((row) => ({
+            id: String(row.anexo_id),
+            nome: row.nome_anexo as string,
+            tipo: row.anexo_tipo as string,
+            tamanho: Number(row.anexo_tamanho ?? 0),
+            data_envio: row.data_envio as string,
+          })),
+        });
+      } catch (error) {
+        console.error("Erro ao listar relatórios da O.S.:", error);
+        return res.status(500).json({ message: "Não foi possível listar os relatórios." });
+      }
+    },
+  );
+
+  router.post(
+    "/:osId/relatorios",
+    requireRole("monitoramento"),
+    requireAccessibleOS,
+    parsePdfUpload,
+    async (req, res) => {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "Selecione um arquivo PDF." });
+      }
+      if (
+        !file.originalname.toLowerCase().endsWith(".pdf") ||
+        !file.buffer.subarray(0, 1024).includes(Buffer.from("%PDF-"))
+      ) {
+        return res.status(400).json({ message: "O arquivo enviado não é um PDF válido." });
+      }
+
+      try {
+        const { PDFDocument } = await import("pdf-lib");
+        const pdf = await PDFDocument.load(file.buffer);
+        if (pdf.getPageCount() < 1) {
+          return res.status(400).json({ message: "O PDF precisa conter ao menos uma página." });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Cannot find package 'pdf-lib'")) {
+          console.error("Dependência de validação PDF indisponível:", error);
+          return res.status(503).json({
+            message: 'Dependência "pdf-lib" ausente. Execute "npm install --prefix backend" na raiz do workspace e reinicie o backend.',
+          });
+        }
+        return res.status(400).json({ message: "O arquivo enviado não é um PDF válido ou está corrompido." });
+      }
+
+      const nome = file.originalname.trim();
+      if (!nome || nome.length > 255) {
+        return res.status(400).json({ message: "O nome do arquivo deve ter até 255 caracteres." });
+      }
+
+      try {
+        const [result] = await pool.execute<ResultSetHeader>(
+          `INSERT INTO anexo
+            (os_id, id_usuario_envio, nome_anexo, anexo_tipo, anexo_tamanho,
+             manutencao_id, projeto_id, conteudo_arquivo)
+           VALUES (?, ?, ?, 'application/pdf', ?, NULL, NULL, ?)`,
+          [String(req.params.osId), (res.locals.user as User).id, nome, file.size, file.buffer],
+        );
+        return res.status(201).json({
+          message: "Relatório PDF anexado com sucesso.",
+          relatorio: { id: String(result.insertId), nome },
+        });
+      } catch (error) {
+        console.error("Erro ao salvar relatório da O.S.:", error);
+        return res.status(500).json({ message: "Não foi possível salvar o relatório no banco de dados." });
+      }
+    },
+  );
+
+  router.get(
+    "/:osId/relatorios/:relatorioId",
+    requireRole(...PERFIS_COM_SUPER),
+    requireAccessibleOS,
+    async (req, res) => {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT nome_anexo, conteudo_arquivo
+             FROM anexo
+            WHERE anexo_id = ? AND os_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+            LIMIT 1`,
+          [String(req.params.relatorioId), String(req.params.osId)],
+        );
+        const report = rows[0];
+        if (!report) return res.status(404).json({ message: "Relatório não encontrado." });
+
+        const nome = report.nome_anexo as string;
+        const disposition = req.query.download === "true" ? "attachment" : "inline";
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(nome)}`);
+        return res.send(report.conteudo_arquivo as Buffer);
+      } catch (error) {
+        console.error("Erro ao recuperar relatório da O.S.:", error);
+        return res.status(500).json({ message: "Não foi possível abrir o relatório." });
+      }
+    },
+  );
 
   // ---------------------------------------------------
   // Listagem (aba "Ordens disponíveis")

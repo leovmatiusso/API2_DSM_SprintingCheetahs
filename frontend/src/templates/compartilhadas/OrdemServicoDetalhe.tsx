@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ClipboardList, File, Link, X } from "lucide-react";
+import { AlertTriangle, ClipboardList, Download, File, Link, X, Upload, ExternalLink } from "lucide-react";
 
 import {
   ApiError,
   abrirAnexoOS,
   atualizarOrdemServico,
   atualizarStatusOS,
+  abrirRelatorioOS,
+  enviarRelatorioOS,
+  getRelatoriosOS,
   getOrdem,
   registrarVerificacaoOS,
 } from "@/api";
-import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
+import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo, RelatorioOS } from "@/api";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -31,6 +34,7 @@ import {
   formatarData,
   formatarTamanho,
   isTimeMonitoramento,
+  isTimeSoftware,
 } from "./osEstilos";
 
 const ROTA_LISTA_OS = "/os/disponiveis";
@@ -127,13 +131,21 @@ export default function OrdemServicoDetalhe() {
   const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoTimes, setCarregandoTimes] = useState(false);
 
+  const [pdfs, setPdfs] = useState<RelatorioOS[]>([]);
+  const [carregandoPdfs, setCarregandoPdfs] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [feedbackPdf, setFeedbackPdf] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const responsavelDoTime = Boolean(
     currentUser?.id && ordem?.time?.responsavel_id === currentUser.id,
   );
+  
+  const podeGerenciarPdfs = currentUser?.role === "monitoramento";
+
   const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
-  const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
-  // Toda O.S. é concluída pela aprovação do monitoramento (exceto as do próprio monitoramento).
-  const podeConcluir = podeDecidirReview && timeMonitoramento;
+  const timeSoftware = isTimeSoftware(ordem?.departamento);
+  const podeConcluir = podeDecidirReview && !timeSoftware;
   const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
   const emVerificacao = ordem?.status === "verificacao";
 
@@ -159,10 +171,27 @@ export default function OrdemServicoDetalhe() {
               quantidade: eq.quantidade,
             }))
           );
+          setCarregandoPdfs(true);
+          void getRelatoriosOS(osId)
+            .then((resposta) => {
+              if (ativo) setPdfs(resposta.relatorios);
+            })
+            .catch((erroRelatorios) => {
+              if (ativo) {
+                setFeedbackPdf({
+                  type: "error",
+                  message: erroRelatorios instanceof Error
+                    ? erroRelatorios.message
+                    : "Não foi possível carregar os relatórios.",
+                });
+              }
+            })
+            .finally(() => {
+              if (ativo) setCarregandoPdfs(false);
+            });
         }
       } catch (error) {
         if (!ativo) return;
-        // O.S. que já saiu da verificação: volta para a lista com um aviso, sem tela de erro.
         if (error instanceof ApiError && error.status === 410) {
           redirecionando = true;
           mostrarAvisoOS("success", "O.S. já verificada", error.message);
@@ -185,32 +214,66 @@ export default function OrdemServicoDetalhe() {
     };
   }, [osId, navigate]);
 
- const abrirModalEdicao = async () => {
-  if (ordem) {
-    // Descarta um time escolhido em uma edição cancelada antes.
-    setTimeResponsavelIdEdit(ordem.time?.id || "");
-    setEquipamentosEdit(
-      ordem.equipamentos.map((eq) => ({
-        nome: eq.nome,
-        quantidade: eq.quantidade,
-      }))
-    );
-  }
-  setModalEdicaoAberto(true);
-  
-  if (times.length === 0) {
-    setCarregandoTimes(true);
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !osId) return;
+
+    setUploadingPdf(true);
+    setFeedbackPdf(null);
     try {
-      const { getTimes } = await import("@/api");
-      const respostaTimes = await getTimes();
-      setTimes(respostaTimes.times.filter((time) => !isTimeMonitoramento(time.departamento)));
-    } catch (e) {
-      console.error("Erro ao carregar times", e);
+      const resposta = await enviarRelatorioOS(osId, file);
+      const atualizados = await getRelatoriosOS(osId);
+      setPdfs(atualizados.relatorios);
+      setFeedbackPdf({ type: "success", message: resposta.message });
+    } catch (erroUpload) {
+      setFeedbackPdf({
+        type: "error",
+        message: erroUpload instanceof Error ? erroUpload.message : "Não foi possível enviar o relatório.",
+      });
     } finally {
-      setCarregandoTimes(false);
+      setUploadingPdf(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }
-};
+  };
+
+  const abrirRelatorio = async (relatorio: RelatorioOS, baixar = false) => {
+    if (!osId) return;
+    try {
+      await abrirRelatorioOS(osId, relatorio, baixar);
+    } catch (erroRelatorio) {
+      setFeedbackPdf({
+        type: "error",
+        message: erroRelatorio instanceof Error ? erroRelatorio.message : "Não foi possível abrir o relatório.",
+      });
+    }
+  };
+
+  const abrirModalEdicao = async () => {
+    if (ordem) {
+      setTimeResponsavelIdEdit(ordem.time?.id || "");
+      setEquipamentosEdit(
+        ordem.equipamentos.map((eq) => ({
+          nome: eq.nome,
+          quantidade: eq.quantidade,
+        }))
+      );
+    }
+    setModalEdicaoAberto(true);
+    
+    if (times.length === 0) {
+      setCarregandoTimes(true);
+      try {
+        const { getTimes } = await import("@/api");
+        const respostaTimes = await getTimes();
+        setTimes(respostaTimes.times.filter((time) => !isTimeMonitoramento(time.departamento)));
+      } catch (e) {
+        console.error("Erro ao carregar times", e);
+      } finally {
+        setCarregandoTimes(false);
+      }
+    }
+  };
+
   async function handleSalvarEdicao(e: React.FormEvent) {
     e.preventDefault();
     if (!osId || !ordem) return;
@@ -245,13 +308,11 @@ export default function OrdemServicoDetalhe() {
         );
       }
 
-      // Recarrega os dados completos da O.S. para atualizar a tela sem falhas
       try {
         const resposta = await getOrdem(osId);
         setOrdem(resposta.ordem);
         setModalEdicaoAberto(false);
       } catch (error) {
-        // A edição já foi salva: quem era do time anterior deixa de ver a O.S. e volta para a lista.
         if (timeMudou && error instanceof ApiError && error.status === 404) {
           navigate(ROTA_LISTA_OS, { replace: true });
           return;
@@ -344,7 +405,6 @@ export default function OrdemServicoDetalhe() {
       );
       navigate(resultado === "aprovada" ? ROTA_APOS_CONCLUIR_OS : ROTA_LISTA_OS);
     } catch (error) {
-      // Outra pessoa do monitoramento decidiu antes: não há mais o que fazer nesta tela.
       if (error instanceof ApiError && error.status === 409) {
         mostrarAvisoOS("success", "O.S. já verificada", error.message);
         navigate(ROTA_LISTA_OS, { replace: true });
@@ -407,8 +467,7 @@ export default function OrdemServicoDetalhe() {
                 <SeletorStatusOS
                   status={ordem.status}
                   responsavelDoTime={responsavelDoTime}
-                  timeMonitoramento={timeMonitoramento}
-                  superusuario={currentUser?.role === "superusuario"}
+                  timeSoftware={timeSoftware}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -458,7 +517,7 @@ export default function OrdemServicoDetalhe() {
                   Esta O.S. aguarda a sua verificação
                 </h2>
                 <p className="text-text-muted mt-1 mb-4 text-sm">
-                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe responsável.
+                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe de software.
                 </p>
 
                 {reprovando ? (
@@ -479,7 +538,7 @@ export default function OrdemServicoDetalhe() {
                         setErroMotivo(null);
                       }}
                       maxLength={5000}
-                      placeholder="Explique o que a equipe responsável precisa corrigir"
+                      placeholder="Explique o que a equipe de software precisa corrigir"
                       aria-required="true"
                       aria-invalid={Boolean(erroMotivo)}
                       aria-describedby={erroMotivo ? "erro-motivo-reprovacao" : undefined}
@@ -577,9 +636,11 @@ export default function OrdemServicoDetalhe() {
                   Anexos
                 </div>
 
-                {ordem.anexos.length ? (
+                {ordem.anexos.filter((anexo) => anexo.tipo.toLowerCase().split(";")[0] !== "application/pdf").length ? (
                   <ul className="m-0 list-none space-y-3 p-0">
-                    {ordem.anexos.map((anexo) => (
+                    {ordem.anexos
+                      .filter((anexo) => anexo.tipo.toLowerCase().split(";")[0] !== "application/pdf")
+                      .map((anexo) => (
                       <li
                         key={anexo.id}
                         className="text-text-muted flex items-center gap-3 text-sm"
@@ -597,7 +658,7 @@ export default function OrdemServicoDetalhe() {
                           {formatarTamanho(anexo.tamanho)}
                         </span>
                       </li>
-                    ))}
+                      ))}
                   </ul>
                 ) : (
                   <p className="text-text-muted m-0 text-sm">Nenhum anexo</p>
@@ -609,6 +670,109 @@ export default function OrdemServicoDetalhe() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* 🚀 [US27] - SEÇÃO DE RELATÓRIOS DE TESTE (PDF) COM RESTRIÇÃO DE PERMISSÃO */}
+            {/* ========================================================================= */}
+            <div className="border-border bg-bg-secondary rounded-xl border p-6 mb-8 space-y-5">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-text">Relatórios de Teste (PDF)</h3>
+                  <p className="text-sm text-muted mt-0.5">Histórico de laudos e resultados vinculados a esta Ordem de Serviço.</p>
+                </div>
+
+                {/* O botão de anexar só aparece se o usuário tiver permissão para gerenciar */}
+                {podeGerenciarPdfs && (
+                  <div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handlePdfUpload}
+                      accept=".pdf"
+                      disabled={uploadingPdf}
+                      className="hidden"
+                      id="pdf-upload-input-detalhe"
+                    />
+                    <label
+                      htmlFor="pdf-upload-input-detalhe"
+                      className={`inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold text-text-inverted transition-all shadow-sm cursor-pointer ${
+                        uploadingPdf 
+                          ? 'bg-primary/50 cursor-not-allowed' 
+                          : 'bg-primary hover:bg-primary-hover active:scale-[0.98]'
+                      }`}
+                    >
+                      {uploadingPdf ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-text-inverted" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Enviando PDF...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Anexar Relatório PDF
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {feedbackPdf && (
+                <div className={feedbackPdf.type === 'success' ? 'success flex items-center justify-between' : 'error flex items-center justify-between'}>
+                  <span>{feedbackPdf.message}</span>
+                  <button onClick={() => setFeedbackPdf(null)} className="text-lg font-bold leading-none">&times;</button>
+                </div>
+              )}
+
+              {carregandoPdfs ? (
+                <p className="text-text-muted m-0 text-sm" role="status">Carregando relatórios...</p>
+              ) : pdfs.length === 0 ? (
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center space-y-2 bg-bg">
+                  <p className="text-sm font-semibold text-text">Nenhum relatório PDF anexado</p>
+                  <p className="text-xs text-muted">Envie o resultado dos testes para orientar as próximas equipes.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-bg">
+                  {pdfs.map((pdf) => (
+                    <div key={pdf.id} className="p-4 flex items-center justify-between hover:bg-bg-secondary transition-colors">
+                      <div className="flex items-center space-x-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-danger-muted text-danger font-bold text-xs flex items-center justify-center shrink-0">
+                          PDF
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text truncate" title={pdf.nome}>
+                            {pdf.nome}
+                          </p>
+                          <p className="text-xs text-muted">
+                            Enviado em {pdf.data_envio} • <span className="font-medium text-text">{formatarTamanho(pdf.tamanho)}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0 ml-4">
+                        <button
+                          type="button"
+                          onClick={() => void abrirRelatorio(pdf)}
+                          className="px-3 py-1.5 text-xs font-semibold text-text bg-secondary hover:bg-secondary-hover border border-border rounded-md transition shadow-sm inline-flex items-center gap-1.5"
+                        >
+                          Visualizar <ExternalLink size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void abrirRelatorio(pdf, true)}
+                          className="px-3 py-1.5 text-xs font-semibold text-text bg-secondary hover:bg-secondary-hover border border-border rounded-md transition shadow-sm inline-flex items-center gap-1.5"
+                        >
+                          Baixar <Download size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Detalhes */}
@@ -696,8 +860,8 @@ export default function OrdemServicoDetalhe() {
         />
       )}
 
-      {/* MODAL DE EDIÇÃO DA O.S. (Fundo sólido/opaco garantido para Light e Dark) */}
-    {modalEdicaoAberto && (
+      {/* MODAL DE EDIÇÃO DA O.S. */}
+      {modalEdicaoAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="border-border bg-bg text-text w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8">
             <div className="mb-6 flex items-center justify-between">
@@ -720,7 +884,6 @@ export default function OrdemServicoDetalhe() {
             )}
 
             <form onSubmit={handleSalvarEdicao} className="space-y-6">
-              {/* LINHA 1: Título e Prioridade */}
               <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-3">
                 <div className="md:col-span-2">
                   <Input
@@ -737,7 +900,6 @@ export default function OrdemServicoDetalhe() {
                 <SeletorPrioridade value={prioridadeEdit} onChange={setPrioridadeEdit} />
               </div>
 
-              {/* LINHA 2: Time responsável e Data limite */}
               <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2">
                 <Select
                   id="edit-os-time"
@@ -767,7 +929,6 @@ export default function OrdemServicoDetalhe() {
                 />
               </div>
 
-              {/* DESCRIÇÃO */}
               <div>
                 <label className="text-text mb-1.5 block text-sm font-semibold">
                   Descrição
@@ -782,12 +943,10 @@ export default function OrdemServicoDetalhe() {
                 />
               </div>
 
-              {/* EQUIPAMENTOS E MATERIAIS */}
               <div>
                 <CampoEquipamentos value={equipamentosEdit} onChange={setEquipamentosEdit} />
               </div>
 
-              {/* BOTÕES DE AÇÃO DO MODAL */}
               <div className="mt-6 flex justify-end gap-3">
                 <Button
                   type="button"

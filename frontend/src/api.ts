@@ -535,6 +535,14 @@ export interface OrdemServicoDetalhe extends OrdemServicoResumo {
   } | null;
 }
 
+export interface RelatorioOS {
+  id: string;
+  nome: string;
+  tipo: "application/pdf";
+  tamanho: number;
+  data_envio: string;
+}
+
 export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
   return request("/os");
 }
@@ -576,6 +584,64 @@ export function abrirAnexoOS(osId: string, anexo: ProjetoAnexo): Promise<void> {
     `/os/${encodeURIComponent(osId)}/anexos/${encodeURIComponent(anexo.id)}`,
     anexo,
   );
+}
+
+export function getRelatoriosOS(osId: string): Promise<{ relatorios: RelatorioOS[] }> {
+  return request(`/os/${encodeURIComponent(osId)}/relatorios`);
+}
+
+export function enviarRelatorioOS(osId: string, arquivo: File): Promise<{
+  message: string;
+  relatorio: { id: string; nome: string };
+}> {
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+  return request(`/os/${encodeURIComponent(osId)}/relatorios`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function abrirRelatorioOS(
+  osId: string,
+  relatorio: RelatorioOS,
+  baixar = false,
+): Promise<void> {
+  const caminho = `/os/${encodeURIComponent(osId)}/relatorios/${encodeURIComponent(relatorio.id)}`;
+  const token = getToken();
+  const preview = baixar ? null : window.open("about:blank", "_blank");
+  if (preview) preview.opener = null;
+
+  try {
+    const response = await fetch(`${API_URL}${caminho}${baixar ? "?download=true" : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      let mensagem = "Não foi possível abrir o relatório.";
+      try {
+        mensagem = (await response.json())?.message ?? mensagem;
+      } catch {
+        // A resposta pode não conter JSON.
+      }
+      throw new Error(mensagem);
+    }
+
+    const url = URL.createObjectURL(await response.blob());
+    if (preview) {
+      preview.location.href = url;
+    } else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = relatorio.nome;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    preview?.close();
+    throw error;
+  }
 }
 
 export function concluirOS(id: number | string): Promise<any> {

@@ -207,6 +207,7 @@ CREATE TABLE anexo (
     anexo_tipo VARCHAR(150) NOT NULL,
     anexo_tamanho BIGINT UNSIGNED NULL,
     data_anexo DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_usuario_envio INT NULL,
     manutencao_id INT NULL,
     projeto_id INT NULL,
     conteudo_arquivo LONGBLOB NOT NULL,
@@ -216,6 +217,9 @@ CREATE TABLE anexo (
     CONSTRAINT fk_anexos_os
         FOREIGN KEY (os_id) REFERENCES os(os_id)
         ON DELETE CASCADE,
+    CONSTRAINT fk_anexo_usuario_envio
+        FOREIGN KEY (id_usuario_envio) REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL,
     CONSTRAINT fk_anexo_manutencao
         FOREIGN KEY (manutencao_id) REFERENCES manutencoes(manutencao_id)
         ON DELETE CASCADE,

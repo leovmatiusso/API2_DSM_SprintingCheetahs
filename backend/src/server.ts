@@ -11,7 +11,7 @@ import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
-import { createOrdensRouter } from "./ordens.js";
+import { createOrdensRouter, ensureOsReportSchema } from "./ordens.js";
 import {
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
@@ -918,11 +918,12 @@ async function startServer() {
   try {
     await ensureProjectStatusSchema();
     await ensureNotificationSchema();
+    await ensureOsReportSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("Erro ao inicializar o banco de notificações:", error);
+    console.error("Erro ao inicializar o schema do banco de dados:", error);
     process.exit(1);
   }
 }
