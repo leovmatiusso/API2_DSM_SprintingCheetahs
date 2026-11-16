@@ -357,6 +357,9 @@ CREATE TRIGGER trg_delete_os
         VALUES (old.os_id, old.id_time_responsavel, old.os_titulo, old.os_status, old.data_limite, 'deletado');
     END //
 
+CREATE FUNCTION fnc_select_date()
+    
+
 DELIMITER ;
 
 -- =====================================================

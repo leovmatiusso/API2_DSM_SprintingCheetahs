@@ -13,6 +13,9 @@ import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter, ensureOsReportSchema, ensureOsVerificationSchema } from "./ordens.js";
 import { createOsResumoRouter, ensureOsResumoSchema } from "./os_resumo.js";
+import { createHistoricoRouter } from "./historico.js";
+import { createDataFiltroRouter } from "./data_filtro.js";
+
 import {
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
@@ -903,6 +906,12 @@ app.use("/api/notificacoes", createNotificacoesRouter(requireAuth));
 // MANUTENÇÕES (rotas em manutencoes.ts)
 // =====================================================
 app.use("/api/manutencoes", createManutencoesRouter(requireRole));
+
+// =====================================================
+// HISTÓRICO DE ORDENS DE SERVIÇO
+// =====================================================
+app.use("/api/historico", createHistoricoRouter(requireRole));
+app.use("/api/historico-filtro", createDataFiltroRouter(requireRole));
 
 // =====================================================
 // DASHBOARD
