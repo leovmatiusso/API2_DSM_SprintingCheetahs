@@ -11,6 +11,8 @@ import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
+import { createHistoricoRouter } from "./historico.js";
+import { createDataFiltroRouter } from "./data_filtro.js";
 import { createOrdensRouter } from "./ordens.js";
 import {
   buildOSStatusEventMessage,
@@ -895,6 +897,12 @@ app.use("/api/notificacoes", createNotificacoesRouter(requireAuth));
 // MANUTENÇÕES (rotas em manutencoes.ts)
 // =====================================================
 app.use("/api/manutencoes", createManutencoesRouter(requireRole));
+
+// =====================================================
+// HISTÓRICO DE ORDENS DE SERVIÇO
+// =====================================================
+app.use("/api/historico", createHistoricoRouter(requireRole));
+app.use("/api/historico-filtro", createDataFiltroRouter(requireRole));
 
 // =====================================================
 // DASHBOARD

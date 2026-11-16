@@ -68,6 +68,24 @@ export function getAccount(): Promise<{ user: User }> {
   return request<{ user: User }>("/account");
 }
 
+export interface HistoricoAtividadeItem {
+  historico_id: number;
+  os_id: number;
+  os_titulo: string;
+  tipo_acao: "criado" | "atualizado" | "deletado";
+  os_status: string;
+  id_time_responsavel: number | null;
+  nome_time: string | null;
+  data_limite: string;
+}
+
+export function getHistorico(data?: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
+  const path = data
+    ? `/historico-filtro?data=${encodeURIComponent(data)}`
+    : "/historico";
+  return request<{ historico: HistoricoAtividadeItem[] }>(path);
+}
+
 export function changePassword(
   currentPassword: string,
   newPassword: string,
