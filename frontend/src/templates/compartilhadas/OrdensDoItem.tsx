@@ -1,27 +1,59 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ClipboardList, Plus } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { ClipboardList } from "lucide-react";
 
+import { getOrdens } from "@/api";
 import type { OrdemServicoResumo } from "@/api";
-import Button from "@/components/ui/Button";
+import { getCurrentUser } from "@/auth";
 
-import FiltroOS, { FILTROS_VAZIOS, type FiltrosOS } from "./FiltroOS";
 import OrdemTicket from "./OrdemTicket";
 
-// Seção "Ordens de serviço" exibida abaixo do projeto/manutenção expandido:
-// botão "Nova O.S." (única forma de criar O.S.) + tickets das O.S. já criadas.
-export default function OrdensDoItem({
-  ordens,
-  novaOsPath,
-}: {
-  ordens: OrdemServicoResumo[];
-  novaOsPath: string;
-}) {
-  const navigate = useNavigate();
+import FiltroOS, { FILTROS_VAZIOS, type FiltrosOS } from "./FiltroOS";
+
+export default function OrdensServico() {
+  const currentUser = getCurrentUser();
+  const [ordens, setOrdens] = useState<OrdemServicoResumo[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltrosOS>(FILTROS_VAZIOS);
 
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregar() {
+      try {
+        const resposta = await getOrdens();
+        if (ativo) setOrdens(resposta.ordens);
+      } catch (error) {
+        if (ativo) {
+          setErro(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar as ordens de serviço.",
+          );
+        }
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  async function recarregarOrdens() {
+    try {
+      const resposta = await getOrdens();
+      setOrdens(resposta.ordens);
+    } catch {
+      // Mantém os cartões atuais se a atualização da lista falhar.
+    }
+  }
+
+  // FILTRO
   // Ajuste os nomes dos campos (departamento, prioridade, status)
-  // conforme o tipo real de OrdemServicoResumo
+  // conforme o tipo real de OrdemServicoResumo.
   const ordensFiltradas = useMemo(
     () =>
       ordens.filter(
@@ -33,58 +65,98 @@ export default function OrdensDoItem({
     [ordens, filtros],
   );
 
+  console.log("filtros:", filtros);
+  console.log("primeira OS:", ordens[0]); 
+  
+  // As duas seções partem da lista JÁ filtrada
+  const ordensParaRevisar = ordensFiltradas.filter(
+    (os) => os.status === "review" && os.time?.responsavel_id === currentUser?.id,
+  );
+  const idsEmRevisao = new Set(ordensParaRevisar.map((os) => os.id));
+  const outrasOrdens = ordensFiltradas.filter((os) => !idsEmRevisao.has(os.id));
+
   return (
-    <section className="mt-10">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="bg-primary-muted text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
-            <ClipboardList size={24} />
+    <main className="page min-h-full p-5 md:p-8">
+      <div className="mx-auto w-full max-w-[1320px]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-primary-muted text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
+              <ClipboardList size={32} />
+            </div>
+            <div>
+              <h2 className="text-text m-0 text-xl leading-tight font-bold">
+                Ordens de serviço
+              </h2>
+              <p className="text-text-muted mt-1 mb-0 text-sm">
+                Acompanhe e gerencie as OS
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-text m-0 text-xl leading-tight font-bold">
-              Ordens de serviço
-            </h2>
-            <p className="text-text-muted mt-1 mb-0 text-sm">
-              Acompanhe e gerencie as OS
-            </p>
+
+          <div className="flex items-center gap-3">
+            {/* BOTÃO + PAINEL DE FILTRAGEM DE OS */}
+            <FiltroOS
+              filtros={filtros}
+              onApply={setFiltros}
+              departamentos={[
+                { value: "producao", label: "Produção" },
+                { value: "software", label: "Software" },
+                { value: "monitoramento", label: "Monitoramento" },
+                { value: "implantacao", label: "Implantação" },
+              ]}
+            />
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* BOTÃO + PAINEL DE FILTRAGEM DE OS */}
-          <FiltroOS
-            filtros={filtros}
-            onApply={setFiltros}
-            departamentos={[
-              { value: "producao", label: "Produção" },
-              { value: "software", label: "Software" },
-              { value: "monitoramento", label: "Monitoramento" },
-              { value: "implantacao", label: "Implantação" },
-            ]}
-          />
+        {carregando ? (
+          <p className="text-text-muted text-sm">Carregando ordens de serviço...</p>
+        ) : erro ? (
+          <p className="text-danger text-sm" role="alert">
+            {erro}
+          </p>
+        ) : ordens.length === 0 ? (
+          <p className="text-text-muted text-sm">Nenhuma ordem de serviço disponível.</p>
+        ) : ordensFiltradas.length === 0 ? (
+          <p className="text-text-muted text-sm">
+            Nenhuma O.S. encontrada com esses filtros.
+          </p>
+        ) : (
+          <div className="space-y-9">
+            {ordensParaRevisar.length > 0 && (
+              <section aria-labelledby="ordens-para-revisar">
+                <div className="mb-4 flex items-center gap-3">
+                  <h2 id="ordens-para-revisar" className="text-text m-0 text-lg font-bold">
+                    OS a serem revisadas
+                  </h2>
+                  <span className="bg-warning-alt text-warning-alt-inverted rounded-full px-2 py-0.5 text-xs font-semibold">
+                    {ordensParaRevisar.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  {ordensParaRevisar.map((os) => (
+                    <OrdemTicket key={os.id} os={os} onStatusChange={recarregarOrdens} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          <Button onClick={() => navigate(novaOsPath)}>
-            <span className="flex items-center gap-2">
-              <Plus size={18} />
-              Nova O.S.
-            </span>
-          </Button>
-        </div>
+            {outrasOrdens.length > 0 && (
+              <section aria-labelledby="ordens-disponiveis">
+                {ordensParaRevisar.length > 0 && (
+                  <h2 id="ordens-disponiveis" className="text-text mb-4 mt-0 text-lg font-bold">
+                    Outras OS disponíveis
+                  </h2>
+                )}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  {outrasOrdens.map((os) => (
+                    <OrdemTicket key={os.id} os={os} onStatusChange={recarregarOrdens} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
       </div>
-
-      {ordensFiltradas.length === 0 ? (
-        <p className="text-text-muted text-sm">
-          {ordens.length === 0
-            ? "Nenhuma ordem de serviço criada até o momento."
-            : "Nenhuma O.S. encontrada com esses filtros."}
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {ordensFiltradas.map((os) => (
-            <OrdemTicket key={os.id} os={os} />
-          ))}
-        </div>
-      )}
-    </section>
+    </main>
   );
 }

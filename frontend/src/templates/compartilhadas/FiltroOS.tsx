@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ListFilter } from "lucide-react";
 
-import type { OrdemStatus } from "@/api";
+import type { OrdemServicoResumo, OrdemStatus } from "@/api";
 import Button from "@/components/ui/Button";
 
 import { STATUS_LABEL } from "./osEstilos";
@@ -25,6 +25,30 @@ export const FILTROS_VAZIOS: FiltrosOS = {
   prioridade: "",
   status: "",
 };
+
+// Remove acentos, maiúsculas e espaços para comparar textos como
+// "Produção" e "producao" como iguais
+const normalizar = (valor?: string | null) =>
+  (valor ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+
+// Aplica os filtros escolhidos a uma lista de O.S
+// Usada nas páginas OrdensServico e OrdensDoItem
+export function aplicarFiltros(
+  ordens: OrdemServicoResumo[],
+  filtros: FiltrosOS,
+) {
+  return ordens.filter(
+    (os) =>
+      (!filtros.departamento ||
+        normalizar(os.departamento) === normalizar(filtros.departamento)) &&
+      (!filtros.prioridade || os.prioridade === filtros.prioridade) &&
+      (!filtros.status || os.status === filtros.status),
+  );
+}
 
 interface FiltroOSProps {
   filtros: FiltrosOS;
@@ -61,7 +85,7 @@ export default function FiltroOS({
   }, [aberto]);
 
   const alternar = () => {
-    // ao abrir o rascunho começa igual aos filtros já aplicados
+    // ao abrir, o rascunho começa igual aos filtros já aplicados
     if (!aberto) setRascunho(filtros);
     setAberto((v) => !v);
   };
@@ -138,7 +162,7 @@ export default function FiltroOS({
                   placeholder="Departamento"
                   opcoes={departamentos}
                   value={rascunho.departamento}
-                  onChange={(v) =>
+                  onChange={(v: string) =>
                     setRascunho((r) => ({ ...r, departamento: v }))
                   }
                   onLimpar={() =>

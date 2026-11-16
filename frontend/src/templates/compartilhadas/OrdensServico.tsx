@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ClipboardList } from "lucide-react";
 
 import { getOrdens } from "@/api";
@@ -7,11 +7,18 @@ import { getCurrentUser } from "@/auth";
 
 import OrdemTicket from "./OrdemTicket";
 
+import FiltroOS, {
+  FILTROS_VAZIOS,
+  aplicarFiltros,
+  type FiltrosOS,
+} from "./FiltroOS";
+
 export default function OrdensServico() {
   const currentUser = getCurrentUser();
   const [ordens, setOrdens] = useState<OrdemServicoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosOS>(FILTROS_VAZIOS);
 
   useEffect(() => {
     let ativo = true;
@@ -39,12 +46,6 @@ export default function OrdensServico() {
     };
   }, []);
 
-  const ordensParaRevisar = ordens.filter(
-    (os) => os.status === "review" && os.time?.responsavel_id === currentUser?.id,
-  );
-  const idsEmRevisao = new Set(ordensParaRevisar.map((os) => os.id));
-  const outrasOrdens = ordens.filter((os) => !idsEmRevisao.has(os.id));
-
   async function recarregarOrdens() {
     try {
       const resposta = await getOrdens();
@@ -54,22 +55,52 @@ export default function OrdensServico() {
     }
   }
 
+  // FILTRO
+  const ordensFiltradas = useMemo(
+    () => aplicarFiltros(ordens, filtros),
+    [ordens, filtros],
+  );
+
+  // As duas seções partem da lista JÁ filtrada
+  const ordensParaRevisar = ordensFiltradas.filter(
+    (os) => os.status === "review" && os.time?.responsavel_id === currentUser?.id,
+  );
+  const idsEmRevisao = new Set(ordensParaRevisar.map((os) => os.id));
+  const outrasOrdens = ordensFiltradas.filter((os) => !idsEmRevisao.has(os.id));
+
   return (
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
-        <section className="mb-8 flex items-center gap-4">
-          <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
-            <ClipboardList size={32} />
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+
+          <div className="flex items-center gap-4">
+            <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
+              <ClipboardList size={32} />
+            </div>
+            <div>
+              <h2 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
+                Ordens de serviço
+              </h2>
+              <p className="text-text-muted mt-1 mb-0 text-sm md:text-base">
+                Acompanhe e gerencie as OS
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
-              Ordens de serviço
-            </h1>
-            <p className="text-text-muted mt-1 mb-0 text-sm md:text-base">
-              Acompanhe e gerencie as OS
-            </p>
+
+          <div className="flex items-center gap-3">
+            {/* BOTÃO E PAINEL DE FILTRAGEM DE OS */}
+            <FiltroOS
+              filtros={filtros}
+              onApply={setFiltros}
+              departamentos={[
+                { value: "producao", label: "Produção" },
+                { value: "software", label: "Software" },
+                { value: "monitoramento", label: "Monitoramento" },
+                { value: "implantacao", label: "Implantação" },
+              ]}
+            />
           </div>
-        </section>
+        </div>
 
         {carregando ? (
           <p className="text-text-muted text-sm">Carregando ordens de serviço...</p>
@@ -79,6 +110,10 @@ export default function OrdensServico() {
           </p>
         ) : ordens.length === 0 ? (
           <p className="text-text-muted text-sm">Nenhuma ordem de serviço disponível.</p>
+        ) : ordensFiltradas.length === 0 ? (
+          <p className="text-text-muted text-sm">
+            Nenhuma O.S. encontrada com esses filtros.
+          </p>
         ) : (
           <div className="space-y-9">
             {ordensParaRevisar.length > 0 && (
