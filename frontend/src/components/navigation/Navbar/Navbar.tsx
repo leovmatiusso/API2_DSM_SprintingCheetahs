@@ -21,7 +21,7 @@ export default function Header() {
 
   return (
     <header className="border-border bg-bg flex items-center justify-between border-b px-6 py-4">
-      <div className="flex items-center gap-3 min-w-[450px] w-1/3">
+      <div className="flex items-center gap-3 w-full">
         {/* <Input 
         iconLeft={Search}
         placeholder="Buscar usuários, equipes, ordens de serviço..."
@@ -118,13 +118,13 @@ export default function Header() {
           onClick={() => setMenuAberto(!menuAberto)}
           className="hover:bg-bg-tertiary flex items-center gap-2 rounded-xl p-2 transition cursor-pointer"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-purple-700">
-            <User size={18} />
+          <div className="flex size-8 lg:size-9 items-center justify-center rounded-full bg-purple-100 text-purple-700">
+            <User className="size-4.5 lg:size-5" />
           </div>
-          <span className="text-sm font-medium">{user?.name ?? "Usuário"}</span>
+          <span className="text-sm font-medium hidden @3xl:block text-nowrap">{user?.name ?? "Usuário"}</span>
           <ChevronDown
             size={17}
-            className={`transition-transform ${menuAberto ? "rotate-180" : ""}`}
+            className={`transition-transform hidden @3xl:block ${menuAberto ? "rotate-180" : ""}`}
           />
         </button>
         {menuAberto && (

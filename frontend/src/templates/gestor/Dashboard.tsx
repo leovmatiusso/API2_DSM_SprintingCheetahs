@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ClipboardList, Clock, CheckCircle2, CircleAlert } from "lucide-react";
 
 import { getCurrentUser } from "@/auth";
-import { Card } from "@/components/ui/Card";
+import { Card, MiniCard, MetricCard } from "@/components/ui/Card";
 import { getDashboardResumo } from "@/api";
 import type { DashboardResumo } from "@/api";
 
@@ -32,7 +32,7 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <main className="bg-bg-secondary text-text min-h-screen p-8">
+    <main className="bg-bg-secondary text-text min-h-90dvh px-4 py-8 lg:p-8">
       {/* Conteúdo */}
       <section>
         <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
@@ -44,77 +44,40 @@ export default function Dashboard() {
           </p>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-10">
+        <div className="grid grid-cols-1 gap-6 @4xl:grid-cols-10">
           {/* Card - Projetos em andamento */}
-          <Card className="lg:col-span-6">
-            <div className="mb-6">
-              <p className="text-text text-2xl">Projetos em andamento</p>
-              <strong className="text-text mt-1 block text-4xl font-bold">
-                {resumo?.projetos ?? "—"}
-              </strong>
-            </div>
+          <MetricCard title="Projetos em andamento" valor={resumo?.projetos} className="@4xl:col-span-6">
+            <MiniCard
+                icon={ClipboardList}
+                color="bg-blue-200"
+                title="Total de OS"
+                valor={resumo?.ordens.total}
+                description="OS em todos os status"
+              />
 
-            {/* Mini cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black">
-                    <ClipboardList size={19} />
-                  </div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">Total de OS</span>
-                </div>
-                <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">
-                    {resumo?.ordens.total ?? "—"}
-                  </strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">
-                    OS em todos os status
-                  </span>
-                </div>
-              </div>
+              <MiniCard
+                icon={Clock}
+                color="bg-green-200"
+                title="OS em andamento"
+                valor={resumo?.ordens.andamento}
+                description="Sendo tratadas"
+              />
 
-              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-200 text-black">
-                    <Clock size={19} />
-                  </div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS em andamento</span>
-                </div>
-                <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">
-                    {resumo?.ordens.andamento ?? "—"}
-                  </strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">
-                    Sendo tratadas
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pink-200 text-black">
-                    <CheckCircle2 size={19} />
-                  </div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">OS concluídas</span>
-                </div>
-                <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">
-                    {resumo?.ordens.concluidas ?? "—"}
-                  </strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">
-                    Total de OS concluídas
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
+              <MiniCard
+                icon={CheckCircle2}
+                color="bg-pink-200"
+                title="OS concluídas"
+                valor={resumo?.ordens.concluidas}
+                description="Total de OS concluídas"
+              />
+          </MetricCard>
 
           {/* Card - O.S. por equipe */}
-          <Card className="lg:col-span-4">
-            <div className="mb-6">
+          <Card className="@4xl:col-span-4">
+            <div className="mb-5">
               <p className="text-text text-2xl font-bold">O.S. por equipe</p>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-3 @3xl:space-y-5">
               {[
                 {
                   nome: "Produção",
@@ -139,11 +102,11 @@ export default function Dashboard() {
               ].map((time) => (
                 <div key={time.nome}>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className={`h-3 w-3 shrink-0 rounded-full ${time.cor}`}></span>
+                    <span className={`size-2 @3xl:size-3 shrink-0 rounded-full ${time.cor}`}></span>
                     <span className="text-sm font-medium">{time.nome}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="bg-secondary h-2 flex-1 overflow-hidden rounded-full">
+                    <div className="bg-secondary h-1.5 @3xl:h-2 flex-1 overflow-hidden rounded-full">
                       <div
                         className={`h-full rounded-full ${time.cor}`}
                         style={{
@@ -159,68 +122,31 @@ export default function Dashboard() {
           </Card>
 
           {/* Card - Manutenções em andamento */}
-          <Card className="lg:col-span-6">
-            <div className="mb-6">
-              <p className="text-text text-2xl">Manutenções em andamento</p>
-              <strong className="text-text mt-1 block text-4xl font-bold">
-                {resumo?.manutencoes.total ?? "—"}
-              </strong>
-            </div>
+          <MetricCard title="Manutenções em andamento" valor={resumo?.manutencoes.total} className="@4xl:col-span-6">
+            <MiniCard
+                icon={ClipboardList}
+                color="bg-blue-200"
+                title="Abertas"
+                valor={resumo?.manutencoes.abertas}
+                description="Total em aberto"
+              />
 
-            {/* Mini cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-200 text-black">
-                    <ClipboardList size={19} />
-                  </div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">Abertas</span>
-                </div>
-                <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">
-                    {resumo?.manutencoes.abertas ?? "—"}
-                  </strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">
-                    Total em aberto
-                  </span>
-                </div>
-              </div>
+              <MiniCard
+                icon={Clock}
+                color="bg-green-200"
+                title="Em andamento"
+                valor={resumo?.manutencoes.andamento}
+                description="Sendo tratadas"
+              />
 
-              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-200 text-black">
-                    <Clock size={19} />
-                  </div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">Em andamento</span>
-                </div>
-                <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">
-                    {resumo?.manutencoes.andamento ?? "—"}
-                  </strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">
-                    Sendo tratadas
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-text/10 bg-bg-secondary min-w-0 rounded-xl border p-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 text-black">
-                    <CircleAlert size={19} />
-                  </div>
-                  <span className="min-w-0 text-sm leading-tight font-medium">Em alerta</span>
-                </div>
-                <div className="mt-3 pl-11">
-                  <strong className="block text-3xl font-bold">
-                    {resumo?.manutencoes.alerta ?? "—"}
-                  </strong>
-                  <span className="text-text-muted mt-1 block text-xs leading-4">
-                    Total em alerta
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
+              <MiniCard
+                icon={CircleAlert}
+                color="bg-red-200"
+                title="Em alerta"
+                valor={resumo?.manutencoes.alerta}
+                description="Total em alerta"
+              />
+          </MetricCard>
         </div>
       </section>
     </main>

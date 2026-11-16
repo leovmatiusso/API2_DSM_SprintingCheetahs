@@ -26,6 +26,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import Cadastro from "../compartilhadas/Cadastro";
+import { Main, Content, Header } from "../compartilhadas/Base";
 
 const roles: {
   value: Role;
@@ -158,9 +159,7 @@ export default function Usuarios() {
       await deleteUser(userToDelete.id);
       setUserToDelete(null);
       setMessage("Usuário excluído com sucesso.");
-      setSelectedUsers((current) =>
-        current.filter((id) => id !== userToDelete.id),
-      );
+      setSelectedUsers((current) => current.filter((id) => id !== userToDelete.id));
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao excluir usuário.");
@@ -196,17 +195,13 @@ export default function Usuarios() {
 
   function toggleSelected(userId: string) {
     setSelectedUsers((current) =>
-      current.includes(userId)
-        ? current.filter((id) => id !== userId)
-        : [...current, userId],
+      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId],
     );
   }
 
   function toggleAllVisible() {
     const visibleIds = filteredUsers.map((user) => user.id);
-    const allVisibleSelected = visibleIds.every((id) =>
-      selectedUsers.includes(id),
-    );
+    const allVisibleSelected = visibleIds.every((id) => selectedUsers.includes(id));
 
     setSelectedUsers((current) =>
       allVisibleSelected
@@ -216,8 +211,7 @@ export default function Usuarios() {
   }
 
   const allVisibleSelected =
-    filteredUsers.length > 0 &&
-    filteredUsers.every((user) => selectedUsers.includes(user.id));
+    filteredUsers.length > 0 && filteredUsers.every((user) => selectedUsers.includes(user.id));
 
   if (mostrarCadastro) {
     return (
@@ -232,25 +226,14 @@ export default function Usuarios() {
   }
 
   return (
-    <main className="page min-h-full md:p-8">
-      <div className="mx-auto w-full max-w-[1320px]">
+    <Main>
+      <Content>
         {/* Cabeçalho */}
-        <header className="mb-8 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
-              <UserRound size={32} />
-            </div>
-
-            <div>
-              <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
-                Usuários
-              </h1>
-              <p className="text-text-muted m-0 text-sm md:text-base">
-                Gerencie os acessos e permissões da sua equipe.
-              </p>
-            </div>
-          </div>
-
+        <Header
+          icon={UserRound}
+          title="Usuários"
+          subtitle="Gerencie os acessos e permissões da sua equipe."
+        >
           <Button
             type="button"
             variant="primary"
@@ -262,7 +245,7 @@ export default function Usuarios() {
               Novo usuário
             </span>
           </Button>
-        </header>
+        </Header>
 
         {message && <div className="success content mb-4">{message}</div>}
         {error && <div className="error content mb-4">{error}</div>}
@@ -272,16 +255,11 @@ export default function Usuarios() {
           <Card className="content mb-6">
             <h2 className="text-text mb-5 text-xl font-bold">Editar usuário</h2>
 
-            <form
-              className="grid grid-cols-1 gap-5 md:grid-cols-2"
-              onSubmit={submit}
-            >
+            <form className="grid grid-cols-1 gap-5 md:grid-cols-2" onSubmit={submit}>
               <Input
                 label="Nome"
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
               />
 
@@ -289,9 +267,7 @@ export default function Usuarios() {
                 type="email"
                 label="E-mail"
                 value={form.email}
-                onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
 
@@ -299,18 +275,14 @@ export default function Usuarios() {
                 type="password"
                 label="Nova senha"
                 value={form.password}
-                onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="Deixe vazio para manter"
               />
 
               <Select
                 label="Perfil"
                 value={form.role}
-                onChange={(e) =>
-                  setForm({ ...form, role: e.target.value as Role })
-                }
+                onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
               >
                 {roles.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -332,7 +304,7 @@ export default function Usuarios() {
         )}
 
         {/* Listagem */}
-        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5  md:p-6">
+        <section className="nova-os-card border-border min-h-[620px] w-full rounded-2xl border p-5 md:p-6">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="w-full md:max-w-[70%]">
               <Input
@@ -346,11 +318,7 @@ export default function Usuarios() {
             </div>
 
             <div className="w-full md:max-w-[300px]">
-              <Select
-                label=""
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-              >
+              <Select label="" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                 <option value="">Selecione um cargo</option>
                 {roles.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -368,9 +336,7 @@ export default function Usuarios() {
           >
             <span
               className={`flex h-4 w-4 items-center justify-center rounded border ${
-                allVisibleSelected
-                  ? "border-primary bg-primary text-white"
-                  : "border-border bg-bg"
+                allVisibleSelected ? "border-primary bg-primary text-white" : "border-border bg-bg"
               }`}
             >
               {allVisibleSelected && <Check size={13} />}
@@ -382,9 +348,7 @@ export default function Usuarios() {
             <p className="text-text-muted px-5 py-4">Carregando usuários...</p>
           ) : filteredUsers.length === 0 ? (
             <p className="text-text-muted px-5 py-4">
-              {users.length === 0
-                ? "Nenhum usuário cadastrado."
-                : "Nenhum usuário encontrado."}
+              {users.length === 0 ? "Nenhum usuário cadastrado." : "Nenhum usuário encontrado."}
             </p>
           ) : (
             <div className="divide-border divide-y">
@@ -399,29 +363,29 @@ export default function Usuarios() {
                     <button
                       type="button"
                       onClick={() => toggleSelected(user.id)}
-                      aria-label={
-                        selected
-                          ? `Desmarcar ${user.name}`
-                          : `Selecionar ${user.name}`
-                      }
+                      aria-label={selected ? `Desmarcar ${user.name}` : `Selecionar ${user.name}`}
                       className={`flex h-4 w-4 items-center justify-center rounded border ${
-                        selected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-bg"
+                        selected ? "border-primary bg-primary text-white" : "border-border bg-bg"
                       }`}
                     >
                       {selected && <Check size={13} />}
                     </button>
 
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${user.active ? "bg-primary-muted text-primary" : "bg-primary-muted/50 text-primary/50"}`}>
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${user.active ? "bg-primary-muted text-primary" : "bg-primary-muted/50 text-primary/50"}`}
+                    >
                       {getInitials(user.name)}
                     </div>
 
-                    <span className={`truncate text-sm font-semibold ${user.active ? "text-text" : "text-text-muted line-through"}`}>
+                    <span
+                      className={`truncate text-sm font-semibold ${user.active ? "text-text" : "text-text-muted line-through"}`}
+                    >
                       {user.name}
                     </span>
 
-                    <span className={`col-span-3 truncate text-sm font-semibold sm:col-span-1 ${user.active ? "text-text-muted" : "text-text-muted/50"}`}>
+                    <span
+                      className={`col-span-3 truncate text-sm font-semibold sm:col-span-1 ${user.active ? "text-text-muted" : "text-text-muted/50"}`}
+                    >
                       {user.email}
                     </span>
 
@@ -435,9 +399,7 @@ export default function Usuarios() {
                         <button
                           type="button"
                           aria-label={`Ações para ${user.name}`}
-                          onClick={() =>
-                            setOpenMenu(openMenu === user.id ? null : user.id)
-                          }
+                          onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
                           className="text-text-muted hover:text-primary rounded p-1"
                         >
                           <MoreHorizontal size={21} />
@@ -448,7 +410,7 @@ export default function Usuarios() {
                             <button
                               type="button"
                               onClick={() => edit(user)}
-                              className="text-text hover:bg-bg-tertiary flex w-full rounded px-3 py-2 text-left text-sm items-center gap-2"
+                              className="text-text hover:bg-bg-tertiary flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm"
                             >
                               <SquarePen size={16} />
                               Editar
@@ -458,7 +420,7 @@ export default function Usuarios() {
                                 <button
                                   type="button"
                                   onClick={() => toggleUser(user)}
-                                  className="text-text hover:bg-bg-tertiary flex w-full rounded px-3 py-2 text-left text-sm items-center gap-2"
+                                  className="text-text hover:bg-bg-tertiary flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm"
                                 >
                                   <Power size={16} />
                                   {user.active ? "Desativar" : "Ativar"}
@@ -469,7 +431,7 @@ export default function Usuarios() {
                                     setUserToDelete(user);
                                     setOpenMenu(null);
                                   }}
-                                  className="text-danger hover:bg-bg-tertiary flex w-full rounded px-3 py-2 text-left text-sm items-center gap-2"
+                                  className="text-danger hover:bg-bg-tertiary flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm"
                                 >
                                   <Trash size={16} />
                                   Excluir
@@ -486,7 +448,7 @@ export default function Usuarios() {
             </div>
           )}
         </section>
-      </div>
+      </Content>
 
       {/* Confirmação de exclusão */}
       {userToDelete && (
@@ -495,30 +457,22 @@ export default function Usuarios() {
             <h2>Excluir usuário</h2>
 
             <p>
-              Deseja excluir usuário <strong>{userToDelete.email}</strong> na
-              função de <strong>{getRoleLabel(userToDelete.role)}</strong>?
+              Deseja excluir usuário <strong>{userToDelete.email}</strong> na função de{" "}
+              <strong>{getRoleLabel(userToDelete.role)}</strong>?
             </p>
 
             <div className="delete-actions">
-              <button
-                type="button"
-                className="delete-confirm"
-                onClick={confirmDelete}
-              >
+              <button type="button" className="delete-confirm" onClick={confirmDelete}>
                 Confirmar
               </button>
 
-              <button
-                type="button"
-                className="delete-cancel"
-                onClick={() => setUserToDelete(null)}
-              >
+              <button type="button" className="delete-cancel" onClick={() => setUserToDelete(null)}>
                 Cancelar
               </button>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </Main>
   );
 }

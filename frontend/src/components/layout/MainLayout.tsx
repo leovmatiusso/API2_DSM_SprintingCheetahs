@@ -8,7 +8,7 @@ export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="bg-bg-secondary text-text flex min-h-screen">
+    <div className="bg-bg-secondary text-text flex min-h-screen @container">
       <Sidebar onCollapsedChange={setSidebarCollapsed} />
 
       <main className={`min-h-screen flex-1 transition-all duration-300`}>

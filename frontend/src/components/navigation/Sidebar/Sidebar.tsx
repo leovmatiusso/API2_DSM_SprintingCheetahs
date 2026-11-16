@@ -6,7 +6,7 @@ import { getCurrentUser, logout } from "@/auth";
 import SidebarItem from "./SidebarItem";
 import { menuItems } from "./sidebar.config";
 import ThemeToggle from "./ThemeToggle";
-import AltaveIcon from "./AltaveIcon";
+import HiveIcon from "./HiveIcon";
 
 interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
@@ -47,12 +47,12 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
 
   return (
     <aside
-      className={`bg-bg border-border sticky top-0 flex h-dvh shrink-0 flex-col items-center gap-6 pt-4 self-start border-r transition-all duration-300 ${collapsed ? "w-16" : "w-64"}`}
+      className={`bg-bg border-border sticky top-0 hidden @3xl:flex h-dvh shrink-0 flex-col items-center gap-6 pt-4 self-start border-r transition-all duration-300 ${collapsed ? "w-16" : "w-64"}`}
     >
       <div className={`flex h-fit items-center justify-center px-3 w-full ${collapsed ? "mb-7" : "mb-12"} transition-all duration-300`}>
         <div className={`flex items-center gap-3 justify-start w-full`}>
-          <AltaveIcon className={`${collapsed ? "size-10" : "size-12"} text-text shrink-0 bg-bg-tertiary rounded-2xl border border-border transition-all duration-300`} />
-          <span className="text-xl font-bold text-text truncate">ALTAVE</span>
+          <HiveIcon className={`${collapsed ? "size-10" : "size-12"} p-2 text-text shrink-0 bg-bg-tertiary rounded-2xl border border-border transition-all duration-300`} />
+          <span className="text-xl font-bold text-text truncate">HIVE</span>
         </div>
       </div>
 
