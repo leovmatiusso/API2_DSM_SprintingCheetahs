@@ -52,16 +52,16 @@ export default function DetalhePainel({
   }
 
   return (
-    <section className="nova-os-card border-border grid overflow-hidden rounded-xl border shadow-sm md:grid-cols-3">
+    <section className="nova-os-card border-border grid overflow-hidden rounded-xl border shadow-sm xl:grid-cols-3">
       {/* Dados */}
-      <div className="border-border grid grid-cols-1 content-start gap-x-6 gap-y-5 border-b p-6 sm:grid-cols-2 md:border-r md:border-b-0">
+      <div className="border-border grid grid-cols-1 content-start gap-x-6 gap-y-5 border-b p-5 sm:grid-cols-2 sm:p-6 xl:border-r xl:border-b-0">
         {campos.map((campo) => (
           <Campo key={campo.rotulo} {...campo} />
         ))}
       </div>
 
       {/* Descrição */}
-      <div className="border-border flex flex-col gap-6 border-b p-6 md:border-r md:border-b-0">
+      <div className="border-border flex flex-col gap-6 border-b p-5 sm:p-6 xl:border-r xl:border-b-0">
         <div className="flex gap-3">
           <ClipboardList className="text-text-muted mt-0.5 shrink-0" size={22} />
           <div className="min-w-0">
@@ -74,7 +74,7 @@ export default function DetalhePainel({
       </div>
 
       {/* Anexos */}
-      <div className="p-6">
+      <div className="p-5 sm:p-6">
         <div className="text-text mb-4 flex items-center gap-2 font-semibold">
           <Link className="text-text-muted" size={19} />
           Anexos
