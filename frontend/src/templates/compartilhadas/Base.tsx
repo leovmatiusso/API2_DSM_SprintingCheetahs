@@ -29,9 +29,9 @@ export function Content({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto w-full max-w-[1320px]">{children}</div>;
 }
 
-export function Main({ children }: { children: React.ReactNode }) {
+export function Main({ children, className="" }: { children: React.ReactNode; className?: string; }) {
   return (
-    <main className="p-5 md:p-8">
+    <main className={`p-5 md:p-8 ${className}`}>
       {children}
     </main>
   );

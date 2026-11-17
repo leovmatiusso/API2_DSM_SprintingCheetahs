@@ -51,8 +51,8 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
     >
       <div className={`flex h-fit items-center justify-center px-3 w-full ${collapsed ? "mb-7" : "mb-12"} transition-all duration-300`}>
         <div className={`flex items-center gap-3 justify-start w-full`}>
-          <HiveIcon className={`${collapsed ? "size-10" : "size-12"} p-2 text-text shrink-0 bg-bg-tertiary rounded-2xl border border-border transition-all duration-300`} />
-          <span className="text-xl font-bold text-text truncate">HIVE</span>
+          <HiveIcon className={`${collapsed ? "size-10" : "size-12"} p-2 text-primary shrink-0 bg-primary-muted rounded-2xl transition-all duration-300`} />
+          <span className="text-xl font-semibold text-text truncate">Hive</span>
         </div>
       </div>
 

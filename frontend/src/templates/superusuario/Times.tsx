@@ -1,14 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import {
-  Check,
-  ClipboardList,
-  MoreHorizontal,
-  Plus,
-  Search,
-  UsersRound,
-  SquarePen,
-  Trash,
-} from "lucide-react";
+import { ClipboardList, MoreHorizontal, Plus, UsersRound, SquarePen, Trash } from "lucide-react";
 
 import { deleteTime, getTimes, getUsers, updateTime } from "@/api";
 import { getCurrentUser } from "@/auth";
@@ -21,6 +12,14 @@ import { Card } from "@/components/ui/Card";
 import EditButton from "@/components/ui/EditMenu";
 import CadastroTimes from "../compartilhadas/CadastroTimes";
 import { Main, Content, Header } from "../compartilhadas/Base";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import FeedbackMessage from "@/components/ui/FeedbackMessage";
+import Checkbox from "@/components/ui/Checkbox";
+import useSelecao from "@/hooks/useSelecao";
+import SearchFilter from "@/components/ui/SearchFilter";
+import DropdownMenu from "@/components/ui/DropdownMenu";
+import getInitials from "@/utils/getInitials";
+import EditModal from "@/components/ui/EditModal";
 
 const equipes: {
   value: Role;
@@ -35,17 +34,14 @@ const equipes: {
   { value: "monitoramento", label: "Monitoramento" },
 ];
 
-const numPesVinculadas = 4;
+const equipesDeTime = equipes.filter(
+  (equipe) => equipe.value !== "comercial" && equipe.value !== "suporte",
+);
+
+const NUM_PESSOAS_VINCULADAS = 4;
 
 function getEquipeLabel(value: string) {
   return equipes.find((item) => item.value === value)?.label ?? value;
-}
-
-function getInitials(name: string) {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-
-  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
 }
 
 export default function Times() {
@@ -65,7 +61,6 @@ export default function Times() {
 
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
-  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [nomeTime, setNomeTime] = useState("");
@@ -83,15 +78,30 @@ export default function Times() {
 
       setTimes(timesResult.times);
       setUsers(usersResult.users);
-      setSelectedTimes((current) =>
-        current.filter((id) => timesResult.times.some((time) => time.id === id)),
-      );
+      prune(timesResult.times.map((t) => t.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao carregar times.");
     } finally {
       setLoading(false);
     }
   }
+
+  const filteredTimes = times.filter((time) => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      time.nome_time.toLowerCase().includes(query) ||
+      getEquipeLabel(time.departamento).toLowerCase().includes(query) ||
+      (time.responsavel?.name.toLowerCase().includes(query) ?? false) ||
+      time.pessoasVinculadas.some((person) => person.name.toLowerCase().includes(query));
+
+    const matchesDepartment = !departmentFilter || time.departamento === departmentFilter;
+
+    return matchesSearch && matchesDepartment;
+  });
+
+  const { selectedIds, toggleSelected, toggleAllVisible, allSelected, prune } =
+    useSelecao(filteredTimes);
 
   useEffect(() => {
     if (isAllowed) {
@@ -112,8 +122,6 @@ export default function Times() {
     setError("");
     setMessage("");
     setOpenMenu(null);
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function cancelarEdicao() {
@@ -165,7 +173,6 @@ export default function Times() {
     try {
       await deleteTime(timeToDelete.id);
       setTimeToDelete(null);
-      setSelectedTimes((current) => current.filter((id) => id !== timeToDelete.id));
       setMessage("Time excluído com sucesso.");
       await load();
     } catch (e) {
@@ -177,40 +184,6 @@ export default function Times() {
   const usuariosElegiveis = users.filter(
     (user) => user.role !== "comercial" && user.role !== "suporte",
   );
-
-  const filteredTimes = times.filter((time) => {
-    const query = search.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      time.nome_time.toLowerCase().includes(query) ||
-      getEquipeLabel(time.departamento).toLowerCase().includes(query) ||
-      time.responsavel?.name.toLowerCase().includes(query) ||
-      time.pessoasVinculadas.some((person) => person.name.toLowerCase().includes(query));
-
-    const matchesDepartment = !departmentFilter || time.departamento === departmentFilter;
-
-    return matchesSearch && matchesDepartment;
-  });
-
-  function toggleSelected(timeId: string) {
-    setSelectedTimes((current) =>
-      current.includes(timeId) ? current.filter((id) => id !== timeId) : [...current, timeId],
-    );
-  }
-
-  function toggleAllVisible() {
-    const visibleIds = filteredTimes.map((time) => time.id);
-    const allVisibleSelected = visibleIds.every((id) => selectedTimes.includes(id));
-
-    setSelectedTimes((current) =>
-      allVisibleSelected
-        ? current.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...current, ...visibleIds])],
-    );
-  }
-
-  const allVisibleSelected =
-    filteredTimes.length > 0 && filteredTimes.every((time) => selectedTimes.includes(time.id));
 
   if (mostrarTime) {
     return (
@@ -225,7 +198,90 @@ export default function Times() {
   }
 
   return (
-    <Main>
+    <Main className="relative">
+      {/* Formulário de edição */}
+
+      <EditModal isOpen={!!editing} title="Editar time">
+        <form className="grid grid-cols-1 gap-5 md:grid-cols-2" onSubmit={salvarEdicao}>
+          <Input
+            label="Nome do time"
+            value={nomeTime}
+            onChange={(e) => setNomeTime(e.target.value)}
+            required
+          />
+          <Select
+            label="Equipe relacionada"
+            value={departamento}
+            onChange={(e) => setDepartamento(e.target.value)}
+            required
+          >
+            <option value="">Selecione uma equipe</option>
+            {equipesDeTime.map((equipe) => (
+              <option key={equipe.value} value={equipe.value}>
+                {equipe.label}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Pessoa responsável"
+            value={responsavelId}
+            onChange={(e) => setResponsavelId(e.target.value)}
+            required
+          >
+            <option value="">Selecione um usuário</option>
+            {usuariosElegiveis.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name} — {user.email}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Pessoas vinculadas"
+            value=""
+            onChange={(e) => adicionarPessoa(e.target.value)}
+          >
+            <option value="">Adicionar usuário</option>
+            {usuariosElegiveis
+              .filter((user) => !pessoasVinculadas.includes(user.id))
+              .map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+          </Select>
+
+          <div className="flex flex-wrap gap-2 md:col-span-2">
+            {pessoasVinculadas.map((id) => {
+              const user = users.find((item) => item.id === id);
+              if (!user) return null;
+              return (
+                <span
+                  key={id}
+                  className="bg-primary-muted text-primary flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
+                >
+                  {user.name}
+                  <button
+                    type="button"
+                    onClick={() => removerPessoa(id)}
+                    aria-label={`Remover ${user.name}`}
+                    className="font-bold"
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex gap-3 md:col-span-2">
+            <Button type="submit" variant="primary">
+              Salvar alterações
+            </Button>
+            <Button type="button" variant="secondary" onClick={cancelarEdicao}>
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      </EditModal>
       <Content>
         {/* Cabeçalho */}
 
@@ -238,149 +294,30 @@ export default function Times() {
           </Button>
         </Header>
 
-        {message && <div className="success content mb-4">{message}</div>}
-        {error && <div className="error content mb-4">{error}</div>}
-
-        {/* Formulário de edição */}
-        {editing && (
-          <Card className="content mb-6">
-            <h2 className="text-text mb-5 text-xl font-bold">Editar time</h2>
-
-            <form className="grid grid-cols-1 gap-5 md:grid-cols-2" onSubmit={salvarEdicao}>
-              <Input
-                label="Nome do time"
-                value={nomeTime}
-                onChange={(e) => setNomeTime(e.target.value)}
-                required
-              />
-
-              <Select
-                label="Equipe relacionada"
-                value={departamento}
-                onChange={(e) => setDepartamento(e.target.value)}
-                required
-              >
-                <option value="">Selecione uma equipe</option>
-                {equipes
-                  .filter((equipe) => equipe.value !== "comercial" && equipe.value !== "suporte")
-                  .map((equipe) => (
-                    <option key={equipe.value} value={equipe.value}>
-                      {equipe.label}
-                    </option>
-                  ))}
-              </Select>
-
-              <Select
-                label="Pessoa responsável"
-                value={responsavelId}
-                onChange={(e) => setResponsavelId(e.target.value)}
-                required
-              >
-                <option value="">Selecione um usuário</option>
-                {usuariosElegiveis.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} — {user.email}
-                  </option>
-                ))}
-              </Select>
-
-              <Select
-                label="Pessoas vinculadas"
-                value=""
-                onChange={(e) => adicionarPessoa(e.target.value)}
-              >
-                <option value="">Adicionar usuário</option>
-                {usuariosElegiveis
-                  .filter((user) => !pessoasVinculadas.includes(user.id))
-                  .map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-              </Select>
-
-              <div className="flex flex-wrap gap-2 md:col-span-2">
-                {pessoasVinculadas.map((id) => {
-                  const user = users.find((item) => item.id === id);
-                  if (!user) return null;
-
-                  return (
-                    <span
-                      key={id}
-                      className="bg-primary-muted text-primary flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
-                    >
-                      {user.name}
-                      <button
-                        type="button"
-                        onClick={() => removerPessoa(id)}
-                        aria-label={`Remover ${user.name}`}
-                        className="font-bold"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-
-              <div className="nav-actions md:col-span-2">
-                <Button type="submit" variant="primary">
-                  Salvar alterações
-                </Button>
-                <Button type="button" variant="secondary" onClick={cancelarEdicao}>
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </Card>
-        )}
+        {message && <FeedbackMessage message={message} type="success" />}
+        {error && <FeedbackMessage message={error} type="error" />}
 
         {/* Listagem */}
         <Card className="min-h-[620px]">
-          <div className="mb-8 flex items-center justify-between gap-4">
-            <div className="w-full">
-              <Input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome do time, responsável ou integrante"
-                iconLeft={Search}
-                aria-label="Buscar times"
-                className="min-w-[200px]"
-              />
-            </div>
-
-            <div className="w-full max-w-1/4 min-w-[150px]">
-              <Select
-                label=""
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-              >
-                <option value="">Selecione uma equipe</option>
-                {equipes
-                  .filter((equipe) => equipe.value !== "comercial" && equipe.value !== "suporte")
-                  .map((equipe) => (
-                    <option key={equipe.value} value={equipe.value}>
-                      {equipe.label}
-                    </option>
-                  ))}
-              </Select>
-            </div>
-          </div>
+          <SearchFilter
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Buscar por nome do time, responsável ou integrante"
+            searchLabel="Buscar times"
+            filter={departmentFilter}
+            onFilterChange={setDepartmentFilter}
+            filterOptions={equipesDeTime}
+            filterPlaceholder="Selecione uma equipe"
+          />
 
           <button
             type="button"
             onClick={toggleAllVisible}
+            aria-pressed={allSelected}
             className="bg-primary-muted text-text mb-2 flex w-full cursor-pointer items-center gap-3 rounded-lg px-2.5 py-3 text-left text-xs font-semibold @3xl:px-5 @3xl:py-3 @3xl:text-sm"
           >
-            <span
-              className={`flex size-4 items-center justify-center rounded border ${
-                allVisibleSelected ? "border-primary bg-primary text-white" : "border-border bg-bg"
-              }`}
-            >
-              {allVisibleSelected && <Check size={13} />}
-            </span>
-            {selectedTimes.length} Selecionados
+            <Checkbox checked={allSelected} />
+            {selectedIds.length} Selecionados
           </button>
 
           {loading ? (
@@ -392,7 +329,7 @@ export default function Times() {
           ) : (
             <div className="divide-border divide-y">
               {filteredTimes.map((time) => {
-                const selected = selectedTimes.includes(time.id);
+                const isSelected = selectedIds.includes(time.id);
 
                 return (
                   <div
@@ -400,17 +337,17 @@ export default function Times() {
                     className="border-border grid grid-cols-[28px_40px_minmax(0,1fr)_36px] items-center gap-3 px-3 py-4 @3xl:grid-cols-[28px_40px_minmax(130px,1.1fr)_minmax(110px,0.8fr)_36px] @3xl:gap-4 @4xl:grid-cols-[28px_40px_minmax(130px,1.1fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_36px] @6xl:grid-cols-[28px_40px_minmax(130px,1.1fr)_minmax(120px,1fr)_minmax(150px,1.2fr)_minmax(110px,0.8fr)_36px]"
                   >
                     {/* Check */}
+
                     <button
                       type="button"
                       onClick={() => toggleSelected(time.id)}
                       aria-label={
-                        selected ? `Desmarcar ${time.nome_time}` : `Selecionar ${time.nome_time}`
+                        isSelected ? `Desmarcar ${time.nome_time}` : `Selecionar ${time.nome_time}`
                       }
-                      className={`flex h-4 w-4 cursor-pointer items-center justify-center rounded border ${
-                        selected ? "border-primary bg-primary text-white" : "border-border bg-bg"
-                      }`}
+                      aria-pressed={isSelected}
+                      className="flex size-4 cursor-pointer items-center justify-center"
                     >
-                      {selected && <Check size={13} />}
+                      <Checkbox checked={isSelected} />
                     </button>
 
                     {/* Avatar */}
@@ -431,7 +368,7 @@ export default function Times() {
                       </span>
                     </div>
 
-                    {/* Time responsável */}
+                    {/* Responsável */}
                     <span className="text-text-muted hidden truncate text-center text-xs @4xl:block @6xl:text-sm">
                       {time.responsavel?.name ?? "Não definido"}
                     </span>
@@ -443,7 +380,7 @@ export default function Times() {
                       ) : (
                         <>
                           {time.pessoasVinculadas
-                            .slice(0, numPesVinculadas)
+                            .slice(0, NUM_PESSOAS_VINCULADAS)
                             .map((person, index) => (
                               <div
                                 key={person.id}
@@ -462,14 +399,14 @@ export default function Times() {
                                   {getInitials(person.name)}
                                 </span>
 
-                                <div className="bg-bg text-text-muted border-border text-2xs absolute -top-2 z-1 scale-0 rounded-full border px-1.5 py-0.5 text-nowrap transition-all duration-200 group-hover/avt:-top-5.5 group-hover/avt:scale-100 @3xl:text-xs @3xl:group-hover/avt:-top-6.5">
+                                <div className="bg-bg text-text-muted border-border text-2xs py-0.7 absolute -top-2 z-1 scale-0 rounded-full border px-2 text-nowrap transition-all duration-200 group-hover/avt:-top-5.5 group-hover/avt:scale-100 @3xl:text-xs @3xl:group-hover/avt:-top-6.5">
                                   {person.name}
                                 </div>
                               </div>
                             ))}
-                          {time.pessoasVinculadas.length > numPesVinculadas && (
+                          {time.pessoasVinculadas.length > NUM_PESSOAS_VINCULADAS && (
                             <span className="text-text-muted ml-4 self-center text-xs transition-all duration-200 group-hover:-ml-2 @5xl:ml-3 @5xl:group-hover:-ml-1 @6xl:ml-2 @6xl:group-hover:ml-0">
-                              +{time.pessoasVinculadas.length - numPesVinculadas}
+                              +{time.pessoasVinculadas.length - NUM_PESSOAS_VINCULADAS}
                             </span>
                           )}
                         </>
@@ -477,7 +414,7 @@ export default function Times() {
                     </div>
 
                     {/* Departamento */}
-                    <span className="bg-primary-muted text-text-muted hidden w-fit items-center gap-1 rounded-full px-2.5 py-0.75 text-xs @[1320px]:gap-2 @[1320px]:px-3 @[1320px]:py-1 @[1320px]:text-sm @6xl:flex">
+                    <span className="bg-primary-muted text-text-muted hidden w-fit items-center gap-1 place-self-center rounded-full px-2.5 py-0.75 text-xs @[1320px]:gap-2 @[1320px]:px-3 @[1320px]:py-1 @[1320px]:text-sm @6xl:flex">
                       <ClipboardList className="size-3 @[1320px]:size-3.5" />
                       {getEquipeLabel(time.departamento)}
                     </span>
@@ -493,7 +430,7 @@ export default function Times() {
                       </button>
 
                       {openMenu === time.id && (
-                        <div className="nova-os-card border-border absolute top-full right-0 z-20 mt-1 min-w-36 rounded-lg border p-1 shadow-lg">
+                        <DropdownMenu>
                           <EditButton
                             type="button"
                             onClick={() => abrirEdicao(time)}
@@ -513,7 +450,7 @@ export default function Times() {
                               icon={Trash}
                             />
                           )}
-                        </div>
+                        </DropdownMenu>
                       )}
                     </div>
                   </div>
@@ -525,26 +462,18 @@ export default function Times() {
       </Content>
 
       {/* Confirmação de exclusão */}
-      {timeToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-bg border-border w-full max-w-sm rounded-2xl border p-6 shadow-lg">
-            <h2 className="text-text mb-2 text-xl font-bold">Excluir time</h2>
-            <p className="text-text-muted mb-6">
-              Deseja excluir o time{" "}
-              <span className="text-text font-semibold">{timeToDelete.nome_time}</span>?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="secondary" onClick={() => setTimeToDelete(null)}>
-                Cancelar
-              </Button>
-              <Button type="button" variant="primary" onClick={confirmarExclusao}>
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!timeToDelete}
+        title="Excluir time"
+        description={
+          <>
+            Deseja excluir o time{" "}
+            <strong className="text-text font-semibold">{timeToDelete?.nome_time}</strong>?
+          </>
+        }
+        onCancel={() => setTimeToDelete(null)}
+        onConfirm={confirmarExclusao}
+      />
     </Main>
   );
 }

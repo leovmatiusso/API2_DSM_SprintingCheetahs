@@ -16,6 +16,7 @@ const input = tv({
       "transition outline-none",
       "focus:ring-primary focus:ring-2",
       "read-only:opacity-70",
+      "px-3",
       "disabled:cursor-not-allowed disabled:opacity-50",
     ],
   },
