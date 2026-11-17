@@ -69,7 +69,20 @@ body {
   font-weight: 700;
 }
 
+/* O ícone nativo do calendário fica invisível e é esticado por cima do ícone
+   desenhado à direita do campo (Input), para o clique abrir o calendário ali. */
+input[type="date"] {
+  position: relative;
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2.75rem;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   opacity: 0;
   cursor: pointer;
 }
