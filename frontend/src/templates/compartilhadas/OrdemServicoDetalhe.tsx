@@ -24,7 +24,7 @@ import { getCurrentUser } from "@/auth";
 import SeletorStatusOS from "./SeletorStatusOS";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
-import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
+import CampoEquipamentos, { equipamentosParaPayload, nomeEquipamento } from "../compartilhadas/CampoEquipamentos";
 import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 
 import {
@@ -34,7 +34,6 @@ import {
   formatarData,
   formatarTamanho,
   isTimeMonitoramento,
-  isTimeSoftware,
 } from "./osEstilos";
 
 const ROTA_LISTA_OS = "/os/disponiveis";
@@ -144,8 +143,9 @@ export default function OrdemServicoDetalhe() {
   const podeGerenciarPdfs = currentUser?.role === "monitoramento";
 
   const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
-  const timeSoftware = isTimeSoftware(ordem?.departamento);
-  const podeConcluir = podeDecidirReview && !timeSoftware;
+  const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
+  // Toda O.S. é concluída pela aprovação do monitoramento (exceto as do próprio monitoramento).
+  const podeConcluir = podeDecidirReview && timeMonitoramento;
   const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
   const emVerificacao = ordem?.status === "verificacao";
 
@@ -462,12 +462,13 @@ export default function OrdemServicoDetalhe() {
             </div>
 
             {/* Status, departamento, time e prioridade */}
-            <div className="my-6 grid grid-cols-5 gap-x-4 gap-y-6 [&>*>*]:w-full">
+            <div className="my-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 [&>*>*]:w-full">
               <CampoCaixa rotulo="Status">
                 <SeletorStatusOS
                   status={ordem.status}
                   responsavelDoTime={responsavelDoTime}
-                  timeSoftware={timeSoftware}
+                  timeMonitoramento={timeMonitoramento}
+                  superusuario={currentUser?.role === "superusuario"}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -517,7 +518,7 @@ export default function OrdemServicoDetalhe() {
                   Esta O.S. aguarda a sua verificação
                 </h2>
                 <p className="text-text-muted mt-1 mb-4 text-sm">
-                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe de software.
+                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe responsável.
                 </p>
 
                 {reprovando ? (
@@ -538,7 +539,7 @@ export default function OrdemServicoDetalhe() {
                         setErroMotivo(null);
                       }}
                       maxLength={5000}
-                      placeholder="Explique o que a equipe de software precisa corrigir"
+                      placeholder="Explique o que a equipe responsável precisa corrigir"
                       aria-required="true"
                       aria-invalid={Boolean(erroMotivo)}
                       aria-describedby={erroMotivo ? "erro-motivo-reprovacao" : undefined}
@@ -619,7 +620,7 @@ export default function OrdemServicoDetalhe() {
                         key={item.nome}
                         className="bg-primary/15 text-primary rounded-full px-3 py-1 text-xs font-medium"
                       >
-                        {item.quantidade}x {item.nome}
+                        {item.quantidade}x {nomeEquipamento(item.nome)}
                       </span>
                     ))}
                   </div>
@@ -675,7 +676,7 @@ export default function OrdemServicoDetalhe() {
             {/* ========================================================================= */}
             {/* 🚀 [US27] - SEÇÃO DE RELATÓRIOS DE TESTE (PDF) COM RESTRIÇÃO DE PERMISSÃO */}
             {/* ========================================================================= */}
-            <div className="border-border bg-bg-secondary rounded-xl border p-6 mb-8 space-y-5">
+            <div className="border-border bg-bg-secondary rounded-xl border p-4 sm:p-6 mb-8 space-y-5">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-text">Relatórios de Teste (PDF)</h3>
@@ -738,7 +739,7 @@ export default function OrdemServicoDetalhe() {
               ) : (
                 <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-bg">
                   {pdfs.map((pdf) => (
-                    <div key={pdf.id} className="p-4 flex items-center justify-between hover:bg-bg-secondary transition-colors">
+                    <div key={pdf.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-bg-secondary transition-colors">
                       <div className="flex items-center space-x-3.5 min-w-0">
                         <div className="w-10 h-10 rounded-lg bg-danger-muted text-danger font-bold text-xs flex items-center justify-center shrink-0">
                           PDF
@@ -753,7 +754,7 @@ export default function OrdemServicoDetalhe() {
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-2 shrink-0 ml-4">
+                      <div className="flex items-center space-x-2 shrink-0 sm:ml-4">
                         <button
                           type="button"
                           onClick={() => void abrirRelatorio(pdf)}
@@ -802,8 +803,8 @@ export default function OrdemServicoDetalhe() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex gap-3">
+              <div className="flex w-full flex-col items-end gap-2 sm:w-auto">
+                <div className="flex flex-wrap justify-end gap-3">
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
