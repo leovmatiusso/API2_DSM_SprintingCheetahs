@@ -201,10 +201,10 @@ export default function Usuarios() {
   }
 
   return (
-    <main className="page min-h-full md:p-8">
+    <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
-        {/* Cabeçalho */}
-        <header className="mb-8 flex items-center justify-between gap-4">
+        {/* Cabeçalho (quebra linha no celular para o botão não estourar a tela) */}
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
               <UserRound size={32} />
