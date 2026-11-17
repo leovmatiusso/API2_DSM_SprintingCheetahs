@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ListFilter } from "lucide-react";
+import { AlertTriangle, Check, ListFilter } from "lucide-react";
 
 import type { OrdemServicoResumo, OrdemStatus } from "@/api";
 import Button from "@/components/ui/Button";
@@ -18,12 +18,14 @@ export interface FiltrosOS {
   departamento: string;
   prioridade: PrioridadeValor | "";
   status: OrdemStatus | "";
+  atrasadas: boolean;
 }
 
 export const FILTROS_VAZIOS: FiltrosOS = {
   departamento: "",
   prioridade: "",
   status: "",
+  atrasadas: false,
 };
 
 // Remove acentos, maiúsculas e espaços para comparar textos como
@@ -35,18 +37,49 @@ const normalizar = (valor?: string | null) =>
     .toLowerCase()
     .trim();
 
+// ⚠️ AJUSTE AQUI conforme o contrato real de OrdemServicoResumo.
+// Assumi que o back-end pode mandar `atrasada` (boolean) e/ou `prazo` (data ISO).
+type OrdemComPrazo = OrdemServicoResumo & {
+  atrasada?: boolean;
+  prazo?: string | null;
+};
+
+// OS já finalizadas nunca contam como atrasadas
+const STATUS_FINAIS = ["concluida", "cancelada"];
+
+// Fonte única da regra de atraso: usada no filtro e no destaque do card/linha
+export function osAtrasada(os: OrdemServicoResumo, agora = new Date()) {
+  const { atrasada, prazo } = os as OrdemComPrazo;
+
+  // se o back-end já calcula, ele manda
+  if (typeof atrasada === "boolean") return atrasada;
+
+  if (STATUS_FINAIS.includes(normalizar(os.status))) return false;
+  if (!prazo) return false;
+
+  // "2026-11-10" (sem hora) vale até o fim daquele dia
+  const fim = /^\d{4}-\d{2}-\d{2}$/.test(prazo)
+    ? new Date(`${prazo}T23:59:59.999`)
+    : new Date(prazo);
+
+  return !Number.isNaN(fim.getTime()) && fim.getTime() < agora.getTime();
+}
+
 // Aplica os filtros escolhidos a uma lista de O.S
 // Usada nas páginas OrdensServico e OrdensDoItem
 export function aplicarFiltros(
   ordens: OrdemServicoResumo[],
   filtros: FiltrosOS,
 ) {
+  const agora = new Date();
+
   return ordens.filter(
     (os) =>
       (!filtros.departamento ||
         normalizar(os.departamento) === normalizar(filtros.departamento)) &&
       (!filtros.prioridade || os.prioridade === filtros.prioridade) &&
-      (!filtros.status || os.status === filtros.status),
+      (!filtros.status || os.status === filtros.status) &&
+      (!filtros.atrasadas || osAtrasada(os, agora)),
   );
 }
 
@@ -55,6 +88,11 @@ interface FiltroOSProps {
   onApply: (filtros: FiltrosOS) => void;
   departamentos: OpcaoDepartamento[];
 }
+
+// Estilo do chip/botão "Atrasadas" (vermelho, como no mockup)
+const estiloAtrasada =
+  "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium " +
+  "transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500";
 
 export default function FiltroOS({
   filtros,
@@ -104,6 +142,9 @@ export default function FiltroOS({
   // Chips dos filtros ativos (mostram o label da opção escolhida)
   const chips: { chave: keyof FiltrosOS; label: string }[] = [];
 
+  if (filtros.atrasadas) {
+    chips.push({ chave: "atrasadas", label: "Atrasada" });
+  }
   if (filtros.departamento) {
     chips.push({
       chave: "departamento",
@@ -129,20 +170,36 @@ export default function FiltroOS({
 
   // Clicar no chip remove aquele filtro
   const removerFiltro = (chave: keyof FiltrosOS) => {
-    onApply({ ...filtros, [chave]: "" });
+    onApply({
+      ...filtros,
+      [chave]: chave === "atrasadas" ? false : "",
+    });
   };
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
-      {chips.map((chip) => (
-        <Button
-          key={chip.chave}
-          variant="filter"
-          onClick={() => removerFiltro(chip.chave)}
-        >
-          {chip.label}
-        </Button>
-      ))}
+      {chips.map((chip) =>
+        chip.chave === "atrasadas" ? (
+          <button
+            key={chip.chave}
+            type="button"
+            onClick={() => removerFiltro(chip.chave)}
+            aria-label="Remover filtro de atrasadas"
+            className={`${estiloAtrasada} border-red-300 bg-red-50 text-red-700 hover:bg-red-100`}
+          >
+            <AlertTriangle aria-hidden size={16} />
+            {chip.label}
+          </button>
+        ) : (
+          <Button
+            key={chip.chave}
+            variant="filter"
+            onClick={() => removerFiltro(chip.chave)}
+          >
+            {chip.label}
+          </Button>
+        ),
+      )}
 
       <div ref={containerRef} className="relative">
         <Button variant="filter" onClick={alternar}>
@@ -153,9 +210,13 @@ export default function FiltroOS({
         </Button>
 
         {aberto && (
-          <div className="bg-bg border-border absolute top-full right-0 z-20 mt-2 w-max rounded-xl border p-4 shadow-lg">
-            <div className="flex flex-wrap gap-3">
-              <div className="w-40">
+          // mobile: bottom sheet fixo · desktop (sm+): popover ancorado no botão
+          <div
+            className="bg-bg border-border fixed inset-x-0 bottom-0 z-20 rounded-t-2xl border p-4 shadow-lg
+                       sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:right-0 sm:mt-2 sm:w-max sm:rounded-xl"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="w-full sm:w-40">
                 <SeletorDepartamento
                   label={null}
                   compacto
@@ -171,7 +232,7 @@ export default function FiltroOS({
                 />
               </div>
 
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <SeletorPrioridade
                   label={null}
                   compacto
@@ -184,7 +245,7 @@ export default function FiltroOS({
                 />
               </div>
 
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <SeletorStatusOSFiltro
                   placeholder="Status"
                   value={rascunho.status}
@@ -194,13 +255,32 @@ export default function FiltroOS({
               </div>
             </div>
 
-            <div className="mt-3 flex justify-end gap-2">
-              <Button variant="filter" size="sm" onClick={limpar}>
-                Limpar filtros
-              </Button>
-              <Button variant="filter" size="sm" onClick={aplicar}>
-                Aplicar
-              </Button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                aria-pressed={rascunho.atrasadas}
+                onClick={() =>
+                  setRascunho((r) => ({ ...r, atrasadas: !r.atrasadas }))
+                }
+                className={`${estiloAtrasada} ${
+                  rascunho.atrasadas
+                    ? "border-red-500 bg-red-100 text-red-800 ring-1 ring-red-400"
+                    : "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                }`}
+              >
+                <AlertTriangle aria-hidden size={16} />
+                Atrasadas
+                {rascunho.atrasadas && <Check aria-hidden size={16} />}
+              </button>
+
+              <div className="ml-auto flex gap-2">
+                <Button variant="filter" size="sm" onClick={limpar}>
+                  Limpar filtros
+                </Button>
+                <Button variant="filter" size="sm" onClick={aplicar}>
+                  Aplicar
+                </Button>
+              </div>
             </div>
           </div>
         )}
