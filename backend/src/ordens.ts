@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { validarTransicaoOS } from "./os_fluxo.js";
+import { FILTRO_OS_ATRASADA_SQL } from "./FiltroOsAtrasada.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
   buildOSCreatedNotificationMessage,
@@ -116,15 +117,18 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // gestor: todas | comercial: as de projetos | suporte: as de manutenções
   // demais: apenas as direcionadas ao seu time
   // ---------------------------------------------------
-  router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+  router.get("/", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
     const user = res.locals.user as User;
+    const apenasAtrasadas = req.query.atrasadas === "true";
 
     try {
       const filtro = filtroVisibilidadeOS(user);
       const [rows] = await pool.execute<RowDataPacket[]>(
         `${SELECT_OS}
-          WHERE (${filtro.sql})
-             OR (o.os_status IN ('review', 'bloqueado') AND t.responsavel_id = ?)
+          WHERE (((${filtro.sql})
+             OR (o.os_status IN ('review', 'bloqueado') AND t.responsavel_id = ?))
+             ${apenasAtrasadas ? `AND (${FILTRO_OS_ATRASADA_SQL})` : ""}
+          )
           ORDER BY o.data_criacao DESC, o.os_id DESC`,
         [...filtro.params, Number(user.id)],
       );

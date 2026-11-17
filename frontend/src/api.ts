@@ -527,8 +527,9 @@ export interface OrdemServicoDetalhe extends OrdemServicoResumo {
   anexos: ProjetoAnexo[];
 }
 
-export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
-  return request("/os");
+export function getOrdens(atrasadas = false): Promise<{ ordens: OrdemServicoResumo[] }> {
+  const query = atrasadas ? "?atrasadas=true" : "";
+  return request(`/os${query}`);
 }
 
 export interface DashboardResumo {

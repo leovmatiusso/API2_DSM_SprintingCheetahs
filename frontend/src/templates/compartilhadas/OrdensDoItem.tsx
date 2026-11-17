@@ -21,7 +21,7 @@ export default function OrdensServico() {
 
     async function carregar() {
       try {
-        const resposta = await getOrdens();
+        const resposta = await getOrdens(filtros.atrasadas);
         if (ativo) setOrdens(resposta.ordens);
       } catch (error) {
         if (ativo) {
@@ -40,11 +40,11 @@ export default function OrdensServico() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [filtros.atrasadas]);
 
   async function recarregarOrdens() {
     try {
-      const resposta = await getOrdens();
+      const resposta = await getOrdens(filtros.atrasadas);
       setOrdens(resposta.ordens);
     } catch {
       // Mantém os cartões atuais se a atualização da lista falhar.

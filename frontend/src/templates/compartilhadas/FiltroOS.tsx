@@ -37,49 +37,18 @@ const normalizar = (valor?: string | null) =>
     .toLowerCase()
     .trim();
 
-// ⚠️ AJUSTE AQUI conforme o contrato real de OrdemServicoResumo.
-// Assumi que o back-end pode mandar `atrasada` (boolean) e/ou `prazo` (data ISO).
-type OrdemComPrazo = OrdemServicoResumo & {
-  atrasada?: boolean;
-  prazo?: string | null;
-};
-
-// OS já finalizadas nunca contam como atrasadas
-const STATUS_FINAIS = ["concluida", "cancelada"];
-
-// Fonte única da regra de atraso: usada no filtro e no destaque do card/linha
-export function osAtrasada(os: OrdemServicoResumo, agora = new Date()) {
-  const { atrasada, prazo } = os as OrdemComPrazo;
-
-  // se o back-end já calcula, ele manda
-  if (typeof atrasada === "boolean") return atrasada;
-
-  if (STATUS_FINAIS.includes(normalizar(os.status))) return false;
-  if (!prazo) return false;
-
-  // "2026-11-10" (sem hora) vale até o fim daquele dia
-  const fim = /^\d{4}-\d{2}-\d{2}$/.test(prazo)
-    ? new Date(`${prazo}T23:59:59.999`)
-    : new Date(prazo);
-
-  return !Number.isNaN(fim.getTime()) && fim.getTime() < agora.getTime();
-}
-
 // Aplica os filtros escolhidos a uma lista de O.S
 // Usada nas páginas OrdensServico e OrdensDoItem
 export function aplicarFiltros(
   ordens: OrdemServicoResumo[],
   filtros: FiltrosOS,
 ) {
-  const agora = new Date();
-
   return ordens.filter(
     (os) =>
       (!filtros.departamento ||
         normalizar(os.departamento) === normalizar(filtros.departamento)) &&
       (!filtros.prioridade || os.prioridade === filtros.prioridade) &&
-      (!filtros.status || os.status === filtros.status) &&
-      (!filtros.atrasadas || osAtrasada(os, agora)),
+      (!filtros.status || os.status === filtros.status),
   );
 }
 
