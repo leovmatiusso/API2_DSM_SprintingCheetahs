@@ -35,8 +35,8 @@ export function CabecalhoListaOS() {
       <span>Departamento</span>
       <span className="text-center">Prioridade</span>
       <span className="text-center">Status</span>
-      <span className="text-center">Data de abertura</span>
-      <span className="text-center">Data de entrega</span>
+      <span className="text-center">Abertura</span>
+      <span className="text-center">Entrega</span>
     </div>
   );
 }

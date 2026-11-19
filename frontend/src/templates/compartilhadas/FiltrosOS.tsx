@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { ListFilter, X } from "lucide-react";
 
 import type { OrdemServicoResumo } from "@/api";
+import SeletorPrioridade, { type PrioridadeValor } from "./SeletorPrioridade";
+import SeletorDepartamento from "./SeletorDepartamento";
+import SelectFiltro from "./SelectFiltro";
 
 import { PRIORIDADE_LABEL, STATUS_LABEL } from "./osEstilos";
 
@@ -41,8 +44,23 @@ export function aplicarFiltros(ordens: OrdemServicoResumo[], filtros: FiltrosOrd
   );
 }
 
-const classeSelect =
-  "border-border bg-bg text-text h-9 w-full min-w-0 rounded-lg border px-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary";
+function rotuloDepartamento(departamento: string): string {
+  const semAcentos = departamento
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+  const rotulos: Record<string, string> = {
+    implantacao: "Implantação",
+    producao: "Produção",
+  };
+  return (
+    rotulos[semAcentos] ??
+    (departamento
+      ? departamento.charAt(0).toLocaleUpperCase("pt-BR") +
+        departamento.slice(1).toLocaleLowerCase("pt-BR")
+      : departamento)
+  );
+}
 
 // Botão "Filtrar" com o painel de filtros e os filtros ativos em destaque (removíveis).
 export default function FiltrosOS({
@@ -56,7 +74,7 @@ export default function FiltrosOS({
 }) {
   const [aberto, setAberto] = useState(false);
   const [rascunho, setRascunho] = useState<FiltrosOrdens>(filtros);
-  const painelRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const departamentos = [
     ...new Set(ordens.map((os) => os.departamento).filter((d): d is string => Boolean(d))),
@@ -65,7 +83,8 @@ export default function FiltrosOS({
   useEffect(() => {
     if (!aberto) return;
     function fecharFora(event: MouseEvent) {
-      if (painelRef.current && !painelRef.current.contains(event.target as Node)) setAberto(false);
+      if (containerRef.current && !containerRef.current.contains(event.target as Node))
+        setAberto(false);
     }
     function fecharEsc(event: KeyboardEvent) {
       if (event.key === "Escape") setAberto(false);
@@ -84,18 +103,34 @@ export default function FiltrosOS({
   }
 
   const ativos: { chave: keyof FiltrosOrdens; rotulo: string; destaque?: boolean }[] = [
-    ...(filtros.atrasadas ? [{ chave: "atrasadas" as const, rotulo: "Atrasada", destaque: true }] : []),
-    ...(filtros.departamento ? [{ chave: "departamento" as const, rotulo: filtros.departamento }] : []),
+    ...(filtros.atrasadas
+      ? [{ chave: "atrasadas" as const, rotulo: "Atrasada", destaque: true }]
+      : []),
+    ...(filtros.departamento
+      ? [{ chave: "departamento" as const, rotulo: filtros.departamento }]
+      : []),
     ...(filtros.prioridade
-      ? [{ chave: "prioridade" as const, rotulo: PRIORIDADE_LABEL[filtros.prioridade as keyof typeof PRIORIDADE_LABEL] ?? filtros.prioridade }]
+      ? [
+          {
+            chave: "prioridade" as const,
+            rotulo:
+              PRIORIDADE_LABEL[filtros.prioridade as keyof typeof PRIORIDADE_LABEL] ??
+              filtros.prioridade,
+          },
+        ]
       : []),
     ...(filtros.status
-      ? [{ chave: "status" as const, rotulo: STATUS_LABEL[filtros.status as keyof typeof STATUS_LABEL] ?? filtros.status }]
+      ? [
+          {
+            chave: "status" as const,
+            rotulo: STATUS_LABEL[filtros.status as keyof typeof STATUS_LABEL] ?? filtros.status,
+          },
+        ]
       : []),
   ];
 
   return (
-    <div ref={painelRef} className="relative flex flex-wrap items-center gap-2">
+    <div ref={containerRef} className="relative flex flex-wrap items-center gap-2">
       {ativos.map(({ chave, rotulo, destaque }) => (
         <button
           key={chave}
@@ -133,39 +168,29 @@ export default function FiltrosOS({
             className="border-border bg-bg absolute top-full left-0 z-30 mt-2 w-[min(26rem,calc(100vw-2.5rem))] rounded-xl border p-3 shadow-lg lg:right-0 lg:left-auto"
           >
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <select
-                aria-label="Departamento"
+              <SeletorDepartamento
+                placeholder="Departamento"
                 value={rascunho.departamento}
-                onChange={(e) => setRascunho({ ...rascunho, departamento: e.target.value })}
-                className={classeSelect}
-              >
-                <option value="">Departamento</option>
-                {departamentos.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-              <select
-                aria-label="Prioridade"
-                value={rascunho.prioridade}
-                onChange={(e) => setRascunho({ ...rascunho, prioridade: e.target.value })}
-                className={classeSelect}
-              >
-                <option value="">Prioridade</option>
-                {Object.entries(PRIORIDADE_LABEL).map(([valor, rotulo]) => (
-                  <option key={valor} value={valor}>{rotulo}</option>
-                ))}
-              </select>
-              <select
-                aria-label="Status"
+                opcoes={departamentos.map((d) => ({
+                  value: d,
+                  label: rotuloDepartamento(d),
+                }))}
+                onChange={(v) => setRascunho({ ...rascunho, departamento: v })}
+              />
+              <SeletorPrioridade
+                label={null}
+                compacto
+                placeholder="Prioridade"
+                value={rascunho.prioridade as PrioridadeValor | ""}
+                onChange={(v) => setRascunho({ ...rascunho, prioridade: v })}
+                onLimpar={() => setRascunho({ ...rascunho, prioridade: "" })}
+              />
+              <SelectFiltro
+                placeholder="Status"
                 value={rascunho.status}
-                onChange={(e) => setRascunho({ ...rascunho, status: e.target.value })}
-                className={classeSelect}
-              >
-                <option value="">Status</option>
-                {Object.entries(STATUS_LABEL).map(([valor, rotulo]) => (
-                  <option key={valor} value={valor}>{rotulo}</option>
-                ))}
-              </select>
+                options={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+                onChange={(v) => setRascunho({ ...rascunho, status: v })}
+              />
             </div>
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
