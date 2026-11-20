@@ -15,9 +15,11 @@ import {
 import {
   abrirAnexoManutencao,
   atualizarManutencao,
+  baixarRelatorioManutencao,
   getManutencao,
   getProjetosParaManutencao,
 } from "@/api";
+import BotaoRelatorio from "../compartilhadas/BotaoRelatorio";
 import type { Manutencao, ManutencaoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -179,6 +181,15 @@ export default function ManutencaoDetalhe() {
             </div>
 
             <div className="flex items-center gap-3">
+              <BotaoRelatorio
+                onGerar={() => baixarRelatorioManutencao(manutencao.id, manutencao.resumo)}
+                desabilitado={
+                  manutencao.ordens.length === 0 ||
+                  manutencao.ordens.some((o) => o.status !== "concluida")
+                }
+                dica="O relatório só fica disponível quando todas as OS estiverem concluídas."
+              />
+
               <Button variant="outline" onClick={abrirModalEdicao}>
                 Editar Manutenção
               </Button>
