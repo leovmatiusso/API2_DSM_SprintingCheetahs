@@ -38,6 +38,7 @@ import {
 
 const ROTA_LISTA_OS = "/os/disponiveis";
 const MENSAGEM_MOTIVO_OBRIGATORIO = "O motivo do bloqueio é obrigatório";
+const LIMITE_RESUMO_OS = 500;
 
 function ModalConfirmacao({
   titulo,
@@ -107,6 +108,9 @@ export default function OrdemServicoDetalhe() {
   const [erroStatus, setErroStatus] = useState<string | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [confirmarConclusao, setConfirmarConclusao] = useState(false);
+  const [resumoOS, setResumoOS] = useState("");
+  const [feedbackResumo, setFeedbackResumo] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
+  const [modalFeedbackResumo, setModalFeedbackResumo] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
 
   // Estados da verificação pelo monitoramento
   const [confirmarAprovacao, setConfirmarAprovacao] = useState(false);
@@ -148,6 +152,9 @@ export default function OrdemServicoDetalhe() {
   const podeConcluir = podeDecidirReview && timeMonitoramento;
   const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
   const emVerificacao = ordem?.status === "verificacao";
+  const podeEditarResumo = responsavelDoTime || currentUser?.role === "superusuario";
+  const podeVerResumo = podeEditarResumo || currentUser?.role === "gestor" || currentUser?.role === "monitoramento";
+  const etapaResumoDisponivel = ordem?.status === "review" || ordem?.status === "verificacao" || ordem?.status === "concluida";
 
   useEffect(() => {
     let ativo = true;
@@ -379,6 +386,25 @@ export default function OrdemServicoDetalhe() {
     }
   }
 
+  function salvarResumoOS() {
+    const resumo = resumoOS.trim();
+    if (!resumo) {
+      setFeedbackResumo({ tipo: "error", mensagem: "O resumo da OS é obrigatório" });
+      return;
+    }
+    if (resumo.length > LIMITE_RESUMO_OS) {
+      setFeedbackResumo({ tipo: "error", mensagem: `O resumo pode ter até ${LIMITE_RESUMO_OS} caracteres.` });
+      return;
+    }
+    // Demonstração visual do front: a persistência será conectada à API pelo back-end.
+    setResumoOS(resumo);
+    setFeedbackResumo({ tipo: "success", mensagem: "Resumo pronto para salvar. A integração com a API ainda não está disponível." });
+  }
+
+  function mostrarFeedbackResumo(tipo: "success" | "error", mensagem: string) {
+    setModalFeedbackResumo({ tipo, mensagem });
+  }
+
   async function enviarVerificacao(resultado: "aprovada" | "reprovada") {
     if (!ordem || !podeVerificar) return;
 
@@ -506,6 +532,50 @@ export default function OrdemServicoDetalhe() {
                   {ordem.ultima_reprovacao.data}
                 </p>
               </div>
+            )}
+
+            {podeVerResumo && (
+              <section aria-labelledby="resumo-os" className="border-border mb-8 rounded-lg border p-4 md:p-5">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h2 id="resumo-os" className="text-text m-0 text-base font-bold">Resumo das atividades</h2>
+                    <p className="text-text-muted mt-1 mb-0 text-sm">
+                      {podeEditarResumo
+                        ? ordem.status === "review" || timeMonitoramento
+                          ? "Registre em poucas palavras o trabalho realizado pela equipe nesta O.S."
+                          : "O resumo pode ser preenchido quando a O.S. chegar a Review."
+                        : "Consulte o resumo informado para esta O.S."}
+                    </p>
+                  </div>
+                  <span className="text-text-muted text-xs">{resumoOS.length}/{LIMITE_RESUMO_OS}</span>
+                </div>
+                <Textarea
+                  id="resumo-atividades-os"
+                  label={podeEditarResumo ? "Resumo da conclusão" : undefined}
+                  value={resumoOS}
+                  onChange={(event) => {
+                    setResumoOS(event.target.value);
+                    setFeedbackResumo(null);
+                  }}
+                  maxLength={LIMITE_RESUMO_OS}
+                  placeholder={podeEditarResumo ? "Descreva brevemente as atividades realizadas" : "Nenhum resumo informado ainda."}
+                  readOnly={!podeEditarResumo}
+                  aria-describedby={feedbackResumo ? "feedback-resumo-os" : undefined}
+                />
+                {feedbackResumo && (
+                  <p id="feedback-resumo-os" className={`${feedbackResumo.tipo === "error" ? "text-danger" : "text-primary"} mt-2 mb-0 text-sm`} role={feedbackResumo.tipo === "error" ? "alert" : "status"}>
+                    {feedbackResumo.mensagem}
+                  </p>
+                )}
+                {podeEditarResumo && (
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <Button variant="outline" onClick={() => mostrarFeedbackResumo("error", "O resumo da OS é obrigatório")}>Testar erro: resumo vazio</Button>
+                    <Button variant="secondary" onClick={() => mostrarFeedbackResumo("error", `O resumo pode ter até ${LIMITE_RESUMO_OS} caracteres.`)}>Testar erro: limite</Button>
+                    <Button variant="primary" onClick={() => mostrarFeedbackResumo("success", "Resumo salvo com sucesso.")}>Testar sucesso</Button>
+                    {etapaResumoDisponivel && <Button variant="primary" onClick={salvarResumoOS}>Salvar resumo</Button>}
+                  </div>
+                )}
+              </section>
             )}
 
             {/* Decisão da verificação (somente monitoramento) */}
@@ -844,6 +914,21 @@ export default function OrdemServicoDetalhe() {
             setErroStatus(null);
           }}
         />
+      )}
+
+      {modalFeedbackResumo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div role="dialog" aria-modal="true" aria-labelledby="titulo-feedback-resumo" className="border-border bg-bg text-text w-full max-w-md rounded-xl border p-6 shadow-2xl">
+            <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-full ${modalFeedbackResumo.tipo === "success" ? "bg-primary-muted text-primary" : "bg-danger/10 text-danger"}`}>
+              {modalFeedbackResumo.tipo === "success" ? <ClipboardList size={22} aria-hidden="true" /> : <AlertTriangle size={22} aria-hidden="true" />}
+            </div>
+            <h2 id="titulo-feedback-resumo" className="text-text m-0 text-xl font-bold">{modalFeedbackResumo.tipo === "success" ? "Resumo salvo" : "Não foi possível salvar"}</h2>
+            <p className={`${modalFeedbackResumo.tipo === "success" ? "text-text-muted" : "text-danger"} mt-2 mb-0 text-sm leading-6`} role={modalFeedbackResumo.tipo === "error" ? "alert" : "status"}>{modalFeedbackResumo.mensagem}</p>
+            <div className="mt-6 flex justify-end">
+              <Button variant="primary" onClick={() => setModalFeedbackResumo(null)}>Entendi</Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {confirmarAprovacao && (
