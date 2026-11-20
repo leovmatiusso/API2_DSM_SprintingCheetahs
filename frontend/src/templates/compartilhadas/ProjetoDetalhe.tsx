@@ -13,7 +13,8 @@ import {
   X,
 } from "lucide-react";
 
-import { abrirAnexoProjeto, atualizarProjeto, getProjeto, getVendedores } from "@/api";
+import { abrirAnexoProjeto, atualizarProjeto, baixarRelatorioProjeto, getProjeto, getVendedores } from "@/api";
+import BotaoRelatorio from "./BotaoRelatorio";
 import type { Projeto, ProjetoAnexo } from "@/api";
 import { getCurrentUser } from "@/auth";
 import Button from "@/components/ui/Button";
@@ -26,6 +27,7 @@ import SeletorStatusProjeto from "./SeletorStatusProjeto";
 import { PRIORIDADE_LABEL, formatarData } from "./osEstilos";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
+
 
 const TIPOS_SISTEMA = ["Sistema de Torres", "Sistema de Embarcação", "Sistema de Sonda"];
 
@@ -181,6 +183,13 @@ export default function ProjetoDetalhe() {
               </div>
 
               <div className="flex items-center gap-3">
+
+                {/* O relatório só fica disponível quando todas as OS estiverem concluídas. */}
+                <BotaoRelatorio onGerar={() => baixarRelatorioProjeto(projeto.id, projeto.nome)} desabilitado={
+                  projeto.ordens.length === 0 || projeto.ordens.some((o) => o.status !== "concluida")
+                }>
+                </BotaoRelatorio>
+
                 <Button variant="outline" onClick={abrirModalEdicao}>
                   Editar Projeto
                 </Button>

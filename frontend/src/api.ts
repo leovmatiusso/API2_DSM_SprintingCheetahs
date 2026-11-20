@@ -490,6 +490,59 @@ export function abrirAnexoManutencao(
 }
 
 // =====================================================
+// RELATÓRIO DE FINAL DE PROJETO/MANUTENÇÃO
+// =====================================================
+
+function nomeArquivoRelatorio(nome: string): string {
+  const limpo = nome.replace(/[\\/:*?"<>|]/g, "").trim()
+  return `Relatório - ${limpo || "sem título"}.pdf`
+}
+
+async function baixarPdfPorCaminho (
+  caminho: string,
+  nomeArquivo: string,
+): Promise<void> {
+  const token = getToken()
+  const response = await fetch(`${API_URL}${caminho}`, {
+    headers: token ? { Authorization: `Bearer ${token}`} : {}
+  })
+
+  if (!response.ok) {
+    let mensagem = "Não foi possível gerar o relatório.";
+    try {
+      mensagem = (await response.json())?.message ?? mensagem;
+    } catch {
+      /* resposta sem JSON */
+    }
+    throw new ApiError(mensagem, response.status);
+  }
+
+  const blob = new Blob([await response.blob()], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export function baixarRelatorioProjeto(id: string, nome: string): Promise<void> {
+  return baixarPdfPorCaminho(
+    `/projetos/${encodeURIComponent(id)}/relatorio`,
+    nomeArquivoRelatorio(nome),
+  );
+}
+
+export function baixarRelatorioManutencao(id: string, resumo: string): Promise<void> {
+  return baixarPdfPorCaminho(
+    `/manutencoes/${encodeURIComponent(id)}/relatorio`,
+    nomeArquivoRelatorio(resumo),
+  );
+}
+
+// =====================================================
 // ORDENS DE SERVIÇO (listagem, detalhe e conclusão)
 // =====================================================
 
