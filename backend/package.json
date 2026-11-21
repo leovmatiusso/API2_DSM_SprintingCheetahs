@@ -15,7 +15,8 @@
     "express": "^5.1.0",
     "mysql2": "^3.24.4",
     "multer": "^2.0.2",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.55.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

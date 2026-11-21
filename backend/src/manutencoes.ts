@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
+import { construirDadosRelatorio, gerarEArmazenarRelatorio, gerarPdfRelatorio } from "./report_generation.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte", "superusuario"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -98,6 +99,74 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Não foi possível carregar os projetos." });
+    }
+  });
+
+  router.get("/:manutencaoId/relatorio", requireRole(...PERFIS_CONSULTA), async (req, res) => {
+    const manutencaoId = String(req.params.manutencaoId);
+    if (!/^\d+$/.test(manutencaoId)) {
+      return res.status(404).json({ message: "Manutenção não encontrada." });
+    }
+
+    try {
+      const [manutencoes] = await pool.execute<RowDataPacket[]>(
+        "SELECT manutencao_id, status FROM manutencoes WHERE manutencao_id = ? LIMIT 1",
+        [manutencaoId],
+      );
+      const manutencao = manutencoes[0];
+      if (!manutencao) return res.status(404).json({ message: "Manutenção não encontrada." });
+      if (manutencao.status !== "concluida") {
+        return res.status(409).json({ message: "O relatório fica disponível após a conclusão da manutenção." });
+      }
+
+      const [existentes] = await pool.execute<RowDataPacket[]>(
+        `SELECT anexo_id, nome_anexo, conteudo_arquivo
+           FROM anexo
+          WHERE manutencao_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+          ORDER BY data_anexo DESC, anexo_id DESC LIMIT 1`,
+        [manutencaoId],
+      );
+      let relatorio: {
+        anexo_id: number;
+        nome_anexo: unknown;
+        conteudo_arquivo: unknown;
+      } | undefined = existentes[0] as {
+        anexo_id: number;
+        nome_anexo: unknown;
+        conteudo_arquivo: unknown;
+      } | undefined;
+      if (!relatorio) {
+        const gerado = await gerarEArmazenarRelatorio("manutencao", manutencaoId);
+        relatorio = {
+          anexo_id: gerado.id,
+          nome_anexo: gerado.nome,
+          conteudo_arquivo: gerado.pdf,
+        };
+      } else {
+        const dados = await construirDadosRelatorio("manutencao", manutencaoId);
+        const pdfAtualizado = await gerarPdfRelatorio(dados);
+        await pool.execute(
+          `UPDATE anexo
+              SET conteudo_arquivo = ?, anexo_tamanho = ?, data_anexo = CURRENT_TIMESTAMP
+            WHERE anexo_id = ?`,
+          [pdfAtualizado, pdfAtualizado.length, Number(relatorio.anexo_id)],
+        );
+        relatorio = {
+          ...relatorio,
+          conteudo_arquivo: pdfAtualizado,
+        };
+      }
+
+      const nome = relatorio.nome_anexo as string;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(nome)}`);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.send(relatorio.conteudo_arquivo as Buffer);
+    } catch (error) {
+      console.error("Erro ao gerar relatório da manutenção:", error);
+      return res.status(500).json({ message: "Não foi possível gerar o relatório da manutenção." });
     }
   });
 
@@ -495,6 +564,18 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         throw error;
       } finally {
         connection.release();
+      }
+
+      if (
+        status_manutencao !== undefined &&
+        status_manutencao.toLowerCase() === "concluida" &&
+        atual.status_manutencao !== "concluida"
+      ) {
+        try {
+          await gerarEArmazenarRelatorio("manutencao", manutencaoId, user.id);
+        } catch (error) {
+          console.error("Manutenção concluída, mas o relatório automático não pôde ser gerado:", error);
+        }
       }
 
       const [rows] = await pool.execute<RowDataPacket[]>(`${SELECT_MANUTENCAO} WHERE m.manutencao_id = ? LIMIT 1`, [

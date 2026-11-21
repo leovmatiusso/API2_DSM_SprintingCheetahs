@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 12mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #1f2937;
+      font-family: Inter, Arial, sans-serif;
+      line-height: 1.55;
+    }
+    .cover {
+      min-height: 265mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      break-after: page;
+      padding: 18mm 10mm;
+      background: linear-gradient(145deg, #eff5ff 0%, #ffffff 70%);
+      border-top: 12mm solid #224b95;
+    }
+    .cover h1 {
+      margin: 55mm 0 8mm;
+      color: #224b95;
+      font-size: 34px;
+      line-height: 1.15;
+    }
+    .eyebrow {
+      color: #3e69c5;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .cover-meta {
+      border-left: 4px solid #3e69c5;
+      padding-left: 16px;
+      color: #475569;
+    }
+    section { break-before: auto; margin: 0 0 12mm; }
+    section:not(.cover) { padding-top: 2mm; }
+    h2 {
+      margin: 0 0 5mm;
+      color: #224b95;
+      border-bottom: 2px solid #dbe7f7;
+      padding-bottom: 3mm;
+      font-size: 20px;
+    }
+    h3 { margin: 4mm 0 2mm; color: #3e69c5; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+    }
+    .card {
+      min-height: 24mm;
+      border: 1px solid #dbe3ef;
+      border-radius: 4mm;
+      padding: 4mm;
+      break-inside: avoid;
+    }
+    .label {
+      display: block;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    ul { margin: 2mm 0 0; padding-left: 6mm; }
+    li { margin-bottom: 2mm; }
+    .empty {
+      border: 1px dashed #cbd5e1;
+      border-radius: 3mm;
+      padding: 4mm;
+      color: #64748b;
+    }
+    .department {
+      break-inside: avoid;
+      margin-bottom: 5mm;
+      border-left: 3px solid #3e69c5;
+      padding-left: 4mm;
+    }
+  </style>
+</head>
+<body class="text-slate-800">
+  <section class="cover">
+    <div>
+      <div class="eyebrow">Relatório de conclusão</div>
+      <h1>{{tipo}}<br>{{titulo}}</h1>
+    </div>
+    <div class="cover-meta">
+      <p><strong>Responsável:</strong> {{responsavel}}</p>
+      <p><strong>Emitido em:</strong> {{dataEmissao}}</p>
+    </div>
+  </section>
+  <section>
+    <h2 style="color:#3e69c5">Detalhes</h2>
+    <div class="grid">
+      <div class="card"><span class="label">Categoria</span>{{categoria}}</div>
+      <div class="card"><span class="label">Responsável</span>{{responsavel}}</div>
+      <div class="card"><span class="label">Data de início</span>{{dataInicio}}</div>
+      <div class="card"><span class="label">Data de conclusão</span>{{dataConclusao}}</div>
+    </div>
+    <h3>Descrição</h3>
+    <p>{{descricao}}</p>
+  </section>
+  <section>
+    <h2>Contrato</h2>
+    {{#if contrato}}
+      <div class="grid">
+        <div class="card"><span class="label">Assinatura</span>{{contrato.assinatura}}</div>
+        <div class="card"><span class="label">Vencimento</span>{{contrato.vencimento}}</div>
+      </div>
+    {{else}}
+      <div class="empty">Contrato não vinculado.</div>
+    {{/if}}
+  </section>
+  <section>
+    <h2>Equipamentos</h2>
+    <ul>
+      {{#each equipamentos}}
+        <li>{{nome}} - quantidade: {{quantidade}}</li>
+      {{/each}}
+    </ul>
+  </section>
+  <section>
+    <h2>Departamentos</h2>
+    {{#each departamentos}}
+      <div class="department">
+        <h3>{{nome}}</h3>
+        <ul>{{#each ordens}}<li>{{resumo}}</li>{{/each}}</ul>
+      </div>
+    {{/each}}
+  </section>
+</body>
+</html>

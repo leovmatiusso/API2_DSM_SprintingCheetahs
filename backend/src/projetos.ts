@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS } from "./os_comum.js";
+import { construirDadosRelatorio, gerarEArmazenarRelatorio, gerarPdfRelatorio } from "./report_generation.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial", "superusuario"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -116,6 +117,74 @@ router.get("/vendedores", requireRole(...PERFIS_CONSULTA), async (_req, res) => 
     }
   });
 
+  router.get("/:projetoId/relatorio", requireRole(...PERFIS_CONSULTA), async (req, res) => {
+    const projetoId = String(req.params.projetoId);
+    if (!/^\d+$/.test(projetoId)) {
+      return res.status(404).json({ message: "Projeto não encontrado." });
+    }
+
+    try {
+      const [projetos] = await pool.execute<RowDataPacket[]>(
+        "SELECT projeto_id, status FROM projetos WHERE projeto_id = ? LIMIT 1",
+        [projetoId],
+      );
+      const projeto = projetos[0];
+      if (!projeto) return res.status(404).json({ message: "Projeto não encontrado." });
+      if (projeto.status !== "concluido") {
+        return res.status(409).json({ message: "O relatório fica disponível após a conclusão do projeto." });
+      }
+
+      const [existentes] = await pool.execute<RowDataPacket[]>(
+        `SELECT anexo_id, nome_anexo, conteudo_arquivo
+           FROM anexo
+          WHERE projeto_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+          ORDER BY data_anexo DESC, anexo_id DESC LIMIT 1`,
+        [projetoId],
+      );
+      let relatorio: {
+        anexo_id: number;
+        nome_anexo: unknown;
+        conteudo_arquivo: unknown;
+      } | undefined = existentes[0] as {
+        anexo_id: number;
+        nome_anexo: unknown;
+        conteudo_arquivo: unknown;
+      } | undefined;
+      if (!relatorio) {
+        const gerado = await gerarEArmazenarRelatorio("projeto", projetoId);
+        relatorio = {
+          anexo_id: gerado.id,
+          nome_anexo: gerado.nome,
+          conteudo_arquivo: gerado.pdf,
+        };
+      } else {
+        const dados = await construirDadosRelatorio("projeto", projetoId);
+        const pdfAtualizado = await gerarPdfRelatorio(dados);
+        await pool.execute(
+          `UPDATE anexo
+              SET conteudo_arquivo = ?, anexo_tamanho = ?, data_anexo = CURRENT_TIMESTAMP
+            WHERE anexo_id = ?`,
+          [pdfAtualizado, pdfAtualizado.length, Number(relatorio.anexo_id)],
+        );
+        relatorio = {
+          ...relatorio,
+          conteudo_arquivo: pdfAtualizado,
+        };
+      }
+
+      const nome = relatorio.nome_anexo as string;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(nome)}`);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.send(relatorio.conteudo_arquivo as Buffer);
+    } catch (error) {
+      console.error("Erro ao gerar relatório do projeto:", error);
+      return res.status(500).json({ message: "Não foi possível gerar o relatório do projeto." });
+    }
+  });
+
   // Todos que enxergam o projeto alteram o status; só comercial, gestor e superusuário concluem.
   router.patch("/:projetoId/status", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const user = res.locals.user as User;
@@ -147,6 +216,14 @@ router.get("/vendedores", requireRole(...PERFIS_CONSULTA), async (_req, res) => 
         "UPDATE projetos SET status = ? WHERE projeto_id = ?",
         [status, projetoId],
       );
+      if (status === "concluido" && rows[0].status !== "concluido") {
+        try {
+          await construirDadosRelatorio("projeto", projetoId);
+          await gerarEArmazenarRelatorio("projeto", projetoId, user.id);
+        } catch (error) {
+          console.error("Projeto concluído, mas o relatório automático não pôde ser gerado:", error);
+        }
+      }
       return res.json({ message: "Status do projeto atualizado com sucesso." });
     } catch (error) {
       console.error("Erro ao atualizar status do projeto:", error);
