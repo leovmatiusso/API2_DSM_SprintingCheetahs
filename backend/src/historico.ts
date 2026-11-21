@@ -17,6 +17,29 @@ export function createHistoricoRouter(requireRole: RequireRole): Router {
   const router = Router();
   const perfis = ["superusuario", "gestor"] as const;
 
+  router.get("/registros", requireRole(...perfis), async (req, res) => {
+    const data = typeof req.query.data === "string" ? req.query.data : undefined;
+    if (data && !dataValida(data)) {
+      return res.status(400).json({ message: "Data do filtro inválida." });
+    }
+
+    try {
+      const [registros] = await pool.execute<RowDataPacket[]>(
+        `SELECT historico_id, tabela, registro_id, tipo_acao, dados,
+                DATE_FORMAT(data_historico, '%Y-%m-%d %H:%i:%s') AS data_historico
+           FROM historico_registros
+          WHERE (? IS NULL OR DATE(data_historico) = ?)
+          ORDER BY historico_id DESC
+          LIMIT 500`,
+        [data ?? null, data ?? null],
+      );
+      return res.json({ registros });
+    } catch (error) {
+      console.error("Erro ao listar registros de auditoria:", error);
+      return res.status(500).json({ message: "Não foi possível carregar o histórico geral." });
+    }
+  });
+
   router.get("/", requireRole(...perfis), async (req, res) => {
     const data = typeof req.query.data === "string" ? req.query.data : undefined;
 
@@ -34,7 +57,7 @@ export function createHistoricoRouter(requireRole: RequireRole): Router {
                 h.id_time_responsavel,
                 t.nome_time,
                 DATE_FORMAT(h.data_limite, '%Y-%m-%d') AS data_limite
-           FROM historico h
+           FROM historico_os h
            LEFT JOIN time t ON t.id_time = h.id_time_responsavel
           WHERE (? IS NULL OR h.data_limite = ?)
           ORDER BY h.historico_id DESC`,
@@ -64,7 +87,7 @@ export function createHistoricoRouter(requireRole: RequireRole): Router {
                 h.id_time_responsavel,
                 t.nome_time,
                 DATE_FORMAT(h.data_limite, '%Y-%m-%d') AS data_limite
-           FROM historico h
+           FROM historico_os h
            LEFT JOIN time t ON t.id_time = h.id_time_responsavel
           WHERE h.os_id = ?
           ORDER BY h.historico_id DESC`,

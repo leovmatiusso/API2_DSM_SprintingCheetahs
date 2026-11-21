@@ -79,6 +79,20 @@ export interface HistoricoAtividadeItem {
   data_limite: string;
 }
 
+export interface RegistroHistorico {
+  historico_id: number;
+  tabela: string;
+  registro_id: string;
+  tipo_acao: "criado" | "atualizado" | "deletado";
+  dados: Record<string, unknown> | string;
+  data_historico: string;
+}
+
+export function getRegistrosHistorico(data?: string): Promise<{ registros: RegistroHistorico[] }> {
+  const query = data ? `?data=${encodeURIComponent(data)}` : "";
+  return request<{ registros: RegistroHistorico[] }>(`/historico/registros${query}`);
+}
+
 export function getHistorico(data?: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
   const path = data
     ? `/historico-filtro?data=${encodeURIComponent(data)}`
