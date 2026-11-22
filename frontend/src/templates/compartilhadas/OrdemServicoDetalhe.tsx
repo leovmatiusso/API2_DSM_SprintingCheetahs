@@ -2,11 +2,20 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ClipboardList, File, Link, X } from "lucide-react";
 
-import { abrirAnexoOS, atualizarOrdemServico, atualizarStatusOS, getOrdem } from "@/api";
+import {
+  ApiError,
+  abrirAnexoOS,
+  atualizarOrdemServico,
+  atualizarStatusOS,
+  getOrdem,
+  registrarVerificacaoOS,
+} from "@/api";
 import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
+import { mostrarAvisoOS } from "@/components/ui/Notification/mostrarAvisoOS";
 import { getCurrentUser } from "@/auth";
 
 import SeletorStatusOS from "./SeletorStatusOS";
@@ -18,9 +27,60 @@ import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 import {
   PRIORIDADE_CLASSE,
   PRIORIDADE_LABEL,
+  ROTA_APOS_CONCLUIR_OS,
   formatarData,
   formatarTamanho,
+  isTimeMonitoramento,
+  isTimeSoftware,
 } from "./osEstilos";
+
+const ROTA_LISTA_OS = "/os/disponiveis";
+const MENSAGEM_MOTIVO_OBRIGATORIO = "O motivo do bloqueio é obrigatório";
+
+function ModalConfirmacao({
+  titulo,
+  descricao,
+  confirmar,
+  enviando,
+  erro,
+  onConfirmar,
+  onCancelar,
+}: {
+  titulo: string;
+  descricao: string;
+  confirmar: string;
+  enviando: boolean;
+  erro: string | null;
+  onConfirmar: () => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+        className="border-border bg-bg text-text w-full max-w-md rounded-xl border p-6 shadow-2xl"
+      >
+        <h2 className="text-text m-0 text-xl font-bold">{titulo}</h2>
+        <p className="text-text-muted mt-2 mb-0 text-sm leading-6">{descricao}</p>
+        {erro && (
+          <p className="text-danger mt-3 mb-0 text-xs" role="alert">
+            {erro}
+          </p>
+        )}
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={onCancelar} disabled={enviando}>
+            Cancelar
+          </Button>
+          <Button onClick={onConfirmar} disabled={enviando}>
+            {enviando ? "Salvando..." : confirmar}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CampoCaixa({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -46,6 +106,14 @@ export default function OrdemServicoDetalhe() {
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [confirmarConclusao, setConfirmarConclusao] = useState(false);
 
+  // Estados da verificação pelo monitoramento
+  const [confirmarAprovacao, setConfirmarAprovacao] = useState(false);
+  const [reprovando, setReprovando] = useState(false);
+  const [motivoReprovacao, setMotivoReprovacao] = useState("");
+  const [erroMotivo, setErroMotivo] = useState<string | null>(null);
+  const [erroVerificacao, setErroVerificacao] = useState<string | null>(null);
+  const [enviandoVerificacao, setEnviandoVerificacao] = useState(false);
+
   // Estados para o Modal de Edição da O.S.
   const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
@@ -64,9 +132,15 @@ export default function OrdemServicoDetalhe() {
     currentUser?.id && ordem?.time?.responsavel_id === currentUser.id,
   );
   const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
+  const timeSoftware = isTimeSoftware(ordem?.departamento);
+  // O.S. de software só é concluída pela aprovação do monitoramento.
+  const podeConcluir = podeDecidirReview && !timeSoftware;
+  const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
+  const emVerificacao = ordem?.status === "verificacao";
 
   useEffect(() => {
     let ativo = true;
+    let redirecionando = false;
 
     async function carregar() {
       if (!osId) return;
@@ -88,15 +162,21 @@ export default function OrdemServicoDetalhe() {
           );
         }
       } catch (error) {
-        if (ativo) {
-          setErro(
-            error instanceof Error
-              ? error.message
-              : "Não foi possível carregar a ordem de serviço.",
-          );
+        if (!ativo) return;
+        // O.S. que já saiu da verificação: volta para a lista com um aviso, sem tela de erro.
+        if (error instanceof ApiError && error.status === 410) {
+          redirecionando = true;
+          mostrarAvisoOS("success", "O.S. já verificada", error.message);
+          navigate(ROTA_LISTA_OS, { replace: true });
+          return;
         }
+        setErro(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar a ordem de serviço.",
+        );
       } finally {
-        if (ativo) setCarregando(false);
+        if (ativo && !redirecionando) setCarregando(false);
       }
     }
 
@@ -104,10 +184,12 @@ export default function OrdemServicoDetalhe() {
     return () => {
       ativo = false;
     };
-  }, [osId]);
+  }, [osId, navigate]);
 
  const abrirModalEdicao = async () => {
   if (ordem) {
+    // Descarta um time escolhido em uma edição cancelada antes.
+    setTimeResponsavelIdEdit(ordem.time?.id || "");
     setEquipamentosEdit(
       ordem.equipamentos.map((eq) => ({
         nome: eq.nome,
@@ -122,7 +204,7 @@ export default function OrdemServicoDetalhe() {
     try {
       const { getTimes } = await import("@/api");
       const respostaTimes = await getTimes();
-      setTimes(respostaTimes.times);
+      setTimes(respostaTimes.times.filter((time) => !isTimeMonitoramento(time.departamento)));
     } catch (e) {
       console.error("Erro ao carregar times", e);
     } finally {
@@ -152,10 +234,34 @@ export default function OrdemServicoDetalhe() {
         equipamentos: equipamentosParaPayload(equipamentosEdit),
       });
 
+      window.dispatchEvent(new Event("notifications:refresh"));
+
+      const timeMudou = timeResponsavelIdEdit !== (ordem.time?.id ?? "");
+      if (timeMudou) {
+        const nomeTime = times.find((time) => time.id === timeResponsavelIdEdit)?.nome_time;
+        mostrarAvisoOS(
+          "success",
+          "O.S. encaminhada",
+          `A O.S. foi encaminhada para o time ${nomeTime ?? "selecionado"}.`,
+        );
+      }
+
       // Recarrega os dados completos da O.S. para atualizar a tela sem falhas
-      const resposta = await getOrdem(osId);
-      setOrdem(resposta.ordem);
-      setModalEdicaoAberto(false);
+      try {
+        const resposta = await getOrdem(osId);
+        setOrdem(resposta.ordem);
+        setModalEdicaoAberto(false);
+      } catch (error) {
+        // A edição já foi salva: quem era do time anterior deixa de ver a O.S. e volta para a lista.
+        if (timeMudou && error instanceof ApiError && error.status === 404) {
+          navigate(ROTA_LISTA_OS, { replace: true });
+          return;
+        }
+        setModalEdicaoAberto(false);
+        setErro(
+          error instanceof Error ? error.message : "Não foi possível recarregar a ordem de serviço.",
+        );
+      }
     } catch (error) {
       setErroEdicao(
         error instanceof Error ? error.message : "Não foi possível atualizar a ordem de serviço.",
@@ -197,20 +303,58 @@ export default function OrdemServicoDetalhe() {
   }
 
   async function concluirOS() {
-    if (!ordem || !podeDecidirReview) return;
+    if (!ordem || !podeConcluir) return;
     setAtualizandoStatus(true);
     setErroStatus(null);
     try {
       await atualizarStatusOS(ordem.id, "concluida");
-      setOrdem({ ...ordem, status: "concluida" });
-      setConfirmarConclusao(false);
       window.dispatchEvent(new Event("notifications:refresh"));
+      mostrarAvisoOS("success", "O.S. concluída", "A ordem de serviço foi concluída com sucesso.");
+      navigate(ROTA_APOS_CONCLUIR_OS);
     } catch (error) {
       setErroStatus(
         error instanceof Error ? error.message : "Não foi possível concluir a ordem de serviço.",
       );
-    } finally {
       setAtualizandoStatus(false);
+    }
+  }
+
+  async function enviarVerificacao(resultado: "aprovada" | "reprovada") {
+    if (!ordem || !podeVerificar) return;
+
+    const motivo = motivoReprovacao.trim();
+    if (resultado === "reprovada" && !motivo) {
+      setErroMotivo(MENSAGEM_MOTIVO_OBRIGATORIO);
+      return;
+    }
+
+    setErroMotivo(null);
+    setErroVerificacao(null);
+    setEnviandoVerificacao(true);
+    try {
+      const resposta = await registrarVerificacaoOS(
+        ordem.id,
+        resultado,
+        resultado === "reprovada" ? motivo : undefined,
+      );
+      window.dispatchEvent(new Event("notifications:refresh"));
+      mostrarAvisoOS(
+        "success",
+        resultado === "aprovada" ? "Verificação aprovada" : "Verificação reprovada",
+        resposta.message,
+      );
+      navigate(resultado === "aprovada" ? ROTA_APOS_CONCLUIR_OS : ROTA_LISTA_OS);
+    } catch (error) {
+      // Outra pessoa do monitoramento decidiu antes: não há mais o que fazer nesta tela.
+      if (error instanceof ApiError && error.status === 409) {
+        mostrarAvisoOS("success", "O.S. já verificada", error.message);
+        navigate(ROTA_LISTA_OS, { replace: true });
+        return;
+      }
+      setErroVerificacao(
+        error instanceof Error ? error.message : "Não foi possível registrar a verificação.",
+      );
+      setEnviandoVerificacao(false);
     }
   }
 
@@ -247,9 +391,11 @@ export default function OrdemServicoDetalhe() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={abrirModalEdicao}>
-                  Editar O.S.
-                </Button>
+                {!emVerificacao && (
+                  <Button variant="outline" onClick={abrirModalEdicao}>
+                    Editar O.S.
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => navigate(-1)}>
                   Voltar
                 </Button>
@@ -262,6 +408,7 @@ export default function OrdemServicoDetalhe() {
                 <SeletorStatusOS
                   status={ordem.status}
                   responsavelDoTime={responsavelDoTime}
+                  timeSoftware={timeSoftware}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -283,6 +430,112 @@ export default function OrdemServicoDetalhe() {
                 <span className="text-text text-sm">{formatarData(ordem.data_limite)}</span>
               </CampoCaixa>
             </div>
+
+            {/* Motivo da última reprovação na verificação */}
+            {ordem.ultima_reprovacao && (
+              <div className="border-danger/30 bg-danger/10 mb-8 rounded-lg border p-4">
+                <div className="text-danger flex items-center gap-2 text-sm font-semibold">
+                  <AlertTriangle size={17} aria-hidden="true" />
+                  Reprovada na verificação do monitoramento
+                </div>
+                <p className="text-text mt-2 mb-2 text-sm leading-6 break-words whitespace-pre-line">
+                  {ordem.ultima_reprovacao.justificativa}
+                </p>
+                <p className="text-text-muted m-0 text-xs">
+                  {ordem.ultima_reprovacao.usuario ?? "Monitoramento"} em{" "}
+                  {ordem.ultima_reprovacao.data}
+                </p>
+              </div>
+            )}
+
+            {/* Decisão da verificação (somente monitoramento) */}
+            {podeVerificar && (
+              <section
+                aria-labelledby="verificacao-os"
+                className="border-primary bg-primary-muted mb-8 rounded-lg border p-4 md:p-5"
+              >
+                <h2 id="verificacao-os" className="text-text m-0 text-base font-bold">
+                  Esta O.S. aguarda a sua verificação
+                </h2>
+                <p className="text-text-muted mt-1 mb-4 text-sm">
+                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe de software.
+                </p>
+
+                {reprovando ? (
+                  <form
+                    noValidate
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      enviarVerificacao("reprovada");
+                    }}
+                  >
+                    <Textarea
+                      id="motivo-reprovacao"
+                      label="Motivo da reprovação"
+                      required
+                      value={motivoReprovacao}
+                      onChange={(event) => {
+                        setMotivoReprovacao(event.target.value);
+                        setErroMotivo(null);
+                      }}
+                      maxLength={5000}
+                      placeholder="Explique o que a equipe de software precisa corrigir"
+                      aria-required="true"
+                      aria-invalid={Boolean(erroMotivo)}
+                      aria-describedby={erroMotivo ? "erro-motivo-reprovacao" : undefined}
+                      disabled={enviandoVerificacao}
+                    />
+                    {erroMotivo && (
+                      <p id="erro-motivo-reprovacao" className="text-danger mt-1.5 mb-0 text-xs" role="alert">
+                        {erroMotivo}
+                      </p>
+                    )}
+                    <div className="mt-4 flex flex-wrap justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        disabled={enviandoVerificacao}
+                        onClick={() => {
+                          setReprovando(false);
+                          setErroMotivo(null);
+                          setErroVerificacao(null);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button type="submit" variant="danger" disabled={enviandoVerificacao}>
+                        {enviandoVerificacao ? "Enviando..." : "Confirmar reprovação"}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      onClick={() => {
+                        setErroVerificacao(null);
+                        setConfirmarAprovacao(true);
+                      }}
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => {
+                        setErroVerificacao(null);
+                        setReprovando(true);
+                      }}
+                    >
+                      Reprovar
+                    </Button>
+                  </div>
+                )}
+
+                {erroVerificacao && !confirmarAprovacao && (
+                  <p className="text-danger mt-3 mb-0 text-xs" role="alert">
+                    {erroVerificacao}
+                  </p>
+                )}
+              </section>
+            )}
 
             {/* Descrição */}
             <div className="mb-8">
@@ -390,7 +643,7 @@ export default function OrdemServicoDetalhe() {
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
-                  {podeDecidirReview && (
+                  {podeConcluir && (
                     <Button
                       variant="primary"
                       size="lg"
@@ -412,6 +665,36 @@ export default function OrdemServicoDetalhe() {
           </section>
         )}
       </div>
+
+      {confirmarConclusao && (
+        <ModalConfirmacao
+          titulo="Concluir O.S."
+          descricao="Depois de concluída, a O.S. não pode voltar para outra etapa."
+          confirmar="Concluir O.S."
+          enviando={atualizandoStatus}
+          erro={erroStatus}
+          onConfirmar={concluirOS}
+          onCancelar={() => {
+            setConfirmarConclusao(false);
+            setErroStatus(null);
+          }}
+        />
+      )}
+
+      {confirmarAprovacao && (
+        <ModalConfirmacao
+          titulo="Aprovar verificação"
+          descricao="A O.S. será concluída e não poderá voltar para outra etapa."
+          confirmar="Aprovar"
+          enviando={enviandoVerificacao}
+          erro={erroVerificacao}
+          onConfirmar={() => enviarVerificacao("aprovada")}
+          onCancelar={() => {
+            setConfirmarAprovacao(false);
+            setErroVerificacao(null);
+          }}
+        />
+      )}
 
       {/* MODAL DE EDIÇÃO DA O.S. (Fundo sólido/opaco garantido para Light e Dark) */}
     {modalEdicaoAberto && (

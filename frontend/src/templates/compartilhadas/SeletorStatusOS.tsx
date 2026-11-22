@@ -4,10 +4,18 @@ import { Check, ChevronDown } from "lucide-react";
 import type { OrdemStatus } from "@/api";
 import { STATUS_CLASSE, STATUS_LABEL } from "./osEstilos";
 
-function obterOpcoes(status: OrdemStatus, responsavelDoTime: boolean): OrdemStatus[] {
-  if (status === "review") return responsavelDoTime ? ["teste", "bloqueado"] : [];
+function obterOpcoes(
+  status: OrdemStatus,
+  responsavelDoTime: boolean,
+  timeSoftware: boolean,
+): OrdemStatus[] {
+  if (status === "review") {
+    if (!responsavelDoTime) return [];
+    return timeSoftware ? ["teste", "bloqueado", "verificacao"] : ["teste", "bloqueado"];
+  }
   if (status === "bloqueado") return responsavelDoTime ? ["teste"] : [];
-  if (status === "concluida") return [];
+  // Em verificação, a decisão é feita pelos botões de aprovar/reprovar do monitoramento.
+  if (status === "concluida" || status === "verificacao") return [];
   const opcoes: OrdemStatus[] = ["aberta", "em andamento", "teste", "review"];
   return opcoes.filter(
     (opcao) => opcao !== status,
@@ -17,16 +25,18 @@ function obterOpcoes(status: OrdemStatus, responsavelDoTime: boolean): OrdemStat
 export default function SeletorStatusOS({
   status,
   responsavelDoTime = false,
+  timeSoftware = false,
   disabled = false,
   onChange,
 }: {
   status: OrdemStatus;
   responsavelDoTime?: boolean;
+  timeSoftware?: boolean;
   disabled?: boolean;
   onChange: (status: OrdemStatus) => void;
 }) {
   const [aberto, setAberto] = useState(false);
-  const opcoes = obterOpcoes(status, responsavelDoTime);
+  const opcoes = obterOpcoes(status, responsavelDoTime, timeSoftware);
 
   if (opcoes.length === 0) {
     return (

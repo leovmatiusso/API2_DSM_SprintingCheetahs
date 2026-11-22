@@ -117,7 +117,7 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
         ordens: {
           abertas: os.filter((ordem) => ordem.status === "aberta").length,
           andamento: os.filter((ordem) => ordem.status === "em andamento").length,
-          alerta: os.filter((ordem) => ordem.status === "bloqueado" || ordem.status === "review").length,
+          alerta: os.filter((ordem) => ordem.status === "bloqueado" || ordem.status === "review" || ordem.status === "verificacao").length,
           concluidas: os.filter((ordem) => ordem.status === "concluida").length,
           emTeste: os.filter((ordem) => ordem.status === "teste").length,
           total: os.length,

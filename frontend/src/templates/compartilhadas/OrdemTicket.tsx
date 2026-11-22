@@ -6,7 +6,7 @@ import { atualizarStatusOS } from "@/api";
 import { getCurrentUser } from "@/auth";
 
 import { Selo, Ticket, TicketLinha } from "./Ticket";
-import { PRIORIDADE_CLASSE, PRIORIDADE_LABEL } from "./osEstilos";
+import { PRIORIDADE_CLASSE, PRIORIDADE_LABEL, isTimeSoftware } from "./osEstilos";
 import SeletorStatusOS from "./SeletorStatusOS";
 
 // Ticket de uma O.S. - ao clicar abre a O.S. expandida
@@ -57,6 +57,7 @@ export default function OrdemTicket({
         <SeletorStatusOS
           status={status}
           responsavelDoTime={responsavelDoTime}
+          timeSoftware={isTimeSoftware(os.departamento)}
           disabled={salvando}
           onChange={alterarStatus}
         />
