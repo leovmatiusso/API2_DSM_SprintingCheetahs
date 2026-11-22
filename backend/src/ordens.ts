@@ -4,20 +4,22 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { isTimeMonitoramento, validarTransicaoOS } from "./os_fluxo.js";
+import { isCriticalPriority, isTimeMonitoramento, validarTransicaoOS } from "./os_fluxo.js";
 import { buscarAprovacaoPendente } from "./os_resumo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
   buildOSAguardandoVerificacaoMessage,
   buildOSCreatedNotificationMessage,
   buildOSCreatedNotificationTitle,
-  buildOSEncaminhadaMessage,
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
   buildOSVerificacaoMessage,
   buildStatusNotificationMessage,
+  createCriticalOSNotificationsForDepartments,
+  createOSChangeNotifications,
   createNotificationsForTime,
   shouldCreateStatusNotification,
+  type OSChangeType,
 } from "./notificacoes.js";
 
 const PERFIS_COM_ACESSO: Role[] = [
@@ -806,13 +808,24 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         );
         const nomeTime = (timeRow[0]?.nome_time as string | undefined) ?? "time responsável";
 
-        await createNotificationsForTime(connection, {
-          titulo: buildOSCreatedNotificationTitle(),
-          mensagem: buildOSCreatedNotificationMessage(os_titulo.trim(), criadorNome, nomeTime),
-          timeId: Number(time.id_time),
-          osId,
-          usuarioOrigemId: user.id,
-        });
+        if (isCriticalPriority(prioridade)) {
+          await createCriticalOSNotificationsForDepartments(connection, {
+            evento: "aberta",
+            osId,
+            osTitulo: os_titulo.trim(),
+            timeIdResponsavel: time.id_time,
+            timeNome: nomeTime,
+            usuarioOrigemId: user.id,
+          });
+        } else {
+          await createNotificationsForTime(connection, {
+            titulo: buildOSCreatedNotificationTitle(),
+            mensagem: buildOSCreatedNotificationMessage(os_titulo.trim(), criadorNome, nomeTime),
+            timeId: Number(time.id_time),
+            osId,
+            usuarioOrigemId: user.id,
+          });
+        }
 
         await connection.commit();
         return res.status(201).json({
@@ -928,7 +941,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           return res.status(400).json({ message: "Uma O.S. não pode ser atribuída ao time de monitoramento." });
         }
 
-        await connection.execute(
+        const [updateResult] = await connection.execute<ResultSetHeader>(
           `UPDATE os
               SET os_titulo = ?, os_descricao = ?, prioridade = ?, data_limite = ?, id_time_responsavel = ?
             WHERE os_id = ?`,
@@ -963,20 +976,21 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         }
 
         // Ao mudar de time, a O.S. sai do time atual e o novo time é avisado.
+        const changes: OSChangeType[] = [];
+        if (String(os.data_limite ?? "") !== data_limite) changes.push("prazo");
+        if (String(os.prioridade ?? "").trim().toLowerCase() !== prioridade.trim().toLowerCase()) changes.push("prioridade");
+        if (String(os.os_descricao ?? "").trim() !== os_descricao.trim()) changes.push("descricao");
+
         const encaminhada = String(os.id_time_responsavel ?? "") !== String(id_time_responsavel);
-        if (encaminhada) {
-          await createNotificationsForTime(connection, {
-            titulo: "O.S. encaminhada para o seu time",
-            mensagem: buildOSEncaminhadaMessage(
-              osId,
-              os_titulo.trim(),
-              (os.nome_time as string | null) ?? "sem time",
-              times[0].nome_time as string,
-              user.name,
-            ),
+        if (encaminhada) changes.push("time");
+        if (changes.length && updateResult.affectedRows > 0) {
+          await createOSChangeNotifications(connection, {
             timeId: String(id_time_responsavel),
             osId,
+            osTitulo: os_titulo.trim(),
             usuarioOrigemId: user.id,
+            usuarioNome: user.name,
+            changes,
             incluirResponsavelDoTimeComoDestino: true,
           });
         }
@@ -1117,7 +1131,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           usuariosMonitoramento = monitoramento.map((row) => Number(row.id_usuario));
         }
 
-        await createNotificationsForTime(connection, {
+        await createOSChangeNotifications(connection, {
           usuariosDestinoExtras: usuariosMonitoramento,
           titulo:
             statusNovo === "verificacao"
@@ -1133,6 +1147,9 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           timeId: Number(os.id_time_responsavel),
           osId: os.os_id,
           usuarioOrigemId: user.id,
+          usuarioNome: user.name,
+          osTitulo: os.os_titulo as string,
+          changes: ["status"],
           incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
           incluirResponsavelDoTimeComoDestino: statusNovo === "review",
         });
@@ -1231,7 +1248,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           "SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%d/%m/%Y %H:%i:%s') AS data_evento",
         );
 
-        await createNotificationsForTime(connection, {
+        await createOSChangeNotifications(connection, {
           titulo: resultado === "aprovada" ? "O.S. aprovada na verificação" : buildOSStatusNotificationTitle("bloqueado"),
           mensagem: buildOSVerificacaoMessage(
             os.os_id as number,
@@ -1244,6 +1261,9 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           timeId: os.id_time_responsavel as number | null,
           osId: os.os_id as number,
           usuarioOrigemId: user.id,
+          usuarioNome: user.name,
+          osTitulo: os.os_titulo as string,
+          changes: ["status"],
           incluirResponsavelDoTimeComoDestino: true,
           // Responsáveis pelo projeto/manutenção só são avisados do bloqueio; da conclusão, eles
           // são avisados quando o líder registra o resumo.

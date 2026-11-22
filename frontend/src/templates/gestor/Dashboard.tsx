@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import { getCurrentUser } from "@/auth";
 import { getDashboardResumo } from "@/api";
 import type { DashboardResumo } from "@/api";
@@ -72,8 +73,8 @@ export default function Dashboard() {
   useEffect(() => {
     let ativo = true;
     getDashboardResumo()
-      .then((data) => {
-        if (ativo) setResumo(data);
+      .then((dados) => {
+        if (ativo) setResumo(dados);
       })
       .catch((error) => {
         if (ativo)
