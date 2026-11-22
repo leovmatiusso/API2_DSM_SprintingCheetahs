@@ -620,6 +620,7 @@ export interface DashboardResumo {
       monitoramento: number;
       implantacao: number;
     };
+      porPrioridade: { baixa: number; media: number; alta: number; critica: number };
   };
   manutencoes: {
     total: number;
