@@ -248,6 +248,12 @@ export function marcarNotificacaoComoLida(id: string): Promise<{ message: string
   });
 }
 
+export function apagarNotificacao(id: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/notificacoes/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
 // =====================================================
 // ANEXOS (abrir PDF/imagem em nova aba ou baixar)
 // =====================================================
