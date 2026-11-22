@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import PasswordInput from "@/components/PasswordInput";
+import { Card } from "@/components/ui/Card";
 
 import { createUser, getTimes } from "@/api";
 
@@ -165,7 +166,7 @@ export default function Cadastro({
           </div>
         </header>
 
-        <section className="card content flex flex-col gap-5">
+        <Card className="content flex flex-col gap-5">
 
         <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
           <Input
@@ -264,7 +265,7 @@ export default function Cadastro({
         {message && <div className="success">{message}</div>}
 
         {error && <div className="error">{error}</div>}
-      </section>
+      </Card>
       </div>
     </main>
   );

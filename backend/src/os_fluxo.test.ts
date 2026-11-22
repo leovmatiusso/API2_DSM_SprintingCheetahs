@@ -34,7 +34,7 @@ test("qualquer usuário pode encaminhar uma OS ativa para Review", () => {
 test("somente o responsável decide uma OS em Review", () => {
   assert.equal(validarTransicaoOS("review", "teste", true), null);
   assert.equal(validarTransicaoOS("review", "bloqueado", true), null);
-  assert.equal(validarTransicaoOS("review", "concluida", true), null);
+  assert.equal(validarTransicaoOS("review", "concluida", true)?.status, 409);
   assert.equal(validarTransicaoOS("review", "teste", false)?.status, 403);
   assert.equal(validarTransicaoOS("review", "concluida", false)?.status, 403);
 });
@@ -51,23 +51,49 @@ test("bloquear ou concluir exige Review e OS concluída não reabre", () => {
   assert.equal(validarTransicaoOS("concluida", "teste", true)?.status, 409);
 });
 
-test("OS de software não pode ser concluída direto da Review", () => {
+test("nenhuma OS é concluída pelo status: a conclusão acontece ao registrar o resumo", () => {
+  assert.equal(validarTransicaoOS("review", "concluida", true, false)?.status, 409);
   assert.equal(validarTransicaoOS("review", "concluida", true, true)?.status, 409);
-  assert.equal(validarTransicaoOS("review", "concluida", true, false), null);
+  assert.match(validarTransicaoOS("review", "concluida", true, true)?.message ?? "", /registre o resumo/);
 });
 
-test("somente o responsável de um time de software envia a OS em Review para verificação", () => {
-  assert.equal(validarTransicaoOS("review", "verificacao", true, true), null);
-  assert.equal(validarTransicaoOS("review", "verificacao", false, true)?.status, 403);
-  assert.equal(validarTransicaoOS("review", "verificacao", true, false)?.status, 409);
-  assert.equal(validarTransicaoOS("teste", "verificacao", true, true)?.status, 409);
-  assert.equal(validarTransicaoOS("bloqueado", "verificacao", true, true)?.status, 409);
+test("OS aprovada na verificação (Review) só sai da etapa pelo resumo do líder", () => {
+  for (const novo of ["teste", "bloqueado", "concluida", "verificacao", "aberta"] as const) {
+    assert.equal(validarTransicaoOS("review", novo, true, false, false, true)?.status, 409, novo);
+  }
+  // Inclusive para o superusuário, que antes podia reenviar para verificação.
+  assert.equal(validarTransicaoOS("review", "verificacao", false, false, true, true)?.status, 409);
+  // Permanecer em Review não é mudança.
+  assert.equal(validarTransicaoOS("review", "review", true, false, false, true), null);
+  // Sem aprovação, as regras de sempre continuam valendo.
+  assert.equal(validarTransicaoOS("review", "teste", true, false, false, false), null);
+  assert.equal(validarTransicaoOS("review", "verificacao", true, false, false, false), null);
+});
+
+test("responsável de qualquer time, exceto monitoramento, envia a OS em Review para verificação", () => {
+  assert.equal(validarTransicaoOS("review", "verificacao", true), null);
+  assert.equal(validarTransicaoOS("review", "verificacao", false)?.status, 403);
+  assert.equal(validarTransicaoOS("review", "verificacao", true, true)?.status, 409);
+  assert.equal(validarTransicaoOS("teste", "verificacao", true)?.status, 409);
+  assert.equal(validarTransicaoOS("bloqueado", "verificacao", true)?.status, 409);
+});
+
+test("superusuário envia a OS em Review para verificação sem ser responsável", () => {
+  assert.equal(validarTransicaoOS("review", "verificacao", false, false, true), null);
+  assert.equal(validarTransicaoOS("review", "verificacao", false, true, true)?.status, 409);
+  assert.equal(validarTransicaoOS("teste", "verificacao", false, false, true)?.status, 403);
+});
+
+test("superusuário não faz outras mudanças de status", () => {
+  assert.equal(validarTransicaoOS("aberta", "review", false, false, true)?.status, 403);
+  assert.equal(validarTransicaoOS("review", "teste", false, false, true)?.status, 403);
+  assert.equal(validarTransicaoOS("review", "concluida", false, false, true)?.status, 403);
 });
 
 test("OS em verificação não muda de status pela rota comum", () => {
-  assert.equal(validarTransicaoOS("verificacao", "concluida", true, true)?.status, 409);
-  assert.equal(validarTransicaoOS("verificacao", "bloqueado", true, true)?.status, 409);
-  assert.equal(validarTransicaoOS("verificacao", "teste", true, true)?.status, 409);
+  assert.equal(validarTransicaoOS("verificacao", "concluida", true)?.status, 409);
+  assert.equal(validarTransicaoOS("verificacao", "bloqueado", true)?.status, 409);
+  assert.equal(validarTransicaoOS("verificacao", "teste", true)?.status, 409);
 });
 
 test("identifica times de software pelo departamento", () => {

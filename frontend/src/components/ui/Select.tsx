@@ -1,8 +1,64 @@
 import type { ComponentPropsWithoutRef } from "react";
+import { tv, type VariantProps } from "tailwind-variants";
 
-interface SelectProps extends ComponentPropsWithoutRef<"select"> {
+const select = tv({
+  slots: {
+    container: "w-full",
+    label: "text-text-muted mb-2 block font-semibold",
+    element: [
+      "bg-bg",
+      "h-9.5 @3xl:h-11 w-full rounded-lg",
+      "border border-border",
+      "px-3",
+      "outline-none transition",
+      "focus:border-primary",
+      "focus:ring-2 focus:ring-primary",
+      "disabled:cursor-not-allowed disabled:opacity-50",
+    ],
+  },
+  variants: {
+    textSize: {
+      xs: {
+        label: "text-xs",
+        element: "text-xs",
+      },
+      sm: {
+        label: "text-sm",
+        element: "text-sm",
+      },
+      base: {
+        label: "text-base",
+        element: "text-base",
+      },
+      lg: {
+        label: "text-lg",
+        element: "text-lg",
+      },
+      xl: {
+        label: "text-xl",
+        element: "text-xl",
+      },
+    },
+    isEmpty: {
+      true: {
+        element: "select-empty",
+      },
+      false: {
+        element: "text-text",
+      },
+    },
+  },
+  defaultVariants: {
+    textSize: "sm",
+  },
+});
+
+export type SelectVariants = VariantProps<typeof select>;
+
+export interface SelectProps
+  extends ComponentPropsWithoutRef<"select">,
+    Omit<SelectVariants, "isEmpty"> {
   label?: string;
-  textSize?: "xs" | "sm" | "base" | "lg" | "xl";
 }
 
 export default function Select({
@@ -17,13 +73,15 @@ export default function Select({
 }: SelectProps) {
   const isEmpty = value === "";
 
+  const styles = select({
+    textSize,
+    isEmpty,
+  });
+
   return (
-    <div className="w-full">
+    <div className={styles.container()}>
       {label && (
-        <label
-          htmlFor={props.id}
-          className={`text-text-muted mb-2 block text-${textSize} font-semibold`}
-        >
+        <label htmlFor={props.id} className={styles.label()}>
           {label}
 
           {required && (
@@ -42,19 +100,7 @@ export default function Select({
         value={value}
         required={required}
         disabled={disabled}
-        className={`
-          bg-bg
-          h-11 w-full rounded-lg
-          border border-border
-          px-3 text-${textSize}
-          outline-none transition
-          focus:border-primary
-          focus:ring-2 focus:ring-primary
-          disabled:cursor-not-allowed
-          disabled:opacity-50
-          ${isEmpty ? "select-empty" : "text-text"}
-          ${className}
-        `}
+        className={styles.element({ class: className })}
       >
         {children}
       </select>

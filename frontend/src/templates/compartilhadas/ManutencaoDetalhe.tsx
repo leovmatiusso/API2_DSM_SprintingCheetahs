@@ -15,9 +15,11 @@ import {
 import {
   abrirAnexoManutencao,
   atualizarManutencao,
+  baixarRelatorioManutencao,
   getManutencao,
   getProjetosParaManutencao,
 } from "@/api";
+import BotaoRelatorio from "../compartilhadas/BotaoRelatorio";
 import type { Manutencao, ManutencaoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -28,8 +30,6 @@ import OrdensDoItem from "./OrdensDoItem";
 import { PRIORIDADE_LABEL, formatarData } from "./osEstilos";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
-import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
-import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 import SeletorStatusManutencao from "../compartilhadas/SeletorStatusManutencao";
 
 const TIPOS_MANUTENCAO = [
@@ -59,7 +59,6 @@ export default function ManutencaoDetalhe() {
   const [dataInicioProblema, setDataInicioProblema] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [equipamentosEdit, setEquipamentosEdit] = useState<EquipamentoForm[]>([]);
 
   // Listas auxiliares
   const [projetos, setProjetos] = useState<{ id_projeto: number; nome: string }[]>([]);
@@ -82,12 +81,6 @@ export default function ManutencaoDetalhe() {
           setDataInicioProblema(m.data_inicio_problema ? m.data_inicio_problema.split("T")[0] : "");
           setDataLimite(m.data_limite ? m.data_limite.split("T")[0] : "");
           setDescricao(m.descricao || "");
-          setEquipamentosEdit(
-            m.equipamentos.map((eq) => ({
-              nome: eq.nome,
-              quantidade: eq.quantidade,
-            }))
-          );
         }
       } catch (error) {
         if (ativo) {
@@ -142,7 +135,6 @@ export default function ManutencaoDetalhe() {
         data_inicio_problema: dataInicioProblema,
         data_limite: dataLimite,
         descricao_situacao: descricao.trim(),
-        equipamentos: equipamentosParaPayload(equipamentosEdit),
       });
 
       const resposta = await getManutencao(manutencaoId);
@@ -189,6 +181,15 @@ export default function ManutencaoDetalhe() {
             </div>
 
             <div className="flex items-center gap-3">
+              <BotaoRelatorio
+                onGerar={() => baixarRelatorioManutencao(manutencao.id, manutencao.resumo)}
+                desabilitado={
+                  manutencao.ordens.length === 0 ||
+                  manutencao.ordens.some((o) => o.status !== "concluida")
+                }
+                dica="O relatório só fica disponível quando todas as OS estiverem concluídas."
+              />
+
               <Button variant="outline" onClick={abrirModalEdicao}>
                 Editar Manutenção
               </Button>
@@ -241,7 +242,6 @@ export default function ManutencaoDetalhe() {
                 },
               ]}
               descricao={manutencao.descricao}
-              equipamentos={manutencao.equipamentos}
               anexos={manutencao.anexos}
               abrirAnexo={(anexo: ManutencaoAnexo) => abrirAnexoManutencao(manutencao.id, anexo)}
             />
@@ -363,11 +363,6 @@ export default function ManutencaoDetalhe() {
                   placeholder="Descreva detalhadamente a situação e os procedimentos..."
                   required
                 />
-              </div>
-
-              {/* EQUIPAMENTOS */}
-              <div>
-                <CampoEquipamentos value={equipamentosEdit} onChange={setEquipamentosEdit} />
               </div>
 
               {/* BOTÕES DE AÇÃO */}

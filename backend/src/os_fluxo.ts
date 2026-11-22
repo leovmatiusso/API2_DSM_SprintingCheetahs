@@ -9,6 +9,9 @@ export type StatusOSFluxo =
 
 export type ErroTransicaoOS = { status: 400 | 403 | 409; message: string };
 
+export const MENSAGEM_APROVADA_REGISTRAR_RESUMO =
+  "Esta O.S. foi aprovada na verificação. O líder do time deve registrar o resumo das atividades para concluí-la.";
+
 export function isCriticalPriority(prioridade: string | null | undefined): boolean {
   const normalizada = String(prioridade ?? "").trim().toLowerCase();
   return normalizada === "critica" || normalizada === "crítica";
@@ -21,7 +24,7 @@ export function shouldNotifyCriticalPriority(
   return isCriticalPriority(prioridadeNova) && !isCriticalPriority(prioridadeAnterior);
 }
 
-// O.S. de times de software precisam ser aprovadas pelo monitoramento para serem concluídas.
+// Identifica times de software pelo departamento.
 export function isTimeSoftware(departamento: string | null | undefined): boolean {
   return String(departamento ?? "").toLowerCase().includes("software");
 }
@@ -35,7 +38,10 @@ export function validarTransicaoOS(
   statusAtual: StatusOSFluxo,
   statusNovo: StatusOSFluxo,
   responsavelDoTime: boolean,
-  timeSoftware = false,
+  timeMonitoramento = false,
+  superusuario = false,
+  // true quando a O.S. voltou da verificação aprovada e aguarda o resumo do líder para ser concluída.
+  aprovadaNaVerificacao = false,
 ): ErroTransicaoOS | null {
   if (statusAtual === statusNovo) return null;
 
@@ -50,15 +56,32 @@ export function validarTransicaoOS(
     };
   }
 
+  // Aprovada na verificação: a O.S. fica em Review até o líder registrar o resumo (o que a conclui).
+  // Nenhuma outra mudança de status é permitida nessa etapa.
+  if (statusAtual === "review" && aprovadaNaVerificacao) {
+    return { status: 409, message: MENSAGEM_APROVADA_REGISTRAR_RESUMO };
+  }
+
+  // O superusuário só atua enviando uma O.S. em Review para verificação.
+  if (superusuario && !(statusAtual === "review" && statusNovo === "verificacao")) {
+    return {
+      status: 403,
+      message: "O superusuário só pode enviar uma O.S. em Review para verificação.",
+    };
+  }
+
   if (statusNovo === "verificacao") {
     if (statusAtual !== "review") {
       return { status: 409, message: "A O.S. precisa passar por Review antes da verificação." };
     }
-    if (!responsavelDoTime) {
-      return { status: 403, message: "Somente o responsável do time pode enviar a O.S. para verificação." };
+    if (!responsavelDoTime && !superusuario) {
+      return {
+        status: 403,
+        message: "Somente o responsável do time ou o superusuário pode enviar a O.S. para verificação.",
+      };
     }
-    if (!timeSoftware) {
-      return { status: 409, message: "Somente O.S. de times de software passam por verificação." };
+    if (timeMonitoramento) {
+      return { status: 409, message: "O.S. do time de monitoramento não passa por verificação." };
     }
     return null;
   }
@@ -79,8 +102,14 @@ export function validarTransicaoOS(
     if (!["teste", "bloqueado", "concluida"].includes(statusNovo)) {
       return { status: 400, message: "Na revisão, escolha Teste, Bloqueada ou Concluída." };
     }
-    if (statusNovo === "concluida" && timeSoftware) {
-      return { status: 409, message: "A O.S. de software precisa ser aprovada na verificação do monitoramento." };
+    // A conclusão não é feita pelo status: acontece quando o líder registra o resumo das atividades.
+    if (statusNovo === "concluida") {
+      return {
+        status: 409,
+        message: timeMonitoramento
+          ? "Para concluir a O.S., registre o resumo das atividades."
+          : "A O.S. precisa ser aprovada na verificação do monitoramento e ter o resumo registrado para ser concluída.",
+      };
     }
     return null;
   }

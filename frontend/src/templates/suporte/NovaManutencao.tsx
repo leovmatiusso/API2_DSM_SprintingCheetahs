@@ -11,8 +11,6 @@ import Select from "@/components/ui/Select";
 import CampoAnexos, { anexosParaPayload } from "../compartilhadas/CampoAnexos";
 import type { AnexoForm } from "../compartilhadas/CampoAnexos";
 import CampoDescricao from "../compartilhadas/CampoDescricao";
-import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos"; //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
-import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 
@@ -37,7 +35,6 @@ export default function NovaManutencao() {
   const [projetoId, setProjetoId] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [equipamentos, setEquipamentos] = useState<EquipamentoForm[]>([]); //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
   const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
   const [projetos, setProjetos] = useState<
@@ -91,7 +88,6 @@ export default function NovaManutencao() {
         projeto_id: projetoId || null,
         data_limite: dataLimite,
         descricao_situacao: descricao.trim(),
-        equipamentos: equipamentosParaPayload(equipamentos),
         anexos: await anexosParaPayload(anexos),
       });
 

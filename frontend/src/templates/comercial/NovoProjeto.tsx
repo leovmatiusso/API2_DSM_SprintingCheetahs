@@ -11,8 +11,6 @@ import Select from "@/components/ui/Select";
 import CampoAnexos, { anexosParaPayload } from "../compartilhadas/CampoAnexos";
 import type { AnexoForm } from "../compartilhadas/CampoAnexos";
 import CampoDescricao from "../compartilhadas/CampoDescricao";
-import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
-import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos"; //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
 
@@ -31,7 +29,6 @@ export default function NovoProjeto() {
   const [dataVencimento, setDataVencimento] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [equipamentos, setEquipamentos] = useState<EquipamentoForm[]>([]); //arranquei o campo, mas possivelmente ele pode voltar por causa de uma ideia que ainda tem q ser validada
   const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
   const [vendedores, setVendedores] = useState<{ id_usuario: number; nome: string }[]>([]);
@@ -80,7 +77,6 @@ export default function NovoProjeto() {
         data_vencimento_contrato: dataVencimento,
         data_limite: dataLimite,
         descricao: descricao.trim(),
-        equipamentos: equipamentosParaPayload(equipamentos),
         anexos: await anexosParaPayload(anexos),
       });
 

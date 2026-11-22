@@ -4,7 +4,9 @@ import { Check, ChevronDown } from "lucide-react";
 import { atualizarStatusProjeto } from "@/api";
 import type { StatusProjeto } from "@/api";
 
-import { STATUS_PROJETO_CLASSE, STATUS_PROJETO_LABEL } from "./osEstilos";
+import { getCurrentUser } from "@/auth";
+
+import { PERFIS_CONCLUEM_PROJETO, STATUS_PROJETO_CLASSE, STATUS_PROJETO_LABEL } from "./osEstilos";
 
 export default function SeletorStatusProjeto({
   projetoId,
@@ -22,6 +24,10 @@ export default function SeletorStatusProjeto({
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const podeConcluir = PERFIS_CONCLUEM_PROJETO.includes(getCurrentUser()?.role ?? "");
+  const opcoes = (Object.keys(STATUS_PROJETO_LABEL) as StatusProjeto[]).filter(
+    (opcao) => opcao !== "concluido" || podeConcluir || status === "concluido",
+  );
 
   async function alterarStatus(novoStatus: StatusProjeto) {
     const statusAnterior = status;
@@ -59,7 +65,7 @@ export default function SeletorStatusProjeto({
           aria-label="Selecionar status do projeto"
           className="border-border bg-bg absolute top-full left-0 z-20 mt-1 min-w-36 overflow-hidden rounded-lg border p-1 shadow-lg"
         >
-          {(Object.keys(STATUS_PROJETO_LABEL) as StatusProjeto[]).map((opcao) => (
+          {opcoes.map((opcao) => (
             <button
               key={opcao}
               type="button"

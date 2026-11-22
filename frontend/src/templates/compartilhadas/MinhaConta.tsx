@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/auth";
 import PasswordInput from "@/components/PasswordInput";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 
 const roleLabels: Record<string, string> = {
   superusuario: "superusuario",
@@ -81,7 +82,7 @@ export default function MinhaConta() {
   return (
     <main className="page">
 
-      <section className="card content account-card flex flex-col gap-5">
+      <Card className="content account-card flex flex-col gap-5">
         <h1>Minha conta</h1>
 
         <Input label="Nome" value={name} readOnly />
@@ -119,7 +120,7 @@ export default function MinhaConta() {
             </Button>
           </div>
         </form>
-      </section>
+      </Card>
     </main>
   );
 }

@@ -11,7 +11,8 @@ import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
-import { createOrdensRouter, ensureOSVerificationSchema } from "./ordens.js";
+import { createOrdensRouter, ensureOsReportSchema, ensureOsVerificationSchema } from "./ordens.js";
+import { createOsResumoRouter, ensureOsResumoSchema } from "./os_resumo.js";
 import {
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
@@ -20,7 +21,7 @@ import {
   ensureNotificationSchema,
 } from "./notificacoes.js";
 import { podeVerOS } from "./os_comum.js";
-import { isTimeSoftware } from "./os_fluxo.js";
+import { isTimeMonitoramento } from "./os_fluxo.js";
 import osConcluidasRouter from "./os_concluida.js";
 import { createDashboardRouter } from "./dashboard.js";
 
@@ -830,8 +831,8 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       return res.status(403).json({ message: "Somente o responsável do time pode concluir uma O.S. em revisão." });
     }
 
-    if (isTimeSoftware(rows[0].departamento as string | null)) {
-      return res.status(409).json({ message: "A O.S. de software precisa ser aprovada na verificação do monitoramento." });
+    if (!isTimeMonitoramento(rows[0].departamento as string | null)) {
+      return res.status(409).json({ message: "A O.S. precisa ser aprovada na verificação do monitoramento para ser concluída." });
     }
 
     const connection = await pool.getConnection();
@@ -883,6 +884,8 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
 // ORDENS DE SERVIÇO
 // =====================================================
 
+// Resumo das atividades da O.S. (US24) - rotas em os_resumo.ts (/api/os/:osId/resumo)
+app.use("/api/os", createOsResumoRouter(requireRole));
 app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================
@@ -918,12 +921,14 @@ async function startServer() {
   try {
     await ensureProjectStatusSchema();
     await ensureNotificationSchema();
-    await ensureOSVerificationSchema();
+    await ensureOsReportSchema();
+    await ensureOsVerificationSchema();
+    await ensureOsResumoSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("Erro ao inicializar o banco de notificações:", error);
+    console.error("Erro ao inicializar o schema do banco de dados:", error);
     process.exit(1);
   }
 }

@@ -37,21 +37,20 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Ordens disponíveis",
     icon: ListTodo,
     path: "/os/disponiveis",
-    excludedRoles: ["superusuario"],
   },
 
   {
     label: "Projetos",
     icon: ClipboardList,
     path: "/projetos-totais",
-    excludedRoles: ["superusuario", "suporte"],
+    excludedRoles: ["suporte"],
   },
 
   {
     label: "Manutenções",
     icon: Wrench,
     path: "/manutencoes-totais",
-    excludedRoles: ["superusuario", "comercial"],
+    excludedRoles: ["comercial"],
   },
 
   {

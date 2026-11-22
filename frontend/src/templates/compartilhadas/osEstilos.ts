@@ -62,17 +62,23 @@ export const STATUS_ITEM_CLASSE: Record<StatusItem, string> = {
   cancelado: "bg-danger-alt text-danger-alt-inverted",
 };
 
+// Projetos e manutenções usam os mesmos nomes de status.
 export const STATUS_PROJETO_LABEL: Record<StatusProjeto, string> = {
   aberto: "Aberto",
-  em_andamento: "Em andamento",
-  finalizado: "Finalizado",
+  em_andamento: "Em Andamento",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
 };
 
 export const STATUS_PROJETO_CLASSE: Record<StatusProjeto, string> = {
   aberto: "bg-bg-tertiary text-text-muted",
   em_andamento: "bg-primary-muted text-primary",
-  finalizado: "bg-success-alt text-success-alt-inverted",
+  concluido: "bg-success-alt text-success-alt-inverted",
+  cancelado: "bg-danger-alt text-danger-alt-inverted",
 };
+
+// Somente comercial, gestor e superusuário concluem o projeto; os demais mudam para os outros estados.
+export const PERFIS_CONCLUEM_PROJETO = ["comercial", "gestor", "superusuario"];
 
 export function formatarData(data: string | null): string {
   if (!data) return "—";

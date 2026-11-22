@@ -19,23 +19,21 @@ export const compartilhadasRoutes = (
 
     <Route path="/minha-conta" element={<MinhaConta />} />
 
-    {/* Ordens de serviço: todos, exceto superusuário.
-        A criação ("Nova O.S.") só é acessada pelo projeto/manutenção expandido. */}
-    <Route element={<ProtectedRoute excludedRoles={["superusuario"]} />}>
-      <Route path="/os/nova-os" element={<NovaOrdemServico />} />
-      <Route path="/os/disponiveis" element={<OrdensServico />} />
-      <Route path="/os/disponiveis/:osId" element={<OrdemServicoDetalhe />} />
-    </Route>
+    {/* Ordens de serviço: todos os perfis. A criação ("Nova O.S.") só é acessada
+        pelo projeto/manutenção expandido. */}
+    <Route path="/os/nova-os" element={<NovaOrdemServico />} />
+    <Route path="/os/disponiveis" element={<OrdensServico />} />
+    <Route path="/os/disponiveis/:osId" element={<OrdemServicoDetalhe />} />
 
-    {/* Projetos: todos, exceto superusuário e suporte.
+    {/* Projetos: todos, exceto suporte.
         O filtro por time (via O.S.) é feito no backend. */}
-    <Route element={<ProtectedRoute excludedRoles={["superusuario", "suporte"]} />}>
+    <Route element={<ProtectedRoute excludedRoles={["suporte"]} />}>
       <Route path="/projetos-totais" element={<Projetos />} />
       <Route path="/projetos-totais/:projetoId" element={<ProjetoDetalhe />} />
     </Route>
 
-    {/* Manutenções: todos, exceto superusuário e comercial. */}
-    <Route element={<ProtectedRoute excludedRoles={["superusuario", "comercial"]} />}>
+    {/* Manutenções: todos, exceto comercial. */}
+    <Route element={<ProtectedRoute excludedRoles={["comercial"]} />}>
       <Route path="/manutencoes-totais" element={<Manutencoes />} />
       <Route path="/manutencoes-totais/:manutencaoId" element={<ManutencaoDetalhe />} />
     </Route>

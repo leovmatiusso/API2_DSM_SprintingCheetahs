@@ -111,6 +111,12 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
         monitoramento: os.filter((ordem) => ordem.departamento?.toLowerCase().includes("monitoramento")).length,
         implantacao: os.filter((ordem) => ordem.departamento?.toLowerCase().includes("implantação") || ordem.departamento?.toLowerCase().includes("implantacao")).length,
       };
+      const porPrioridade = {
+        baixa: os.filter((ordem) => ordem.prioridade?.toLowerCase() === "baixa").length,
+        media: os.filter((ordem) => ordem.prioridade?.toLowerCase() === "media").length,
+        alta: os.filter((ordem) => ordem.prioridade?.toLowerCase() === "alta").length,
+        critica: os.filter((ordem) => ordem.prioridade?.toLowerCase() === "critica").length,
+      };
 
       return res.json({
         projetos: Number(projetoRows[0]?.total ?? 0),
@@ -122,6 +128,7 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
           emTeste: os.filter((ordem) => ordem.status === "teste").length,
           total: os.length,
           porDepartamento,
+          porPrioridade,
         },
         manutencoes: {
           total: manutencaoRows.reduce((total, row) => total + Number(row.total), 0),
