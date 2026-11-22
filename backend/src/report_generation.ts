@@ -17,7 +17,7 @@ export type ReportItem = {
   contrato: { assinatura: string | null; vencimento: string | null } | null;
   categoria: string;
   equipamentos: { nome: string; quantidade: number }[];
-  departamentos: { nome: string; ordens: { resumo: string }[] }[];
+  departamentos: { nome: string; ordens: { descricao: string; resumo: string }[] }[];
 };
 
 function formatarData(valor: unknown): string | null {
@@ -75,7 +75,9 @@ export function renderTemplate(template: string, item: ReportItem): string {
   );
 
   html = html.replace(
-    /{{#each departamentos}}([\s\S]*?){{\/each}}/g,
+    // O bloco de departamentos contém outro {{#each}} (ordens): o padrão precisa passar pelo
+    // {{/each}} interno para terminar no {{/each}} que realmente fecha os departamentos.
+    /{{#each departamentos}}([\s\S]*?{{#each ordens}}[\s\S]*?{{\/each}}[\s\S]*?){{\/each}}/g,
     (_match, departamentoTemplate: string) => {
       if (!item.departamentos.length) {
         return '<div class="empty"><p>Este departamento não teve contribuição.</p></div>';
@@ -87,7 +89,11 @@ export function renderTemplate(template: string, item: ReportItem): string {
           (_ordensMatch, ordemTemplate: string) =>
             departamento.ordens.length
               ? departamento.ordens.map((ordem) =>
-                  ordemTemplate.replaceAll("{{resumo}}", escapeHtml(ordem.resumo)),
+                  ordemTemplate
+                    .replaceAll("{{ordem.descricao}}", () => escapeHtml(ordem.descricao))
+                    .replaceAll("{{ordem.resumo}}", () => escapeHtml(ordem.resumo))
+                    // Compatibilidade com templates antigos que usam apenas {{resumo}}.
+                    .replaceAll("{{resumo}}", () => escapeHtml(ordem.resumo)),
                 ).join("")
               : '<li>Este departamento não teve contribuição.</li>',
         );
@@ -145,7 +151,10 @@ async function gerarPdfFallback(item: ReportItem): Promise<Buffer> {
   write("Departamentos:");
   for (const departamento of item.departamentos) {
     write(`- ${departamento.nome}`);
-    for (const ordem of departamento.ordens) write(`  ${ordem.resumo}`);
+    for (const ordem of departamento.ordens) {
+      write(`  Descricao: ${ordem.descricao}`);
+      write(`  Resumo: ${ordem.resumo}`);
+    }
     if (!departamento.ordens.length) write("  Este departamento nao teve contribuicao.");
   }
   return Buffer.from(await pdf.save());
@@ -177,7 +186,7 @@ async function buscarOrdensVinculadas(
 ): Promise<RowDataPacket[]> {
   const coluna = tipo === "projeto" ? "o.projeto_id" : "o.manutencao_id";
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT o.os_id, o.os_descricao, COALESCE(t.departamento, t.nome_time) AS departamento
+    `SELECT o.os_id, o.os_descricao, o.os_resumo, COALESCE(t.departamento, t.nome_time) AS departamento
        FROM os o
        LEFT JOIN time t ON t.id_time = o.id_time_responsavel
       WHERE ${coluna} = ?
@@ -273,11 +282,14 @@ export async function construirDadosRelatorio(
 }
 
 export function agruparDepartamentos(ordens: RowDataPacket[]) {
-  const mapa = new Map<string, { resumo: string }[]>();
+  const mapa = new Map<string, { descricao: string; resumo: string }[]>();
   for (const ordem of ordens) {
     const nome = (ordem.departamento as string | null) ?? "Departamento não informado";
     if (!mapa.has(nome)) mapa.set(nome, []);
-    mapa.get(nome)!.push({ resumo: (ordem.os_descricao as string | null) ?? "Sem resumo informado." });
+    mapa.get(nome)!.push({
+      descricao: (ordem.os_descricao as string | null) || "Sem descrição informada.",
+      resumo: (ordem.os_resumo as string | null) || "Sem resumo informado.",
+    });
   }
   return Array.from(mapa, ([nome, ordensDepartamento]) => ({
     nome,

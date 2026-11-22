@@ -9,7 +9,10 @@ function obterOpcoes(
   responsavelDoTime: boolean,
   timeMonitoramento: boolean,
   superusuario: boolean,
+  aprovadaNaVerificacao: boolean,
 ): OrdemStatus[] {
+  // Aprovada na verificação: a O.S. só sai de Review quando o líder registra o resumo (que a conclui).
+  if (status === "review" && aprovadaNaVerificacao) return [];
   // O superusuário só envia O.S. em Review para verificação.
   if (superusuario) return status === "review" && !timeMonitoramento ? ["verificacao"] : [];
   if (status === "review") {
@@ -31,6 +34,7 @@ export default function SeletorStatusOS({
   responsavelDoTime = false,
   timeMonitoramento = false,
   superusuario = false,
+  aprovadaNaVerificacao = false,
   disabled = false,
   onChange,
 }: {
@@ -38,11 +42,12 @@ export default function SeletorStatusOS({
   responsavelDoTime?: boolean;
   timeMonitoramento?: boolean;
   superusuario?: boolean;
+  aprovadaNaVerificacao?: boolean;
   disabled?: boolean;
   onChange: (status: OrdemStatus) => void;
 }) {
   const [aberto, setAberto] = useState(false);
-  const opcoes = obterOpcoes(status, responsavelDoTime, timeMonitoramento, superusuario);
+  const opcoes = obterOpcoes(status, responsavelDoTime, timeMonitoramento, superusuario, aprovadaNaVerificacao);
 
   if (opcoes.length === 0) {
     return (

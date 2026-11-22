@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ClipboardList, Download, File, Link, X, Upload, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, File, Link, X, Upload, ExternalLink } from "lucide-react";
 
 import {
   ApiError,
@@ -11,6 +11,8 @@ import {
   enviarRelatorioOS,
   getRelatoriosOS,
   getOrdem,
+  getResumoOS,
+  registrarResumoOS,
   registrarVerificacaoOS,
 } from "@/api";
 import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo, RelatorioOS } from "@/api";
@@ -30,7 +32,6 @@ import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 import {
   PRIORIDADE_CLASSE,
   PRIORIDADE_LABEL,
-  ROTA_APOS_CONCLUIR_OS,
   formatarData,
   formatarTamanho,
   isTimeMonitoramento,
@@ -107,9 +108,8 @@ export default function OrdemServicoDetalhe() {
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
   const [erroStatus, setErroStatus] = useState<string | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
-  const [confirmarConclusao, setConfirmarConclusao] = useState(false);
   const [resumoOS, setResumoOS] = useState("");
-  const [feedbackResumo, setFeedbackResumo] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
+  const [salvandoResumo, setSalvandoResumo] = useState(false);
   const [modalFeedbackResumo, setModalFeedbackResumo] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
 
   // Estados da verificação pelo monitoramento
@@ -146,15 +146,31 @@ export default function OrdemServicoDetalhe() {
   
   const podeGerenciarPdfs = currentUser?.role === "monitoramento";
 
-  const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
   const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
-  // Toda O.S. é concluída pela aprovação do monitoramento (exceto as do próprio monitoramento).
-  const podeConcluir = podeDecidirReview && timeMonitoramento;
   const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
   const emVerificacao = ordem?.status === "verificacao";
-  const podeEditarResumo = responsavelDoTime || currentUser?.role === "superusuario";
-  const podeVerResumo = podeEditarResumo || currentUser?.role === "gestor" || currentUser?.role === "monitoramento";
-  const etapaResumoDisponivel = ordem?.status === "review" || ordem?.status === "verificacao" || ordem?.status === "concluida";
+  // Aprovada pelo monitoramento: voltou ao time em Review, aguardando o resumo do líder.
+  const aprovadaNaVerificacao = ordem?.status === "review" && Boolean(ordem?.aprovada_verificacao);
+  // O resumo só aparece para o líder do time, depois da aprovação. Registrá-lo conclui a O.S.
+  // (O.S. do próprio monitoramento não passa por verificação e libera o resumo direto em Review.)
+  const resumoLiberado = ordem?.status === "review" && (aprovadaNaVerificacao || timeMonitoramento);
+  const osConcluida = ordem?.status === "concluida";
+  const podeEditarResumo = responsavelDoTime && resumoLiberado;
+  const podeVerResumo = responsavelDoTime && (resumoLiberado || osConcluida);
+
+  // Carrega o resumo já registrado para a O.S.
+  useEffect(() => {
+    if (!ordem?.id || !podeVerResumo) return;
+    let ativo = true;
+    getResumoOS(ordem.id)
+      .then((resposta) => {
+        if (ativo) setResumoOS(resposta.resumo);
+      })
+      .catch((erroResumo) => console.error("Erro ao carregar o resumo da O.S.:", erroResumo));
+    return () => {
+      ativo = false;
+    };
+  }, [ordem?.id, podeVerResumo]);
 
   useEffect(() => {
     let ativo = true;
@@ -369,36 +385,36 @@ export default function OrdemServicoDetalhe() {
     }
   }
 
-  async function concluirOS() {
-    if (!ordem || !podeConcluir) return;
-    setAtualizandoStatus(true);
-    setErroStatus(null);
-    try {
-      await atualizarStatusOS(ordem.id, "concluida");
-      window.dispatchEvent(new Event("notifications:refresh"));
-      mostrarAvisoOS("success", "O.S. concluída", "A ordem de serviço foi concluída com sucesso.");
-      navigate(ROTA_APOS_CONCLUIR_OS);
-    } catch (error) {
-      setErroStatus(
-        error instanceof Error ? error.message : "Não foi possível concluir a ordem de serviço.",
-      );
-      setAtualizandoStatus(false);
-    }
-  }
+  async function salvarResumoOS() {
+    if (!ordem || !podeEditarResumo || salvandoResumo) return;
 
-  function salvarResumoOS() {
     const resumo = resumoOS.trim();
     if (!resumo) {
-      setFeedbackResumo({ tipo: "error", mensagem: "O resumo da OS é obrigatório" });
+      mostrarFeedbackResumo("error", "O resumo da OS é obrigatório");
       return;
     }
     if (resumo.length > LIMITE_RESUMO_OS) {
-      setFeedbackResumo({ tipo: "error", mensagem: `O resumo pode ter até ${LIMITE_RESUMO_OS} caracteres.` });
+      mostrarFeedbackResumo("error", `O resumo pode ter até ${LIMITE_RESUMO_OS} caracteres.`);
       return;
     }
-    // Demonstração visual do front: a persistência será conectada à API pelo back-end.
-    setResumoOS(resumo);
-    setFeedbackResumo({ tipo: "success", mensagem: "Resumo pronto para salvar. A integração com a API ainda não está disponível." });
+    if (!resumoLiberado) {
+      mostrarFeedbackResumo("error", "O resumo só pode ser registrado depois que a O.S. for aprovada na verificação do monitoramento.");
+      return;
+    }
+
+    setSalvandoResumo(true);
+    try {
+      const resposta = await registrarResumoOS(ordem.id, resumo);
+      setResumoOS(resposta.resumo);
+      // Registrar o resumo concluiu a O.S.
+      setOrdem({ ...ordem, status: resposta.os.status, aprovada_verificacao: null });
+      window.dispatchEvent(new Event("notifications:refresh"));
+      mostrarFeedbackResumo("success", resposta.message);
+    } catch (error) {
+      mostrarFeedbackResumo("error", error instanceof Error ? error.message : "Não foi possível registrar o resumo.");
+    } finally {
+      setSalvandoResumo(false);
+    }
   }
 
   function mostrarFeedbackResumo(tipo: "success" | "error", mensagem: string) {
@@ -429,7 +445,7 @@ export default function OrdemServicoDetalhe() {
         resultado === "aprovada" ? "Verificação aprovada" : "Verificação reprovada",
         resposta.message,
       );
-      navigate(resultado === "aprovada" ? ROTA_APOS_CONCLUIR_OS : ROTA_LISTA_OS);
+      navigate(ROTA_LISTA_OS);
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         mostrarAvisoOS("success", "O.S. já verificada", error.message);
@@ -495,6 +511,7 @@ export default function OrdemServicoDetalhe() {
                   responsavelDoTime={responsavelDoTime}
                   timeMonitoramento={timeMonitoramento}
                   superusuario={currentUser?.role === "superusuario"}
+                  aprovadaNaVerificacao={aprovadaNaVerificacao}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -534,45 +551,52 @@ export default function OrdemServicoDetalhe() {
               </div>
             )}
 
+            {/* Indicativo: aprovada pelo monitoramento, aguardando o resumo do líder */}
+            {aprovadaNaVerificacao && ordem.aprovada_verificacao && (
+              <div className="border-success/30 bg-success/10 mb-8 rounded-lg border p-4" role="status">
+                <div className="text-success flex items-center gap-2 text-sm font-semibold">
+                  <CheckCircle2 size={17} aria-hidden="true" />
+                  Aprovada na verificação do monitoramento
+                </div>
+                <p className="text-text mt-2 mb-2 text-sm leading-6">
+                  {responsavelDoTime
+                    ? "Registre o resumo das atividades abaixo para concluir esta O.S."
+                    : "O líder do time deve registrar o resumo das atividades para concluir esta O.S."}
+                </p>
+                <p className="text-text-muted m-0 text-xs">
+                  {ordem.aprovada_verificacao.usuario ?? "Monitoramento"} em {ordem.aprovada_verificacao.data}
+                </p>
+              </div>
+            )}
+
             {podeVerResumo && (
               <section aria-labelledby="resumo-os" className="border-border mb-8 rounded-lg border p-4 md:p-5">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h2 id="resumo-os" className="text-text m-0 text-base font-bold">Resumo das atividades</h2>
                     <p className="text-text-muted mt-1 mb-0 text-sm">
-                      {podeEditarResumo
-                        ? ordem.status === "review" || timeMonitoramento
-                          ? "Registre em poucas palavras o trabalho realizado pela equipe nesta O.S."
-                          : "O resumo pode ser preenchido quando a O.S. chegar a Review."
-                        : "Consulte o resumo informado para esta O.S."}
+                      {osConcluida
+                        ? "Resumo registrado. Esta O.S. já foi concluída."
+                        : "Registre em poucas palavras o trabalho realizado pela equipe. Ao registrar o resumo, a O.S. será concluída."}
                     </p>
                   </div>
                   <span className="text-text-muted text-xs">{resumoOS.length}/{LIMITE_RESUMO_OS}</span>
                 </div>
                 <Textarea
                   id="resumo-atividades-os"
-                  label={podeEditarResumo ? "Resumo da conclusão" : undefined}
+                  label="Resumo da conclusão"
                   value={resumoOS}
-                  onChange={(event) => {
-                    setResumoOS(event.target.value);
-                    setFeedbackResumo(null);
-                  }}
+                  onChange={(event) => setResumoOS(event.target.value)}
                   maxLength={LIMITE_RESUMO_OS}
-                  placeholder={podeEditarResumo ? "Descreva brevemente as atividades realizadas" : "Nenhum resumo informado ainda."}
+                  placeholder="Descreva brevemente as atividades realizadas"
                   readOnly={!podeEditarResumo}
-                  aria-describedby={feedbackResumo ? "feedback-resumo-os" : undefined}
+                  disabled={salvandoResumo}
                 />
-                {feedbackResumo && (
-                  <p id="feedback-resumo-os" className={`${feedbackResumo.tipo === "error" ? "text-danger" : "text-primary"} mt-2 mb-0 text-sm`} role={feedbackResumo.tipo === "error" ? "alert" : "status"}>
-                    {feedbackResumo.mensagem}
-                  </p>
-                )}
                 {podeEditarResumo && (
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
-                    <Button variant="outline" onClick={() => mostrarFeedbackResumo("error", "O resumo da OS é obrigatório")}>Testar erro: resumo vazio</Button>
-                    <Button variant="secondary" onClick={() => mostrarFeedbackResumo("error", `O resumo pode ter até ${LIMITE_RESUMO_OS} caracteres.`)}>Testar erro: limite</Button>
-                    <Button variant="primary" onClick={() => mostrarFeedbackResumo("success", "Resumo salvo com sucesso.")}>Testar sucesso</Button>
-                    {etapaResumoDisponivel && <Button variant="primary" onClick={salvarResumoOS}>Salvar resumo</Button>}
+                    <Button variant="primary" onClick={salvarResumoOS} disabled={salvandoResumo}>
+                      {salvandoResumo ? "Registrando..." : "Registrar Resumo"}
+                    </Button>
                   </div>
                 )}
               </section>
@@ -588,7 +612,7 @@ export default function OrdemServicoDetalhe() {
                   Esta O.S. aguarda a sua verificação
                 </h2>
                 <p className="text-text-muted mt-1 mb-4 text-sm">
-                  Aprove para concluir a O.S. ou reprove para devolvê-la à equipe responsável.
+                  Aprove para devolver a O.S. à equipe, que registrará o resumo e a concluirá, ou reprove para bloqueá-la.
                 </p>
 
                 {reprovando ? (
@@ -878,16 +902,6 @@ export default function OrdemServicoDetalhe() {
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
-                  {podeConcluir && (
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      disabled={atualizandoStatus}
-                      onClick={() => setConfirmarConclusao(true)}
-                    >
-                      Concluir O.S.
-                    </Button>
-                  )}
                 </div>
 
                 {erroStatus && (
@@ -900,21 +914,6 @@ export default function OrdemServicoDetalhe() {
           </section>
         )}
       </div>
-
-      {confirmarConclusao && (
-        <ModalConfirmacao
-          titulo="Concluir O.S."
-          descricao="Depois de concluída, a O.S. não pode voltar para outra etapa."
-          confirmar="Concluir O.S."
-          enviando={atualizandoStatus}
-          erro={erroStatus}
-          onConfirmar={concluirOS}
-          onCancelar={() => {
-            setConfirmarConclusao(false);
-            setErroStatus(null);
-          }}
-        />
-      )}
 
       {modalFeedbackResumo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
@@ -934,7 +933,7 @@ export default function OrdemServicoDetalhe() {
       {confirmarAprovacao && (
         <ModalConfirmacao
           titulo="Aprovar verificação"
-          descricao="A O.S. será concluída e não poderá voltar para outra etapa."
+          descricao="A O.S. voltará para a equipe responsável (Review) como aprovada. O líder do time registrará o resumo das atividades para concluí-la."
           confirmar="Aprovar"
           enviando={enviandoVerificacao}
           erro={erroVerificacao}

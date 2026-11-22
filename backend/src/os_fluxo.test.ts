@@ -36,9 +36,23 @@ test("bloquear ou concluir exige Review e OS concluída não reabre", () => {
   assert.equal(validarTransicaoOS("concluida", "teste", true)?.status, 409);
 });
 
-test("nenhuma OS pode ser concluída direto da Review, exceto as do monitoramento", () => {
+test("nenhuma OS é concluída pelo status: a conclusão acontece ao registrar o resumo", () => {
   assert.equal(validarTransicaoOS("review", "concluida", true, false)?.status, 409);
-  assert.equal(validarTransicaoOS("review", "concluida", true, true), null);
+  assert.equal(validarTransicaoOS("review", "concluida", true, true)?.status, 409);
+  assert.match(validarTransicaoOS("review", "concluida", true, true)?.message ?? "", /registre o resumo/);
+});
+
+test("OS aprovada na verificação (Review) só sai da etapa pelo resumo do líder", () => {
+  for (const novo of ["teste", "bloqueado", "concluida", "verificacao", "aberta"] as const) {
+    assert.equal(validarTransicaoOS("review", novo, true, false, false, true)?.status, 409, novo);
+  }
+  // Inclusive para o superusuário, que antes podia reenviar para verificação.
+  assert.equal(validarTransicaoOS("review", "verificacao", false, false, true, true)?.status, 409);
+  // Permanecer em Review não é mudança.
+  assert.equal(validarTransicaoOS("review", "review", true, false, false, true), null);
+  // Sem aprovação, as regras de sempre continuam valendo.
+  assert.equal(validarTransicaoOS("review", "teste", true, false, false, false), null);
+  assert.equal(validarTransicaoOS("review", "verificacao", true, false, false, false), null);
 });
 
 test("responsável de qualquer time, exceto monitoramento, envia a OS em Review para verificação", () => {

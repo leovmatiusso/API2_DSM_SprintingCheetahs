@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { isTimeMonitoramento, validarTransicaoOS } from "./os_fluxo.js";
+import { buscarAprovacaoPendente } from "./os_resumo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
   buildOSAguardandoVerificacaoMessage,
@@ -525,6 +526,14 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
                   data: ultimaVerificacao.data_verificacao as string,
                 }
               : null,
+          // Aprovada pelo monitoramento e aguardando o líder registrar o resumo para concluir.
+          aprovada_verificacao:
+            os.os_status === "review" && ultimaVerificacao?.resultado === "aprovada"
+              ? {
+                  usuario: (ultimaVerificacao.usuario_nome as string | null) ?? null,
+                  data: ultimaVerificacao.data_verificacao as string,
+                }
+              : null,
           equipamentos: equipamentos.map((e) => ({
             nome: e.nome_equipamento as string,
             quantidade: Number(e.quantidade),
@@ -998,12 +1007,16 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           message: "Cadastre o responsável do time antes de enviar esta O.S. para Review.",
         });
       }
+      // Aprovada na verificação, a O.S. só sai de Review quando o líder registra o resumo.
+      const aprovadaNaVerificacao =
+        statusAtual === "review" ? Boolean(await buscarAprovacaoPendente(osId)) : false;
       const erroTransicao = validarTransicaoOS(
         statusAtual,
         statusNovo as StatusOS,
         responsavelDoTime,
         isTimeMonitoramento(os.departamento as string | null),
         user.role === "superusuario",
+        aprovadaNaVerificacao,
       );
       if (erroTransicao) {
         return res.status(erroTransicao.status).json({ message: erroTransicao.message });
@@ -1106,7 +1119,9 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
 
   // ---------------------------------------------------
   // Verificação pelo monitoramento
-  // aprovada: conclui a O.S. | reprovada: bloqueia e devolve ao time de software.
+  // aprovada: devolve a O.S. ao time responsável em Review (aprovada); o líder registra o
+  //           resumo das atividades e é isso que conclui a O.S. (ver os_resumo.ts)
+  // reprovada: bloqueia e devolve ao time responsável.
   // A O.S. nunca muda de time: o time responsável continua sendo o que a executou.
   // ---------------------------------------------------
   router.post("/:osId/verificacao", requireRole("monitoramento"), async (req, res) => {
@@ -1153,7 +1168,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         return res.status(409).json({ message: "Esta O.S. já foi verificada." });
       }
 
-      const statusNovo = resultado === "aprovada" ? "concluida" : "bloqueado";
+      const statusNovo = resultado === "aprovada" ? "review" : "bloqueado";
 
       const connection = await pool.getConnection();
       try {
@@ -1180,7 +1195,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         );
 
         await createNotificationsForTime(connection, {
-          titulo: buildOSStatusNotificationTitle(statusNovo),
+          titulo: resultado === "aprovada" ? "O.S. aprovada na verificação" : buildOSStatusNotificationTitle("bloqueado"),
           mensagem: buildOSVerificacaoMessage(
             os.os_id as number,
             os.os_titulo as string,
@@ -1193,17 +1208,19 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           osId: os.os_id as number,
           usuarioOrigemId: user.id,
           incluirResponsavelDoTimeComoDestino: true,
-          usuariosDestinoExtras: [
-            os.manutencao_responsavel_id as number | null,
-            os.projeto_responsavel_id as number | null,
-          ],
+          // Responsáveis pelo projeto/manutenção só são avisados do bloqueio; da conclusão, eles
+          // são avisados quando o líder registra o resumo.
+          usuariosDestinoExtras:
+            resultado === "reprovada"
+              ? [os.manutencao_responsavel_id as number | null, os.projeto_responsavel_id as number | null]
+              : [],
         });
 
         await connection.commit();
         return res.json({
           message:
             resultado === "aprovada"
-              ? "Verificação aprovada. A O.S. foi concluída."
+              ? "Verificação aprovada. A O.S. voltou para a equipe responsável, que deve registrar o resumo para concluí-la."
               : "Verificação reprovada. A O.S. voltou para a equipe responsável.",
           os: { id: String(os.os_id), status: statusNovo },
         });

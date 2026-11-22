@@ -12,6 +12,7 @@ import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter, ensureOsReportSchema, ensureOsVerificationSchema } from "./ordens.js";
+import { createOsResumoRouter, ensureOsResumoSchema } from "./os_resumo.js";
 import {
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
@@ -883,6 +884,8 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
 // ORDENS DE SERVIÇO
 // =====================================================
 
+// Resumo das atividades da O.S. (US24) - rotas em os_resumo.ts (/api/os/:osId/resumo)
+app.use("/api/os", createOsResumoRouter(requireRole));
 app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================
@@ -920,6 +923,7 @@ async function startServer() {
     await ensureNotificationSchema();
     await ensureOsReportSchema();
     await ensureOsVerificationSchema();
+    await ensureOsResumoSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);
     });

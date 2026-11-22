@@ -586,6 +586,11 @@ export interface OrdemServicoDetalhe extends OrdemServicoResumo {
     usuario: string | null;
     data: string;
   } | null;
+  // Aprovada pelo monitoramento e de volta ao time em Review, aguardando o resumo do líder.
+  aprovada_verificacao: {
+    usuario: string | null;
+    data: string;
+  } | null;
 }
 
 export interface RelatorioOS {
@@ -697,13 +702,6 @@ export async function abrirRelatorioOS(
   }
 }
 
-export function concluirOS(id: number | string): Promise<any> {
-  return request(`/os/${encodeURIComponent(id)}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ os_status: "concluida" }),
-  });
-}
-
 export function atualizarStatusOS(
   id: number | string,
   status: string,
@@ -722,6 +720,22 @@ export function registrarVerificacaoOS(
   return request(`/os/${encodeURIComponent(id)}/verificacao`, {
     method: "POST",
     body: JSON.stringify({ resultado, justificativa }),
+  });
+}
+
+// Resumo das atividades da O.S. (US24): somente o líder do time responsável.
+// Registrar o resumo conclui a O.S. (depois que o monitoramento a aprovou).
+export function getResumoOS(id: number | string): Promise<{ resumo: string }> {
+  return request(`/os/${encodeURIComponent(id)}/resumo`);
+}
+
+export function registrarResumoOS(
+  id: number | string,
+  resumo: string,
+): Promise<{ message: string; resumo: string; os: { id: string; status: OrdemStatus } }> {
+  return request(`/os/${encodeURIComponent(id)}/resumo`, {
+    method: "PUT",
+    body: JSON.stringify({ resumo }),
   });
 }
 

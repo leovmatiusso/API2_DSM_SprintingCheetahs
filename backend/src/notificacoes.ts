@@ -228,7 +228,7 @@ export function buildOSVerificacaoMessage(
   const autor = `<strong>${escapeNotificationHtml(usuarioNome)}</strong> (Monitoramento), em ${escapeNotificationHtml(dataEvento)}`;
 
   if (resultado === "aprovada") {
-    return `${os} foi aprovada na verificação e concluída por ${autor}.`;
+    return `${os} foi aprovada na verificação por ${autor}. Ela voltou para o time em Review: o líder deve registrar o resumo das atividades para concluí-la.`;
   }
 
   const motivo = escapeNotificationHtml((justificativa ?? "").replace(/\s+/g, " ").trim());
