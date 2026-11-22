@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 export function showNotificationToast() {
   toast.custom((t) => (
     <div className="flex items-center gap-3 w-full max-w-sm bg-slate-100/95 backdrop-blur-md border border-slate-200/80 shadow-lg rounded-xl p-4 text-slate-800 pointer-events-auto">
-      <div className="shrink-0 w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
+      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
         <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -89,7 +89,7 @@ export default function Login() {
   };
 
   return (
-    <main className="login-page @container">
+    <main className="login-page">
       <section className="login-side">
         <form className="login-card" onSubmit={handleSubmit}>
           <h1 className="text-4xl font-bold">Entrar</h1>

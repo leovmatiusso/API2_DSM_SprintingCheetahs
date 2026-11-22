@@ -5,17 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
-import { isCriticalPriority, shouldNotifyCriticalPriority } from "./os_fluxo.js";
-import {
-  createCriticalRelatedNotification,
-  createEntityUpdateNotifications,
-  type EntityUpdate,
-} from "./notificacoes.js";
-import {
-  construirDadosRelatorio,
-  gerarEArmazenarRelatorio,
-  gerarPdfRelatorio,
-} from "./report_generation.js";
+import { construirDadosRelatorio, gerarEArmazenarRelatorio, gerarPdfRelatorio } from "./report_generation.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte", "superusuario"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -409,24 +399,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         );
         const manutencaoId = result.insertId;
 
-        if (isCriticalPriority(prioridadeFinal)) {
-          await createCriticalRelatedNotification(connection, {
-            entidade: "manutencao",
-            evento: "criada",
-            entidadeId: manutencaoId,
-            entidadeNome: resumo.trim(),
-            usuarioOrigemId: user.id,
-          });
-        }
-          const equipamentoId = rows[0]?.equipamento_id;
-          if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-          await connection.execute(
-            `INSERT INTO item_equipamento_manutencao (manutencao_id, equipamento_id, quantidade)
-             VALUES (?, ?, ?)`,
-            [manutencaoId, equipamentoId, item.quantidade],
-          );
-        }
-
         for (const arquivo of arquivos) {
           await connection.execute(
             `INSERT INTO anexo
@@ -574,70 +546,18 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         }
       }
 
-      const atualizacoes: EntityUpdate[] = [];
-      if (typeof resumo === "string" && resumo.trim() !== String(atual.resumo ?? "")) {
-        atualizacoes.push({ descricao: `Resumo alterado para "${resumo.trim()}".` });
-      }
-      if (typeof tipo_manutencao === "string" && tipo_manutencao !== String(atual.tipo_manutencao ?? "")) {
-        atualizacoes.push({ descricao: `Tipo alterado para "${tipo_manutencao}".` });
-      }
-      if (typeof data_limite === "string" && data_limite !== String(atual.data_limite ?? "")) {
-        atualizacoes.push({ descricao: `Prazo alterado para ${data_limite}.` });
-      }
-      if (typeof data_inicio_problema === "string" && data_inicio_problema !== String(atual.data_inicio_problema ?? "")) {
-        atualizacoes.push({ descricao: `Data de início do problema alterada para ${data_inicio_problema}.` });
-      }
-      if (typeof prioridade === "string" && prioridade.toLowerCase() !== String(atual.prioridade ?? "").toLowerCase()) {
-        const prioridadeNova = prioridade.toLowerCase();
-        const prioridadeCritica = shouldNotifyCriticalPriority(String(atual.prioridade ?? ""), prioridadeNova);
-        atualizacoes.push({
-          titulo: prioridadeCritica ? "Prioridade da manutenção elevada para crítica" : undefined,
-          descricao: `Prioridade alterada de "${String(atual.prioridade ?? "não informada")}" para "${prioridadeNova}".`,
-        });
-      }
-      if (
-        typeof status_manutencao === "string" &&
-        status_manutencao.toLowerCase() !== String(atual.status_manutencao ?? "").toLowerCase()
-      ) {
-        atualizacoes.push({ descricao: `Status alterado para "${status_manutencao.toLowerCase()}".` });
-      }
-      if (
-        typeof descricao_situacao === "string" &&
-        descricao_situacao.trim() !== String(atual.descricao_situacao ?? "").trim()
-      ) {
-        atualizacoes.push({ descricao: "Descrição da situação atualizada." });
-      }
-      if (
-        projeto_id !== undefined &&
-        String(projeto_id || "") !== String(atual.projeto_id ?? "")
-      ) {
-        atualizacoes.push({ descricao: "Vínculo com o projeto atualizado." });
-      }
 
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
 
         if (sets.length > 0) {
-          const [updateResult] = await connection.execute<ResultSetHeader>(
-            `UPDATE manutencoes SET ${sets.join(", ")} WHERE manutencao_id = ?`,
-            [
+          await connection.execute(`UPDATE manutencoes SET ${sets.join(", ")} WHERE manutencao_id = ?`, [
             ...valores,
             manutencaoId,
-            ],
-          );
-          if (!updateResult.affectedRows) atualizacoes.length = 0;
+          ]);
         }
 
-        await createEntityUpdateNotifications(connection, {
-          entidade: "manutencao",
-          entidadeId: manutencaoId,
-          entidadeNome: typeof resumo === "string" ? resumo.trim() : String(atual.resumo),
-          usuarioOrigemId: user.id,
-          usuarioNome: user.name,
-          atualizacoes,
-        });
-        
         await connection.commit();
       } catch (error) {
         await connection.rollback();

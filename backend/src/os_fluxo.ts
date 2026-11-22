@@ -12,18 +12,6 @@ export type ErroTransicaoOS = { status: 400 | 403 | 409; message: string };
 export const MENSAGEM_APROVADA_REGISTRAR_RESUMO =
   "Esta O.S. foi aprovada na verificação. O líder do time deve registrar o resumo das atividades para concluí-la.";
 
-export function isCriticalPriority(prioridade: string | null | undefined): boolean {
-  const normalizada = String(prioridade ?? "").trim().toLowerCase();
-  return normalizada === "critica" || normalizada === "crítica";
-}
-
-export function shouldNotifyCriticalPriority(
-  prioridadeAnterior: string | null | undefined,
-  prioridadeNova: string | null | undefined,
-): boolean {
-  return isCriticalPriority(prioridadeNova) && !isCriticalPriority(prioridadeAnterior);
-}
-
 // Identifica times de software pelo departamento.
 export function isTimeSoftware(departamento: string | null | undefined): boolean {
   return String(departamento ?? "").toLowerCase().includes("software");
