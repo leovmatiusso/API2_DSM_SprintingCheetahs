@@ -33,6 +33,9 @@ function Indicadores({
     orange: "bg-laranja-alt text-laranja-alt-inverted",
     yellow: "bg-warning-alt text-warning-alt-inverted",
   };
+  const valorPrioridade = (key: (typeof prioridades)[number]["key"]) =>
+    "porPrioridade" in dados ? dados.porPrioridade?.[key] ?? 0 : 0;
+
   return (
     <section className="border-border bg-bg min-w-0 rounded-xl border p-5 sm:p-7">
       <h2 className="mb-1 flex items-baseline gap-3 font-bold sm:text-xl">
@@ -40,36 +43,20 @@ function Indicadores({
         {titulo}
       </h2>
       <h3 className="text-text-muted mb-2 font-medium">OS por status</h3>
-      <div className="mb-5 grid grid-cols-4 gap-2 sm:gap-4">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
         {status.map((item) => (
-          <div
-            className="border-border overflow-hidden rounded-lg border text-center"
-            key={item.key}
-          >
-            <span
-              className={`grid min-h-6 place-items-center px-1 py-1 font-semibold text-xs sm:text-sm ${cores[item.color]}`}
-            >
-              {item.label}
-            </span>
-            <strong className="block py-2 text-3xl sm:text-4xl">{valores[item.key] ?? 0}</strong>
+          <div className={`flex min-h-8 items-center justify-between gap-3 rounded-md border border-border px-4 sm:min-h-8 sm:px-5 ${cores[item.color]}`} key={item.key}>
+            <span className="font-medium">{item.label}</span>
+            <strong className="text-xl">{valores[item.key] ?? 0}</strong>
           </div>
         ))}
       </div>
       <h3 className="text-text-muted mb-2  font-medium">OS por prioridade</h3>
-      <div className="grid grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
         {prioridades.map((item) => (
-          <div
-            className="border-border overflow-hidden rounded-lg border text-center"
-            key={item.label}
-          >
-            <span
-              className={`grid min-h-6 place-items-center px-1 py-1 font-semibold text-xs sm:text-sm ${cores[item.color]}`}
-            >
-              {item.label}
-            </span>
-            <strong className="block py-2 text-3xl sm:text-4xl">
-              {("porPrioridade" in dados ? dados.porPrioridade?.[item.key] : 0) ?? 0}
-            </strong>
+          <div className={`flex min-h-8 items-center justify-between gap-3 rounded-md border border-border px-4 sm:min-h-8 sm:px-5 ${cores[item.color]}`} key={item.label}>
+            <span className="font-medium">{item.label}</span>
+            <strong className="text-xl">{valorPrioridade(item.key)}</strong>
           </div>
         ))}
       </div>
