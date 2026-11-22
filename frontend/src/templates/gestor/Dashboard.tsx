@@ -7,6 +7,67 @@ import { Card, MiniCard, MetricCard } from "@/components/ui/Card";
 import { getDashboardResumo } from "@/api";
 import type { DashboardResumo } from "@/api";
 
+const status = [
+  { label: "Abertas", key: "abertas", color: "blue" },
+  { label: "Em andamento", key: "andamento", color: "green" },
+  { label: "Bloqueadas", key: "alerta", color: "red" },
+  { label: "Review", key: "emTeste", color: "orange" },
+] as const;
+const prioridades = [
+  { label: "Baixa", color: "green", key: "baixa" as const },
+  { label: "Média", color: "yellow", key: "media" as const },
+  { label: "Alta", color: "orange", key: "alta" as const },
+  { label: "Crítica", color: "red", key: "critica" as const },
+];
+
+function Indicadores({
+  titulo,
+  total,
+  dados,
+}: {
+  titulo: string;
+  total: number | string;
+  dados: DashboardResumo["ordens"] | DashboardResumo["manutencoes"];
+}) {
+  const valores = dados as Record<string, number>;
+  const cores: Record<string, string> = {
+    blue: "bg-primary/20 text-primary",
+    green: "bg-success-alt text-success-alt-inverted",
+    red: "bg-danger-alt text-danger-alt-inverted",
+    orange: "bg-laranja-alt text-laranja-alt-inverted",
+    yellow: "bg-warning-alt text-warning-alt-inverted",
+  };
+  const valorPrioridade = (key: (typeof prioridades)[number]["key"]) =>
+    "porPrioridade" in dados ? dados.porPrioridade?.[key] ?? 0 : 0;
+
+  return (
+    <section className="border-border bg-bg min-w-0 rounded-xl border p-5 sm:p-7">
+      <h2 className="mb-1 flex items-baseline gap-3 font-bold sm:text-xl">
+        <strong className="text-2xl font-bold">{total}</strong>
+        {titulo}
+      </h2>
+      <h3 className="text-text-muted mb-2 font-medium">OS por status</h3>
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
+        {status.map((item) => (
+          <div className={`flex min-h-8 items-center justify-between gap-3 rounded-md border border-border px-4 sm:min-h-8 sm:px-5 ${cores[item.color]}`} key={item.key}>
+            <span className="font-medium">{item.label}</span>
+            <strong className="text-xl">{valores[item.key] ?? 0}</strong>
+          </div>
+        ))}
+      </div>
+      <h3 className="text-text-muted mb-2  font-medium">OS por prioridade</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
+        {prioridades.map((item) => (
+          <div className={`flex min-h-8 items-center justify-between gap-3 rounded-md border border-border px-4 sm:min-h-8 sm:px-5 ${cores[item.color]}`} key={item.label}>
+            <span className="font-medium">{item.label}</span>
+            <strong className="text-xl">{valorPrioridade(item.key)}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const user = getCurrentUser();
   const [resumo, setResumo] = useState<DashboardResumo | null>(null);
@@ -27,127 +88,74 @@ export default function Dashboard() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [])
 
-  if (!user) return null;
+  if (!user) return null
+  const departamentos = [
+    { nome: "Produção", valor: resumo?.ordens.porDepartamento.producao, cor: "blue" },
+    { nome: "Software", valor: resumo?.ordens.porDepartamento.software, cor: "green" },
+    { nome: "Monitoramento", valor: resumo?.ordens.porDepartamento.monitoramento, cor: "danger" },
+    { nome: "Implantação", valor: resumo?.ordens.porDepartamento.implantacao, cor: "rosa" },
+  ];
 
+  const max = Math.max(1, ...departamentos.map((item) => item.valor ?? 0));
+  const coresBarra: Record<string, string> = {
+    blue: "bg-primary/30",
+    green: "bg-success-alt",
+    danger: "bg-danger-alt",
+    rosa: "bg-[var(--rosa-200)]",
+  };
+  
   return (
-    <main className="bg-bg-secondary text-text min-h-90dvh px-4 py-8 lg:p-8">
-      {/* Conteúdo */}
-      <section>
-        <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
-
-        <h1 className="mb-6 text-3xl font-bold">Olá, {user.name}</h1>
-        {erro && (
-          <p className="text-danger mb-4 text-sm" role="alert">
-            {erro}
-          </p>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 @4xl:grid-cols-10">
-          {/* Card - Projetos em andamento */}
-          <MetricCard title="Projetos em andamento" valor={resumo?.projetos} className="@4xl:col-span-6">
-            <MiniCard
-                icon={ClipboardList}
-                color="bg-blue-200"
-                title="Total de OS"
-                valor={resumo?.ordens.total}
-                description="OS em todos os status"
+    <main className="text-text p-4 sm:p-6 lg:p-10">
+      <h1 className="mb-6 text-3xl font-bold *:sm:text-4xl">Olá, {user.name}!</h1>
+      {erro && (
+        <p className="error" role="alert">
+          {erro}
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Indicadores
+          titulo="Projetos em andamento"
+          total={resumo?.projetos ?? "—"}
+          dados={
+            resumo?.ordens ?? {
+              abertas: 0,
+              andamento: 0,
+              alerta: 0,
+              concluidas: 0,
+              total: 0,
+              emTeste: 0,
+              porDepartamento: { producao: 0, software: 0, monitoramento: 0, implantacao: 0 },
+            }
+          }
+        />
+        <Indicadores
+          titulo="Manutenções em andamento"
+          total={resumo?.manutencoes.total ?? "—"}
+          dados={resumo?.manutencoes ?? { total: 0, abertas: 0, andamento: 0, alerta: 0 }}
+        />
+      </div>
+      <section className="border-border bg-bg mt-5 rounded-xl border p-5 sm:p-7">
+        <h2 className="mb-4 text-xl font-medium">Total de OS por departamento</h2>
+        {departamentos.map((item) => (
+          <div
+            className="my-3 grid grid-cols-[minmax(100px,1fr)_minmax(40px,5fr)_24px] items-center gap-2 sm:gap-3"
+            key={item.nome}
+          >
+            <span className="flex items-center gap-2 text-sm">
+              <i className={`h-3.5 w-3.5 rounded-full ${coresBarra[item.cor]}`} />
+              {item.nome}
+            </span>
+            <div className="bg-bg-tertiary h-3.5 overflow-hidden rounded-full">
+              <i
+                className={`block h-full rounded-full ${coresBarra[item.cor]}`}
+                style={{ width: `${((item.valor ?? 0) / max) * 100}%` }}
               />
-
-              <MiniCard
-                icon={Clock}
-                color="bg-green-200"
-                title="OS em andamento"
-                valor={resumo?.ordens.andamento}
-                description="Sendo tratadas"
-              />
-
-              <MiniCard
-                icon={CheckCircle2}
-                color="bg-pink-200"
-                title="OS concluídas"
-                valor={resumo?.ordens.concluidas}
-                description="Total de OS concluídas"
-              />
-          </MetricCard>
-
-          {/* Card - O.S. por equipe */}
-          <Card className="@4xl:col-span-4">
-            <div className="mb-5">
-              <p className="text-text text-2xl font-bold">O.S. por equipe</p>
             </div>
-            <div className="space-y-3 @3xl:space-y-5">
-              {[
-                {
-                  nome: "Produção",
-                  cor: "bg-blue-300",
-                  total: resumo?.ordens.porDepartamento.producao,
-                },
-                {
-                  nome: "Software",
-                  cor: "bg-green-300",
-                  total: resumo?.ordens.porDepartamento.software,
-                },
-                {
-                  nome: "Monitoramento",
-                  cor: "bg-orange-300",
-                  total: resumo?.ordens.porDepartamento.monitoramento,
-                },
-                {
-                  nome: "Implantação",
-                  cor: "bg-pink-300",
-                  total: resumo?.ordens.porDepartamento.implantacao,
-                },
-              ].map((time) => (
-                <div key={time.nome}>
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className={`size-2 @3xl:size-3 shrink-0 rounded-full ${time.cor}`}></span>
-                    <span className="text-sm font-medium">{time.nome}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="bg-secondary h-1.5 @3xl:h-2 flex-1 overflow-hidden rounded-full">
-                      <div
-                        className={`h-full rounded-full ${time.cor}`}
-                        style={{
-                          width: `${resumo && resumo.ordens.total > 0 ? (Number(time.total ?? 0) / resumo.ordens.total) * 100 : 0}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <strong className="text-sm">{time.total ?? "—"}</strong>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Card - Manutenções em andamento */}
-          <MetricCard title="Manutenções em andamento" valor={resumo?.manutencoes.total} className="@4xl:col-span-6">
-            <MiniCard
-                icon={ClipboardList}
-                color="bg-blue-200"
-                title="Abertas"
-                valor={resumo?.manutencoes.abertas}
-                description="Total em aberto"
-              />
-
-              <MiniCard
-                icon={Clock}
-                color="bg-green-200"
-                title="Em andamento"
-                valor={resumo?.manutencoes.andamento}
-                description="Sendo tratadas"
-              />
-
-              <MiniCard
-                icon={CircleAlert}
-                color="bg-red-200"
-                title="Em alerta"
-                valor={resumo?.manutencoes.alerta}
-                description="Total em alerta"
-              />
-          </MetricCard>
-        </div>
+            <b>{item.valor ?? "—"}</b>
+          </div>
+        ))}
       </section>
     </main>
   );

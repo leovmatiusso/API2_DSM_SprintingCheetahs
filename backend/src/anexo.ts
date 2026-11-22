@@ -5,4 +5,5 @@ export interface Anexo{
     anexo_tipo: string ;
     anexo_tamanho: bigint ;
     data_anexo: Date;
+    id_usuario_envio: number | null;
 }

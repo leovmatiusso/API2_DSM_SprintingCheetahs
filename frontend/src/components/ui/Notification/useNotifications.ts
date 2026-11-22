@@ -45,6 +45,7 @@ function getNotificationType(item: Awaited<ReturnType<typeof getNotificacoes>>["
   if (item.titulo === "Ordem de Serviço concluída") return "osConcluida";
   if (item.titulo === "Ordem de Serviço bloqueada") return "osBloqueada";
   if (item.titulo === "O.S. aguardando revisão") return "osRevisao";
+  if (item.titulo === "O.S. aguardando verificação") return "osVerificacao";
   if (item.titulo.toLowerCase().includes("ordem de serviço")) return "novaOS";
   return "success";
 }
@@ -59,6 +60,8 @@ function getToastTitle(item: Awaited<ReturnType<typeof getNotificacoes>>["notifi
       return "Ordem de Serviço bloqueada";
     case "osRevisao":
       return "O.S. aguardando revisão";
+    case "osVerificacao":
+      return "O.S. aguardando verificação";
     case "novoProjeto":
       return "Novo projeto criado";
     case "novaManutencao":

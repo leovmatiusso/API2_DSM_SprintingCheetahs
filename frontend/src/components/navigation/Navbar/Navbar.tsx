@@ -23,8 +23,8 @@ export default function Header() {
   }
 
   return (
-    <header className="border-border bg-bg flex items-center justify-between border-b px-6 py-4">
-      <div className="flex w-full items-center gap-3">
+    <header className="border-border bg-bg flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
         {/* <Input 
         iconLeft={Search}
         placeholder="Buscar usuários, equipes, ordens de serviço..."

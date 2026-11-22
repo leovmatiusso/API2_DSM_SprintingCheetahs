@@ -3,7 +3,7 @@ import type { RowDataPacket } from "mysql2";
 import type { Role, User } from "./users.js";
 
 // Perfis que não pertencem a nenhum time e enxergam tudo da sua área:
-//  - gestor: todas as O.S.
+//  - gestor e superusuário: todas as O.S.
 //  - comercial: O.S. vinculadas a projetos
 //  - suporte: O.S. vinculadas a manutenções
 // Os demais perfis (produção, software, implantação, monitoramento) enxergam apenas
@@ -68,7 +68,7 @@ export function mapOS(o: RowDataPacket) {
 
 // Condição SQL (alias "o" = tabela os) com as O.S. que o usuário pode ver.
 export function filtroVisibilidadeOS(user: User): { sql: string; params: number[] } {
-  if (user.role === "gestor") return { sql: "1 = 1", params: [] };
+  if (user.role === "gestor" || user.role === "superusuario") return { sql: "1 = 1", params: [] };
   if (user.role === "comercial") return { sql: "o.projeto_id IS NOT NULL", params: [] };
   if (user.role === "suporte") return { sql: "o.manutencao_id IS NOT NULL", params: [] };
   if (user.time_id === null) return { sql: "1 = 0", params: [] };
@@ -80,7 +80,7 @@ export function podeVerOS(
   user: User,
   os: { id_time_responsavel: number | null; projeto_id: number | null; manutencao_id: number | null },
 ): boolean {
-  if (user.role === "gestor") return true;
+  if (user.role === "gestor" || user.role === "superusuario") return true;
   if (user.role === "comercial") return os.projeto_id !== null;
   if (user.role === "suporte") return os.manutencao_id !== null;
   if (os.id_time_responsavel === null || user.time_id === null) return false;
