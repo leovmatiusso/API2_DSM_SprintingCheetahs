@@ -25,7 +25,7 @@ export function createHistoricoRouter(requireRole: RequireRole): Router {
 
     try {
       const [registros] = await pool.execute<RowDataPacket[]>(
-        `SELECT historico_id, tabela, registro_id, tipo_acao, dados,
+        `SELECT historico_id, tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email,
                 DATE_FORMAT(data_historico, '%Y-%m-%d %H:%i:%s') AS data_historico
            FROM historico_registros
           WHERE (? IS NULL OR DATE(data_historico) = ?)
@@ -56,6 +56,9 @@ export function createHistoricoRouter(requireRole: RequireRole): Router {
                 h.os_status,
                 h.id_time_responsavel,
                 t.nome_time,
+                h.usuario_id,
+                h.usuario_email,
+                DATE_FORMAT(h.data_historico, '%Y-%m-%d %H:%i:%s') AS data_historico,
                 DATE_FORMAT(h.data_limite, '%Y-%m-%d') AS data_limite
            FROM historico_os h
            LEFT JOIN time t ON t.id_time = h.id_time_responsavel
@@ -86,6 +89,9 @@ export function createHistoricoRouter(requireRole: RequireRole): Router {
                 h.os_status,
                 h.id_time_responsavel,
                 t.nome_time,
+                h.usuario_id,
+                h.usuario_email,
+                DATE_FORMAT(h.data_historico, '%Y-%m-%d %H:%i:%s') AS data_historico,
                 DATE_FORMAT(h.data_limite, '%Y-%m-%d') AS data_limite
            FROM historico_os h
            LEFT JOIN time t ON t.id_time = h.id_time_responsavel

@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ClipboardList, File, History, Link, X } from "lucide-react";
 
-import { abrirAnexoOS, atualizarOrdemServico, atualizarStatusOS, getOrdem } from "@/api";
-import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
+import { abrirAnexoOS, atualizarOrdemServico, atualizarStatusOS, getHistoricoOS, getOrdem } from "@/api";
+import type { HistoricoAtividadeItem, OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
 import Button from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -34,41 +34,39 @@ function CampoCaixa({ rotulo, children }: { rotulo: string; children: React.Reac
   );
 }
 
-const eventosHistoricoExemplo = [
-  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Monitor" },
-  { tipo: "status", titulo: "Status alterado", descricao: "Em andamento → Em teste" },
-  { tipo: "responsavel", titulo: "Responsável alterado", descricao: "Responsável atualizado" },
-  { tipo: "prazo", titulo: "Prazo alterado", descricao: "Prazo atualizado para 30/12/2026" },
-  { tipo: "equipamento-removido", titulo: "Equipamento removido", descricao: "Teclado" },
-  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Impressora" },
-  { tipo: "status", titulo: "Status alterado", descricao: "Em teste → Review" },
-  { tipo: "responsavel", titulo: "Responsável alterado", descricao: "Novo responsável definido" },
-  { tipo: "prazo", titulo: "Prazo alterado", descricao: "Prazo atualizado para 05/01/2027" },
-  { tipo: "equipamento-removido", titulo: "Equipamento removido", descricao: "Cabo HDMI" },
-  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Notebook" },
-  { tipo: "status", titulo: "Status alterado", descricao: "Review → Concluída" },
-  { tipo: "responsavel", titulo: "Responsável alterado", descricao: "Responsável atualizado" },
-  { tipo: "prazo", titulo: "Prazo ultrapassado", descricao: "A OS passou do prazo definido" },
-  { tipo: "equipamento-adicionado", titulo: "Equipamento adicionado", descricao: "Teclado" },
-];
 const itensPorPaginaHistorico = 2;
 const itensPorPaginaHistoricoModal = 7;
+
+function tituloHistorico(item: HistoricoAtividadeItem): string {
+  if (item.tipo_acao === "criado") return "Ordem de serviço criada";
+  if (item.tipo_acao === "deletado") return "Ordem de serviço removida";
+  return "Ordem de serviço atualizada";
+}
+
+function dataHistorico(valor: string): string {
+  if (!valor) return "Data indisponível";
+  const [data, hora] = valor.split(" ");
+  const [ano, mes, dia] = data.split("-");
+  return `${dia}/${mes}/${ano}${hora ? ` às ${hora}` : ""}`;
+}
 
 function CartaoHistorico({
   tipo,
   titulo,
   descricao,
+  usuario,
+  data,
 }: {
   tipo: string;
   titulo: string;
   descricao: string;
+  usuario: string;
+  data: string;
 }) {
   const corDaFaixa: Record<string, string> = {
-    "equipamento-adicionado": "bg-success",
-    "equipamento-removido": "bg-danger",
-    status: "bg-primary",
-    responsavel: "bg-secondary",
-    prazo: "bg-warning",
+    criado: "bg-success",
+    atualizado: "bg-primary",
+    deletado: "bg-danger",
   };
 
   return (
@@ -81,8 +79,8 @@ function CartaoHistorico({
             <p className="text-text-muted mt-2 mb-0 text-sm">{descricao}</p>
           </div>
           <div className="text-right">
-            <p className="text-text m-0 text-sm font-medium">Nome do usuário</p>
-            <p className="text-text-muted mt-1 mb-0 text-xs">27/12/2026 às 14:25</p>
+            <p className="text-text m-0 text-sm font-medium">{usuario}</p>
+            <p className="text-text-muted mt-1 mb-0 text-xs">{data}</p>
           </div>
         </div>
       </div>
@@ -141,14 +139,16 @@ export default function OrdemServicoDetalhe() {
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [paginaHistorico, setPaginaHistorico] = useState(0);
   const [paginaHistoricoModal, setPaginaHistoricoModal] = useState(0);
+  const [eventosHistorico, setEventosHistorico] = useState<HistoricoAtividadeItem[]>([]);
+  const [erroHistorico, setErroHistorico] = useState("");
 
-  const totalPaginasHistorico = Math.ceil(eventosHistoricoExemplo.length / itensPorPaginaHistorico);
-  const eventosPrevia = eventosHistoricoExemplo.slice(
+  const totalPaginasHistorico = Math.ceil(eventosHistorico.length / itensPorPaginaHistorico);
+  const eventosPrevia = eventosHistorico.slice(
     paginaHistorico * itensPorPaginaHistorico,
     (paginaHistorico + 1) * itensPorPaginaHistorico,
   );
-  const totalPaginasHistoricoModal = Math.ceil(eventosHistoricoExemplo.length / itensPorPaginaHistoricoModal);
-  const eventosModal = eventosHistoricoExemplo.slice(
+  const totalPaginasHistoricoModal = Math.ceil(eventosHistorico.length / itensPorPaginaHistoricoModal);
+  const eventosModal = eventosHistorico.slice(
     paginaHistoricoModal * itensPorPaginaHistoricoModal,
     (paginaHistoricoModal + 1) * itensPorPaginaHistoricoModal,
   );
@@ -211,6 +211,17 @@ export default function OrdemServicoDetalhe() {
     return () => {
       ativo = false;
     };
+  }, [osId]);
+
+  useEffect(() => {
+    let ativo = true;
+    if (!osId) return;
+    getHistoricoOS(osId)
+      .then(({ historico }) => { if (ativo) setEventosHistorico(historico); })
+      .catch((error: unknown) => {
+        if (ativo) setErroHistorico(error instanceof Error ? error.message : "Não foi possível carregar o histórico da OS.");
+      });
+    return () => { ativo = false; };
   }, [osId]);
 
  const abrirModalEdicao = async () => {
@@ -535,16 +546,16 @@ export default function OrdemServicoDetalhe() {
                 </button>
               </div>
               <div className="space-y-3">
-                {eventosPrevia.map((item, index) => (
+                {erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p>
+                  : eventosPrevia.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p>
+                  : eventosPrevia.map((item) => (
                   <CartaoHistorico
-                    key={`${item.titulo}-${index}`}
-                    tipo={item.tipo}
-                    titulo={item.titulo}
-                    descricao={
-                      index === 0 && paginaHistorico === 0
-                        ? ordem.equipamentos[0]?.nome ?? item.descricao
-                        : item.descricao
-                    }
+                    key={item.historico_id}
+                    tipo={item.tipo_acao}
+                    titulo={tituloHistorico(item)}
+                    descricao={`Status: ${item.os_status}${item.nome_time ? ` · Equipe: ${item.nome_time}` : ""}${item.data_limite ? ` · Prazo: ${formatarData(item.data_limite)}` : ""}`}
+                    usuario={item.usuario_email ?? "E-mail não identificado"}
+                    data={dataHistorico(item.data_historico)}
                   />
                 ))}
               </div>
@@ -589,9 +600,18 @@ export default function OrdemServicoDetalhe() {
               </button>
             </div>
             <div className="space-y-3">
-              {eventosModal.map((item, index) => (
-                <CartaoHistorico key={`${item.titulo}-${index}`} tipo={item.tipo} titulo={item.titulo} descricao={item.descricao} />
-              ))}
+              {erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p>
+                : eventosModal.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p>
+                : eventosModal.map((item) => (
+                  <CartaoHistorico
+                    key={item.historico_id}
+                    tipo={item.tipo_acao}
+                    titulo={tituloHistorico(item)}
+                    descricao={`Status: ${item.os_status}${item.nome_time ? ` · Equipe: ${item.nome_time}` : ""}${item.data_limite ? ` · Prazo: ${formatarData(item.data_limite)}` : ""}`}
+                    usuario={item.usuario_email ?? "E-mail não identificado"}
+                    data={dataHistorico(item.data_historico)}
+                  />
+                ))}
             </div>
             <PaginacaoHistorico
               pagina={paginaHistoricoModal}

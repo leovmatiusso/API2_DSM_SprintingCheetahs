@@ -76,6 +76,9 @@ export interface HistoricoAtividadeItem {
   os_status: string;
   id_time_responsavel: number | null;
   nome_time: string | null;
+  usuario_id: number | null;
+  usuario_email: string | null;
+  data_historico: string;
   data_limite: string;
 }
 
@@ -85,6 +88,8 @@ export interface RegistroHistorico {
   registro_id: string;
   tipo_acao: "criado" | "atualizado" | "deletado";
   dados: Record<string, unknown> | string;
+  usuario_id: number | null;
+  usuario_email: string | null;
   data_historico: string;
 }
 
@@ -98,6 +103,10 @@ export function getHistorico(data?: string): Promise<{ historico: HistoricoAtivi
     ? `/historico-filtro?data=${encodeURIComponent(data)}`
     : "/historico";
   return request<{ historico: HistoricoAtividadeItem[] }>(path);
+}
+
+export function getHistoricoOS(osId: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
+  return request<{ historico: HistoricoAtividadeItem[] }>(`/os/${encodeURIComponent(osId)}/historico`);
 }
 
 export function changePassword(

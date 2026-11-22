@@ -14,4 +14,5 @@ export interface User {
   email: string;
   role: Role;
   time_id: string | null;
+  active?: boolean;
 }
