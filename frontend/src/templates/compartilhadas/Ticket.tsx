@@ -41,10 +41,10 @@ export function TicketLinha({
   children: ReactNode;
 }) {
   return (
-    <div className="text-text m-0 mt-1.5 flex flex-wrap items-center gap-1.5 text-sm">
+    <p className="text-text m-0 mt-1.5 flex flex-wrap items-center gap-1.5 text-sm">
       <span className="font-semibold">{rotulo}:</span>
       {children}
-    </div>
+    </p>
   );
 }
 

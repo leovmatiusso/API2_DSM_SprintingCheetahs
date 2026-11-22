@@ -5,8 +5,6 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
-import { isCriticalPriority, shouldNotifyCriticalPriority } from "./os_fluxo.js";
-import { createCriticalRelatedNotification, createEntityUpdateNotifications, type EntityUpdate } from "./notificacoes.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -355,16 +353,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         );
         const manutencaoId = result.insertId;
 
-        if (isCriticalPriority(prioridadeFinal)) {
-          await createCriticalRelatedNotification(connection, {
-            entidade: "manutencao",
-            evento: "criada",
-            entidadeId: manutencaoId,
-            entidadeNome: resumo.trim(),
-            usuarioOrigemId: user.id,
-          });
-        }
-
         for (const item of itens.values()) {
           await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
           const [rows] = await connection.execute<RowDataPacket[]>(
@@ -407,7 +395,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
   });
 
   router.put("/:manutencaoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
-    const user = res.locals.user as User;
     const manutencaoId = String(req.params.manutencaoId);
 
     if (!/^\d+$/.test(manutencaoId)) {
@@ -516,59 +503,16 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         }
       }
 
-      const atualizacoes: EntityUpdate[] = [];
-      if (typeof resumo === "string" && resumo.trim() !== String(atual.resumo ?? "")) {
-        atualizacoes.push({ descricao: `Resumo alterado para "${resumo.trim()}".` });
-      }
-      if (typeof tipo_manutencao === "string" && tipo_manutencao !== String(atual.tipo_manutencao ?? "")) {
-        atualizacoes.push({ descricao: `Tipo alterado para "${tipo_manutencao}".` });
-      }
-      if (typeof data_limite === "string" && data_limite !== String(atual.data_limite ?? "")) {
-        atualizacoes.push({ descricao: `Prazo alterado para ${data_limite}.` });
-      }
-      if (typeof data_inicio_problema === "string" && data_inicio_problema !== String(atual.data_inicio_problema ?? "")) {
-        atualizacoes.push({ descricao: `Data de início do problema alterada para ${data_inicio_problema}.` });
-      }
-      if (typeof prioridade === "string" && prioridade.toLowerCase() !== String(atual.prioridade ?? "").toLowerCase()) {
-        const prioridadeNova = prioridade.toLowerCase();
-        const prioridadeCritica = shouldNotifyCriticalPriority(String(atual.prioridade ?? ""), prioridadeNova);
-        atualizacoes.push({
-          titulo: prioridadeCritica ? "Prioridade da manutenção elevada para crítica" : undefined,
-          descricao: `Prioridade alterada de "${String(atual.prioridade ?? "não informada")}" para "${prioridadeNova}".`,
-        });
-      }
-      if (
-        typeof status_manutencao === "string" &&
-        status_manutencao.toLowerCase() !== String(atual.status_manutencao ?? "").toLowerCase()
-      ) {
-        atualizacoes.push({ descricao: `Status alterado para "${status_manutencao.toLowerCase()}".` });
-      }
-      if (
-        typeof descricao_situacao === "string" &&
-        descricao_situacao.trim() !== String(atual.descricao_situacao ?? "").trim()
-      ) {
-        atualizacoes.push({ descricao: "Descrição da situação atualizada." });
-      }
-      if (
-        projeto_id !== undefined &&
-        String(projeto_id || "") !== String(atual.projeto_id ?? "")
-      ) {
-        atualizacoes.push({ descricao: "Vínculo com o projeto atualizado." });
-      }
 
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
 
         if (sets.length > 0) {
-          const [updateResult] = await connection.execute<ResultSetHeader>(
-            `UPDATE manutencoes SET ${sets.join(", ")} WHERE manutencao_id = ?`,
-            [
+          await connection.execute(`UPDATE manutencoes SET ${sets.join(", ")} WHERE manutencao_id = ?`, [
             ...valores,
             manutencaoId,
-            ],
-          );
-          if (!updateResult.affectedRows) atualizacoes.length = 0;
+          ]);
         }
 
         if (equipamentos !== undefined) {
@@ -591,23 +535,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
             else itens.set(key, { nome, quantidade });
           }
 
-          const [equipamentosAtuais] = await connection.execute<RowDataPacket[]>(
-            `SELECT LOWER(e.nome_equipamento) AS nome, i.quantidade
-               FROM item_equipamento_manutencao i
-               JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
-              WHERE i.manutencao_id = ?`,
-            [manutencaoId],
-          );
-          const itensAtuais = new Map(
-            equipamentosAtuais.map((item) => [String(item.nome), Number(item.quantidade)]),
-          );
-          const equipamentosMudaram =
-            itensAtuais.size !== itens.size ||
-            [...itens].some(([nome, item]) => itensAtuais.get(nome) !== item.quantidade);
-          if (equipamentosMudaram) {
-            atualizacoes.push({ descricao: "Equipamentos da manutenção atualizados." });
-          }
-
           await connection.execute("DELETE FROM item_equipamento_manutencao WHERE manutencao_id = ?", [manutencaoId]);
           for (const item of itens.values()) {
             await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
@@ -623,15 +550,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
             );
           }
         }
-
-        await createEntityUpdateNotifications(connection, {
-          entidade: "manutencao",
-          entidadeId: manutencaoId,
-          entidadeNome: typeof resumo === "string" ? resumo.trim() : String(atual.resumo),
-          usuarioOrigemId: user.id,
-          usuarioNome: user.name,
-          atualizacoes,
-        });
 
         await connection.commit();
       } catch (error) {

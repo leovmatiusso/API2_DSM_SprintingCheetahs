@@ -1,4 +1,4 @@
-import { AlertTriangle, Wrench, ClipboardCheck, ClipboardX, FolderPlus, ClipboardPlus } from "lucide-react";
+import { Wrench, ClipboardCheck, ClipboardX, FolderPlus, ClipboardPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const notificationConfig = {
@@ -14,23 +14,7 @@ export const notificationConfig = {
     color: "#E24056",
     icon: ClipboardX,
   },
-  osCritica: {
-    color: "#E24056",
-    icon: AlertTriangle,
-  },
-  projetoCritico: {
-    color: "#E24056",
-    icon: AlertTriangle,
-  },
-  manutencaoCritica: {
-    color: "#E24056",
-    icon: AlertTriangle,
-  },
   osRevisao: {
-    color: "#F59E0B",
-    icon: ClipboardCheck,
-  },
-  osVerificacao: {
     color: "#F59E0B",
     icon: ClipboardCheck,
   },
@@ -59,7 +43,3 @@ export const notificationConfig = {
 >;
 
 export type NotificationType = keyof typeof notificationConfig;
-
-export function isCriticalNotificationType(type: NotificationType): boolean {
-  return type === "osCritica" || type === "projetoCritico" || type === "manutencaoCritica";
-}

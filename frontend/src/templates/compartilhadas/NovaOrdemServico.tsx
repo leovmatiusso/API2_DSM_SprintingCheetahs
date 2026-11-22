@@ -32,8 +32,6 @@ import Textarea from "@/components/ui/Textarea";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
-import { isTimeMonitoramento } from "./osEstilos";
-
 import "@/style/NovaOrdemServico.css";
 
 const EQUIPAMENTOS_DISPONIVEIS = [
@@ -159,7 +157,7 @@ export default function NovaOrdemServico() {
       try {
         const resultado = await getTimes();
 
-        setTimes(resultado.times.filter((time) => !isTimeMonitoramento(time.departamento)));
+        setTimes(resultado.times);
       } catch (error) {
         console.error("Erro ao carregar times:", error);
         setTimes([]);
