@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import dotenv from "dotenv";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
-import { pool } from "./db.js";
+import { pool, runWithAuditActor } from "./db.js";
 import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
@@ -231,7 +231,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     }
 
     res.locals.user = user;
-    next();
+    runWithAuditActor(user, next);
   } catch (error) {
     console.error(error);
     return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
@@ -251,7 +251,7 @@ function requireRole(...roles: Role[]) {
       }
 
       res.locals.user = user;
-      next();
+      runWithAuditActor(user, next);
     } catch (error) {
       console.error(error);
       return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
@@ -272,7 +272,7 @@ function requireNotRole(...roles: Role[]) {
       }
 
       res.locals.user = user;
-      next();
+      runWithAuditActor(user, next);
     } catch (error) {
       console.error(error);
       return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
@@ -454,7 +454,7 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
 });
 
 app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
-  const id = req.params.id;
+  const id = String(req.params.id);
   const { name, email, password, role, active, time_id } = req.body as Partial<{
     name: string;
     email: string;
@@ -564,14 +564,15 @@ app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
 
 app.delete("/api/users/:id", requireRole("superusuario"), async (req, res) => {
   const currentUser = res.locals.user as User;
-  if (currentUser.id === req.params.id) {
+  const userId = String(req.params.id);
+  if (currentUser.id === userId) {
     return res.status(400).json({ message: "O próprio usuário logado não pode ser excluído." });
   }
 
   try {
     const [result] = await pool.execute<ResultSetHeader>(
       "DELETE FROM usuarios WHERE id_usuario = ?",
-      [req.params.id],
+      [userId],
     );
 
     if (!result.affectedRows) return res.status(404).json({ message: "Usuário não encontrado." });
@@ -708,6 +709,7 @@ app.post("/api/times", requireRole("superusuario", "gestor"), async (req, res) =
 });
 
 app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res) => {
+  const timeId = String(req.params.id);
   const { nome_time, departamento, responsavel_id, usuarios_ids } = req.body as {
     nome_time?: string;
     departamento?: string;
@@ -716,10 +718,10 @@ app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res
   };
 
   try {
-    const current = await getTimeById(req.params.id);
+    const current = await getTimeById(timeId);
     if (!current) return res.status(404).json({ message: "Time não encontrado." });
 
-    const error = await validateTimePayload(nome_time, departamento, responsavel_id, usuarios_ids, req.params.id);
+    const error = await validateTimePayload(nome_time, departamento, responsavel_id, usuarios_ids, timeId);
     if (error) return res.status(400).json({ message: error });
 
     const ids = [...new Set([...(usuarios_ids ?? []).map(String), ...(responsavel_id ? [String(responsavel_id)] : [])])];
@@ -730,21 +732,21 @@ app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res
 
       await connection.execute(
         `UPDATE time SET nome_time = ?, departamento = ?, responsavel_id = ? WHERE id_time = ?`,
-        [nome_time!.trim(), departamento!.trim(), responsavel_id || null, req.params.id],
+        [nome_time!.trim(), departamento!.trim(), responsavel_id || null, timeId],
       );
 
-      await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [req.params.id]);
+      await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [timeId]);
 
       if (ids.length) {
         const placeholders = ids.map(() => "?").join(",");
         await connection.execute(
           `UPDATE usuarios SET time_id = ? WHERE id_usuario IN (${placeholders})`,
-          [req.params.id, ...ids],
+          [timeId, ...ids],
         );
       }
 
       await connection.commit();
-      const updated = await getTimeById(req.params.id);
+      const updated = await getTimeById(timeId);
       if (!updated) return res.status(500).json({ message: "Não foi possível recuperar o time atualizado." });
       res.json({ time: await buildPublicTime(updated) });
     } catch (error) {
@@ -760,11 +762,12 @@ app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res
 });
 
 app.delete("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res) => {
+  const timeId = String(req.params.id);
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [req.params.id]);
-    const [result] = await connection.execute<ResultSetHeader>("DELETE FROM time WHERE id_time = ?", [req.params.id]);
+    await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [timeId]);
+    const [result] = await connection.execute<ResultSetHeader>("DELETE FROM time WHERE id_time = ?", [timeId]);
 
     if (!result.affectedRows) {
       await connection.rollback();

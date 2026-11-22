@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { pool } from "./db.js";
+import type { ResultSetHeader } from "mysql2";
 
 dotenv.config();
 
@@ -12,7 +13,7 @@ router.post("/", async (req, res) => {
     try {
         const { nome_time, email_time, departamento, responsavel_id } = req.body; //pega os campos da tabela "times"
 
-        const [result] = await pool.query(
+        const [result] = await pool.query<ResultSetHeader>(
             "insert into times (nome_time, email_time, departamento, responsavel_id) values (?, ?, ?, ?)", // insere os dados obtidos na tabela
             [nome_time, email_time, departamento, responsavel_id]
         );
@@ -41,7 +42,7 @@ router.put("/:time_id", async (req, res) => {
         const setClause = camposEnviados.map((campo) => `${campo} = ?`).join(", ");
         const valores = camposEnviados.map((campo) => req.body[campo]);
 
-        const [result] = await pool.query(`UPDATE times SET ${setClause} WHERE time_id = ?`, [...valores, time_id]); //faz a edição no lugar certo
+        const [result] = await pool.query<ResultSetHeader>(`UPDATE times SET ${setClause} WHERE time_id = ?`, [...valores, time_id]); //faz a edição no lugar certo
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ erro: "Time não encontrado" });
@@ -60,7 +61,7 @@ router.delete("/:time_id", async (req, res) => {
     try {
         const { time_id } = req.params;
 
-        const [result] = await pool.query(
+        const [result] = await pool.query<ResultSetHeader>(
             "delete from times where time_id = ?",
             [time_id]
         );

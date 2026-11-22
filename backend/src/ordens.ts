@@ -554,6 +554,43 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     }
   });
 
+  router.get("/:osId/historico", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+    const user = res.locals.user as User;
+    const osId = String(req.params.osId);
+    if (!/^\d+$/.test(osId)) return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+
+    try {
+      const [osRows] = await pool.execute<RowDataPacket[]>(
+        `SELECT o.id_time_responsavel, o.projeto_id, o.manutencao_id, o.os_status,
+                t.responsavel_id AS time_responsavel_id
+           FROM os o LEFT JOIN time t ON t.id_time = o.id_time_responsavel
+          WHERE o.os_id = ? LIMIT 1`,
+        [osId],
+      );
+      const os = osRows[0];
+      if (!os || !podeAcessarOSNoFluxo(user, {
+        id_time_responsavel: os.id_time_responsavel as number | null,
+        projeto_id: os.projeto_id as number | null,
+        manutencao_id: os.manutencao_id as number | null,
+        os_status: os.os_status as string,
+        time_responsavel_id: os.time_responsavel_id as number | null,
+      })) return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+
+      const [historico] = await pool.execute<RowDataPacket[]>(
+        `SELECT historico_id, os_id, os_titulo, tipo_acao, os_status,
+                id_time_responsavel, usuario_id, usuario_email,
+                DATE_FORMAT(data_historico, '%Y-%m-%d %H:%i:%s') AS data_historico,
+                DATE_FORMAT(data_limite, '%Y-%m-%d') AS data_limite
+           FROM historico_os WHERE os_id = ? ORDER BY historico_id DESC`,
+        [osId],
+      );
+      return res.json({ historico });
+    } catch (error) {
+      console.error("Erro ao consultar histórico da O.S.:", error);
+      return res.status(500).json({ message: "Não foi possível carregar o histórico da O.S." });
+    }
+  });
+
   // ---------------------------------------------------
   // Download de anexo (mesma regra de acesso)
   // ---------------------------------------------------

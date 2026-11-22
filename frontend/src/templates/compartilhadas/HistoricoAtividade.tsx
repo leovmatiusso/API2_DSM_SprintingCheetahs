@@ -66,18 +66,18 @@ export default function HistoricoAtividade() {
             <div className="relative w-52"><CalendarDays size={18} aria-hidden="true" className="text-primary pointer-events-none absolute top-1/2 left-3 -translate-y-1/2" /><input id="filtro-data-atividade" type="date" value={data} onChange={(event) => setData(event.target.value)} className="border-primary/30 bg-primary-muted text-text focus:border-primary focus:ring-primary/20 w-full rounded-lg border py-2 pr-3 pl-10 text-sm outline-none focus:ring-2" /></div>
           </div>
           <div className="border-border w-full overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[680px] border-collapse text-left text-sm">
-              <thead><tr className="bg-primary-muted text-text border-primary border"><th className="px-3 py-3">Data e hora</th><th className="px-3 py-3">Registro</th><th className="px-3 py-3">Ação</th><th className="px-3 py-3">Acessar</th></tr></thead>
+            <table className="w-full min-w-[780px] border-collapse text-left text-sm">
+              <thead><tr className="bg-primary-muted text-text border-primary border"><th className="px-3 py-3">Data e hora</th><th className="px-3 py-3">E-mail</th><th className="px-3 py-3">Registro</th><th className="px-3 py-3">Ação</th><th className="px-3 py-3">Acessar</th></tr></thead>
               <tbody className="text-text">
-                {carregando ? <tr><td colSpan={4} className="px-3 py-6 text-center">Carregando histórico…</td></tr>
-                  : erro ? <tr><td colSpan={4} role="alert" className="px-3 py-6 text-center">{erro}</td></tr>
-                  : registros.length === 0 ? <tr><td colSpan={4} className="px-3 py-6 text-center">Nenhuma alteração encontrada.</td></tr>
+                {carregando ? <tr><td colSpan={5} className="px-3 py-6 text-center">Carregando histórico…</td></tr>
+                  : erro ? <tr><td colSpan={5} role="alert" className="px-3 py-6 text-center">{erro}</td></tr>
+                  : registros.length === 0 ? <tr><td colSpan={5} className="px-3 py-6 text-center">Nenhuma alteração encontrada.</td></tr>
                   : registros.map((item) => {
                     const dados = dadosObjeto(item.dados);
                     const href = destino(item, dados);
                     const nome = String(dados.nome ?? dados.nome_time ?? dados.os_titulo ?? dados.resumo ?? "");
                     return <tr key={item.historico_id} className="border-border border-b last:border-b-0">
-                      <td className="px-3 py-3">{item.data_historico}</td><td className="px-3 py-3">{entidades[item.tabela] ?? item.tabela}{nome ? ` · ${nome}` : ""}</td><td className="px-3 py-3">{acoes[item.tipo_acao]}</td>
+                      <td className="px-3 py-3">{item.data_historico}</td><td className="px-3 py-3">{item.usuario_email ?? "E-mail não identificado"}</td><td className="px-3 py-3">{entidades[item.tabela] ?? item.tabela}{nome ? ` · ${nome}` : ""}</td><td className="px-3 py-3">{acoes[item.tipo_acao]}</td>
                       <td className="px-3 py-3">{href ? <button type="button" onClick={() => navigate(href)} className="text-primary inline-flex items-center gap-1 rounded bg-transparent font-semibold hover:underline">Abrir <ExternalLink size={14} /></button> : <span className="text-text-muted">—</span>}</td>
                     </tr>;
                   })}

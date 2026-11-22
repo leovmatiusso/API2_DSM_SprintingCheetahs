@@ -31,8 +31,11 @@ export function createDataFiltroRouter(requireRole: RequireRole): Router {
                 h.os_status,
                 h.id_time_responsavel,
                 t.nome_time,
+                h.usuario_id,
+                h.usuario_email,
+                DATE_FORMAT(h.data_historico, '%Y-%m-%d %H:%i:%s') AS data_historico,
                 DATE_FORMAT(h.data_limite, '%Y-%m-%d') AS data_limite
-           FROM historico h
+           FROM historico_os h
            LEFT JOIN time t ON t.id_time = h.id_time_responsavel
           WHERE h.data_limite = ?
           ORDER BY h.historico_id DESC`,
