@@ -11,7 +11,8 @@ export default function MainLayout() {
     <div className="bg-bg-secondary text-text flex min-h-screen">
       <Sidebar onCollapsedChange={setSidebarCollapsed} />
 
-      <main className={`min-h-screen flex-1 transition-all duration-300`}>
+      {/* min-w-0: o conteúdo nunca alarga a página além da tela (no celular isso cortava a sidebar). */}
+      <main className={`min-h-screen min-w-0 flex-1 transition-all duration-300`}>
         <Navbar />
         <Outlet />
       </main>

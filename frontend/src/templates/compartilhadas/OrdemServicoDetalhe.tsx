@@ -1,19 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ClipboardList, File, History, Link, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, File, History, Link, X, Upload, ExternalLink } from "lucide-react";
 
-import { abrirAnexoOS, atualizarOrdemServico, atualizarStatusOS, getHistoricoOS, getOrdem } from "@/api";
-import type { HistoricoAtividadeItem, OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo } from "@/api";
+import {
+  ApiError,
+  abrirAnexoOS,
+  atualizarOrdemServico,
+  atualizarStatusOS,
+  abrirRelatorioOS,
+  enviarRelatorioOS,
+  getRelatoriosOS,
+  getOrdem,
+  getHistoricoOS,
+  getResumoOS,
+  registrarResumoOS,
+  registrarVerificacaoOS,
+} from "@/api";
+import type { HistoricoAtividadeItem, OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo, RelatorioOS } from "@/api";
 import Button from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
+import { mostrarAvisoOS } from "@/components/ui/Notification/mostrarAvisoOS";
 import { getCurrentUser } from "@/auth";
 
 import SeletorStatusOS from "./SeletorStatusOS";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
 import type { PrioridadeValor } from "../compartilhadas/SeletorPrioridade";
-import CampoEquipamentos, { equipamentosParaPayload } from "../compartilhadas/CampoEquipamentos";
+import CampoEquipamentos, { equipamentosParaPayload, nomeEquipamento } from "../compartilhadas/CampoEquipamentos";
 import type { EquipamentoForm } from "../compartilhadas/CampoEquipamentos";
 
 import {
@@ -21,7 +36,57 @@ import {
   PRIORIDADE_LABEL,
   formatarData,
   formatarTamanho,
+  isTimeMonitoramento,
 } from "./osEstilos";
+
+const ROTA_LISTA_OS = "/os/disponiveis";
+const MENSAGEM_MOTIVO_OBRIGATORIO = "O motivo do bloqueio é obrigatório";
+const LIMITE_RESUMO_OS = 500;
+
+function ModalConfirmacao({
+  titulo,
+  descricao,
+  confirmar,
+  enviando,
+  erro,
+  onConfirmar,
+  onCancelar,
+}: {
+  titulo: string;
+  descricao: string;
+  confirmar: string;
+  enviando: boolean;
+  erro: string | null;
+  onConfirmar: () => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+        className="border-border bg-bg text-text w-full max-w-md rounded-xl border p-6 shadow-2xl"
+      >
+        <h2 className="text-text m-0 text-xl font-bold">{titulo}</h2>
+        <p className="text-text-muted mt-2 mb-0 text-sm leading-6">{descricao}</p>
+        {erro && (
+          <p className="text-danger mt-3 mb-0 text-xs" role="alert">
+            {erro}
+          </p>
+        )}
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={onCancelar} disabled={enviando}>
+            Cancelar
+          </Button>
+          <Button onClick={onConfirmar} disabled={enviando}>
+            {enviando ? "Salvando..." : confirmar}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CampoCaixa({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -50,37 +115,21 @@ function dataHistorico(valor: string): string {
   return `${dia}/${mes}/${ano}${hora ? ` às ${hora}` : ""}`;
 }
 
-function CartaoHistorico({
-  tipo,
-  titulo,
-  descricao,
-  usuario,
-  data,
-}: {
-  tipo: string;
-  titulo: string;
-  descricao: string;
-  usuario: string;
-  data: string;
-}) {
-  const corDaFaixa: Record<string, string> = {
-    criado: "bg-success",
-    atualizado: "bg-primary",
-    deletado: "bg-danger",
-  };
-
+function CartaoHistorico({ item }: { item: HistoricoAtividadeItem }) {
   return (
     <Card className="w-full overflow-hidden !p-0">
       <div className="flex items-stretch">
-        <div className={`w-1 shrink-0 ${corDaFaixa[tipo] ?? "bg-primary"}`} aria-hidden="true" />
-        <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4 px-7 py-3">
+        <div className={`w-1 shrink-0 ${item.tipo_acao === "criado" ? "bg-success" : item.tipo_acao === "deletado" ? "bg-danger" : "bg-primary"}`} aria-hidden="true" />
+        <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4 px-5 py-3">
           <div>
-            <CardTitle className="text-base">{titulo}</CardTitle>
-            <p className="text-text-muted mt-2 mb-0 text-sm">{descricao}</p>
+            <CardTitle className="text-base">{tituloHistorico(item)}</CardTitle>
+            <p className="text-text-muted mt-2 mb-0 text-sm">
+              Status: {item.os_status}{item.nome_time ? ` · Equipe: ${item.nome_time}` : ""}{item.data_limite ? ` · Prazo: ${formatarData(item.data_limite)}` : ""}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-text m-0 text-sm font-medium">{usuario}</p>
-            <p className="text-text-muted mt-1 mb-0 text-xs">{data}</p>
+            <p className="text-text m-0 text-sm font-medium">{item.usuario_email ?? "E-mail não identificado"}</p>
+            <p className="text-text-muted mt-1 mb-0 text-xs">{dataHistorico(item.data_historico)}</p>
           </div>
         </div>
       </div>
@@ -88,38 +137,17 @@ function CartaoHistorico({
   );
 }
 
-function PaginacaoHistorico({
-  pagina,
-  totalPaginas,
-  onMudarPagina,
-}: {
+function PaginacaoHistorico({ pagina, totalPaginas, onMudarPagina }: {
   pagina: number;
   totalPaginas: number;
   onMudarPagina: (pagina: number) => void;
 }) {
   if (totalPaginas <= 1) return null;
-
   return (
     <nav aria-label="Paginação do histórico" className="text-text-muted mt-4 flex items-center justify-center gap-4 text-sm">
-      <button
-        type="button"
-        onClick={() => onMudarPagina(pagina - 1)}
-        disabled={pagina === 0}
-        aria-label="Página anterior"
-        className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        &lt;
-      </button>
-      <span aria-live="polite">Página {pagina + 1} de {totalPaginas}</span>
-      <button
-        type="button"
-        onClick={() => onMudarPagina(pagina + 1)}
-        disabled={pagina >= totalPaginas - 1}
-        aria-label="Próxima página"
-        className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        &gt;
-      </button>
+      <button type="button" onClick={() => onMudarPagina(pagina - 1)} disabled={pagina === 0} aria-label="Página anterior" className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:opacity-40">&lt;</button>
+      <span>Página {pagina + 1} de {totalPaginas}</span>
+      <button type="button" onClick={() => onMudarPagina(pagina + 1)} disabled={pagina + 1 >= totalPaginas} aria-label="Próxima página" className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:opacity-40">&gt;</button>
     </nav>
   );
 }
@@ -135,23 +163,22 @@ export default function OrdemServicoDetalhe() {
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
   const [erroStatus, setErroStatus] = useState<string | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
-  const [confirmarConclusao, setConfirmarConclusao] = useState(false);
+  const [eventosHistorico, setEventosHistorico] = useState<HistoricoAtividadeItem[]>([]);
+  const [erroHistorico, setErroHistorico] = useState("");
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [paginaHistorico, setPaginaHistorico] = useState(0);
   const [paginaHistoricoModal, setPaginaHistoricoModal] = useState(0);
-  const [eventosHistorico, setEventosHistorico] = useState<HistoricoAtividadeItem[]>([]);
-  const [erroHistorico, setErroHistorico] = useState("");
+  const [resumoOS, setResumoOS] = useState("");
+  const [salvandoResumo, setSalvandoResumo] = useState(false);
+  const [modalFeedbackResumo, setModalFeedbackResumo] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
 
-  const totalPaginasHistorico = Math.ceil(eventosHistorico.length / itensPorPaginaHistorico);
-  const eventosPrevia = eventosHistorico.slice(
-    paginaHistorico * itensPorPaginaHistorico,
-    (paginaHistorico + 1) * itensPorPaginaHistorico,
-  );
-  const totalPaginasHistoricoModal = Math.ceil(eventosHistorico.length / itensPorPaginaHistoricoModal);
-  const eventosModal = eventosHistorico.slice(
-    paginaHistoricoModal * itensPorPaginaHistoricoModal,
-    (paginaHistoricoModal + 1) * itensPorPaginaHistoricoModal,
-  );
+  // Estados da verificação pelo monitoramento
+  const [confirmarAprovacao, setConfirmarAprovacao] = useState(false);
+  const [reprovando, setReprovando] = useState(false);
+  const [motivoReprovacao, setMotivoReprovacao] = useState("");
+  const [erroMotivo, setErroMotivo] = useState<string | null>(null);
+  const [erroVerificacao, setErroVerificacao] = useState<string | null>(null);
+  const [enviandoVerificacao, setEnviandoVerificacao] = useState(false);
 
   // Estados para o Modal de Edição da O.S.
   const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
@@ -167,13 +194,47 @@ export default function OrdemServicoDetalhe() {
   const [times, setTimes] = useState<{ id: string; nome_time: string }[]>([]);
   const [carregandoTimes, setCarregandoTimes] = useState(false);
 
+  const [pdfs, setPdfs] = useState<RelatorioOS[]>([]);
+  const [carregandoPdfs, setCarregandoPdfs] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [feedbackPdf, setFeedbackPdf] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const responsavelDoTime = Boolean(
     currentUser?.id && ordem?.time?.responsavel_id === currentUser.id,
   );
-  const podeDecidirReview = responsavelDoTime && ordem?.status === "review";
+  
+  const podeGerenciarPdfs = currentUser?.role === "monitoramento";
+
+  const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
+  const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
+  const emVerificacao = ordem?.status === "verificacao";
+  // Aprovada pelo monitoramento: voltou ao time em Review, aguardando o resumo do líder.
+  const aprovadaNaVerificacao = ordem?.status === "review" && Boolean(ordem?.aprovada_verificacao);
+  // O resumo só aparece para o líder do time, depois da aprovação. Registrá-lo conclui a O.S.
+  // (O.S. do próprio monitoramento não passa por verificação e libera o resumo direto em Review.)
+  const resumoLiberado = ordem?.status === "review" && (aprovadaNaVerificacao || timeMonitoramento);
+  const osConcluida = ordem?.status === "concluida";
+  const podeEditarResumo = responsavelDoTime && resumoLiberado;
+  const podeVerResumo = responsavelDoTime && (resumoLiberado || osConcluida);
+
+  // Carrega o resumo já registrado para a O.S.
+  useEffect(() => {
+    if (!ordem?.id || !podeVerResumo) return;
+    let ativo = true;
+    getResumoOS(ordem.id)
+      .then((resposta) => {
+        if (ativo) setResumoOS(resposta.resumo);
+      })
+      .catch((erroResumo) => console.error("Erro ao carregar o resumo da O.S.:", erroResumo));
+    return () => {
+      ativo = false;
+    };
+  }, [ordem?.id, podeVerResumo]);
 
   useEffect(() => {
     let ativo = true;
+    let redirecionando = false;
 
     async function carregar() {
       if (!osId) return;
@@ -193,17 +254,40 @@ export default function OrdemServicoDetalhe() {
               quantidade: eq.quantidade,
             }))
           );
+          setCarregandoPdfs(true);
+          void getRelatoriosOS(osId)
+            .then((resposta) => {
+              if (ativo) setPdfs(resposta.relatorios);
+            })
+            .catch((erroRelatorios) => {
+              if (ativo) {
+                setFeedbackPdf({
+                  type: "error",
+                  message: erroRelatorios instanceof Error
+                    ? erroRelatorios.message
+                    : "Não foi possível carregar os relatórios.",
+                });
+              }
+            })
+            .finally(() => {
+              if (ativo) setCarregandoPdfs(false);
+            });
         }
       } catch (error) {
-        if (ativo) {
-          setErro(
-            error instanceof Error
-              ? error.message
-              : "Não foi possível carregar a ordem de serviço.",
-          );
+        if (!ativo) return;
+        if (error instanceof ApiError && error.status === 410) {
+          redirecionando = true;
+          mostrarAvisoOS("success", "O.S. já verificada", error.message);
+          navigate(ROTA_LISTA_OS, { replace: true });
+          return;
         }
+        setErro(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar a ordem de serviço.",
+        );
       } finally {
-        if (ativo) setCarregando(false);
+        if (ativo && !redirecionando) setCarregando(false);
       }
     }
 
@@ -211,7 +295,7 @@ export default function OrdemServicoDetalhe() {
     return () => {
       ativo = false;
     };
-  }, [osId]);
+  }, [osId, navigate]);
 
   useEffect(() => {
     let ativo = true;
@@ -224,30 +308,66 @@ export default function OrdemServicoDetalhe() {
     return () => { ativo = false; };
   }, [osId]);
 
- const abrirModalEdicao = async () => {
-  if (ordem) {
-    setEquipamentosEdit(
-      ordem.equipamentos.map((eq) => ({
-        nome: eq.nome,
-        quantidade: eq.quantidade,
-      }))
-    );
-  }
-  setModalEdicaoAberto(true);
-  
-  if (times.length === 0) {
-    setCarregandoTimes(true);
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !osId) return;
+
+    setUploadingPdf(true);
+    setFeedbackPdf(null);
     try {
-      const { getTimes } = await import("@/api");
-      const respostaTimes = await getTimes();
-      setTimes(respostaTimes.times);
-    } catch (e) {
-      console.error("Erro ao carregar times", e);
+      const resposta = await enviarRelatorioOS(osId, file);
+      const atualizados = await getRelatoriosOS(osId);
+      setPdfs(atualizados.relatorios);
+      setFeedbackPdf({ type: "success", message: resposta.message });
+    } catch (erroUpload) {
+      setFeedbackPdf({
+        type: "error",
+        message: erroUpload instanceof Error ? erroUpload.message : "Não foi possível enviar o relatório.",
+      });
     } finally {
-      setCarregandoTimes(false);
+      setUploadingPdf(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }
-};
+  };
+
+  const abrirRelatorio = async (relatorio: RelatorioOS, baixar = false) => {
+    if (!osId) return;
+    try {
+      await abrirRelatorioOS(osId, relatorio, baixar);
+    } catch (erroRelatorio) {
+      setFeedbackPdf({
+        type: "error",
+        message: erroRelatorio instanceof Error ? erroRelatorio.message : "Não foi possível abrir o relatório.",
+      });
+    }
+  };
+
+  const abrirModalEdicao = async () => {
+    if (ordem) {
+      setTimeResponsavelIdEdit(ordem.time?.id || "");
+      setEquipamentosEdit(
+        ordem.equipamentos.map((eq) => ({
+          nome: eq.nome,
+          quantidade: eq.quantidade,
+        }))
+      );
+    }
+    setModalEdicaoAberto(true);
+    
+    if (times.length === 0) {
+      setCarregandoTimes(true);
+      try {
+        const { getTimes } = await import("@/api");
+        const respostaTimes = await getTimes();
+        setTimes(respostaTimes.times.filter((time) => !isTimeMonitoramento(time.departamento)));
+      } catch (e) {
+        console.error("Erro ao carregar times", e);
+      } finally {
+        setCarregandoTimes(false);
+      }
+    }
+  };
+
   async function handleSalvarEdicao(e: React.FormEvent) {
     e.preventDefault();
     if (!osId || !ordem) return;
@@ -270,10 +390,32 @@ export default function OrdemServicoDetalhe() {
         equipamentos: equipamentosParaPayload(equipamentosEdit),
       });
 
-      // Recarrega os dados completos da O.S. para atualizar a tela sem falhas
-      const resposta = await getOrdem(osId);
-      setOrdem(resposta.ordem);
-      setModalEdicaoAberto(false);
+      window.dispatchEvent(new Event("notifications:refresh"));
+
+      const timeMudou = timeResponsavelIdEdit !== (ordem.time?.id ?? "");
+      if (timeMudou) {
+        const nomeTime = times.find((time) => time.id === timeResponsavelIdEdit)?.nome_time;
+        mostrarAvisoOS(
+          "success",
+          "O.S. encaminhada",
+          `A O.S. foi encaminhada para o time ${nomeTime ?? "selecionado"}.`,
+        );
+      }
+
+      try {
+        const resposta = await getOrdem(osId);
+        setOrdem(resposta.ordem);
+        setModalEdicaoAberto(false);
+      } catch (error) {
+        if (timeMudou && error instanceof ApiError && error.status === 404) {
+          navigate(ROTA_LISTA_OS, { replace: true });
+          return;
+        }
+        setModalEdicaoAberto(false);
+        setErro(
+          error instanceof Error ? error.message : "Não foi possível recarregar a ordem de serviço.",
+        );
+      }
     } catch (error) {
       setErroEdicao(
         error instanceof Error ? error.message : "Não foi possível atualizar a ordem de serviço.",
@@ -314,23 +456,84 @@ export default function OrdemServicoDetalhe() {
     }
   }
 
-  async function concluirOS() {
-    if (!ordem || !podeDecidirReview) return;
-    setAtualizandoStatus(true);
-    setErroStatus(null);
+  async function salvarResumoOS() {
+    if (!ordem || !podeEditarResumo || salvandoResumo) return;
+
+    const resumo = resumoOS.trim();
+    if (!resumo) {
+      mostrarFeedbackResumo("error", "O resumo da OS é obrigatório");
+      return;
+    }
+    if (resumo.length > LIMITE_RESUMO_OS) {
+      mostrarFeedbackResumo("error", `O resumo pode ter até ${LIMITE_RESUMO_OS} caracteres.`);
+      return;
+    }
+    if (!resumoLiberado) {
+      mostrarFeedbackResumo("error", "O resumo só pode ser registrado depois que a O.S. for aprovada na verificação do monitoramento.");
+      return;
+    }
+
+    setSalvandoResumo(true);
     try {
-      await atualizarStatusOS(ordem.id, "concluida");
-      setOrdem({ ...ordem, status: "concluida" });
-      setConfirmarConclusao(false);
+      const resposta = await registrarResumoOS(ordem.id, resumo);
+      setResumoOS(resposta.resumo);
+      // Registrar o resumo concluiu a O.S.
+      setOrdem({ ...ordem, status: resposta.os.status, aprovada_verificacao: null });
       window.dispatchEvent(new Event("notifications:refresh"));
+      mostrarFeedbackResumo("success", resposta.message);
     } catch (error) {
-      setErroStatus(
-        error instanceof Error ? error.message : "Não foi possível concluir a ordem de serviço.",
-      );
+      mostrarFeedbackResumo("error", error instanceof Error ? error.message : "Não foi possível registrar o resumo.");
     } finally {
-      setAtualizandoStatus(false);
+      setSalvandoResumo(false);
     }
   }
+
+  function mostrarFeedbackResumo(tipo: "success" | "error", mensagem: string) {
+    setModalFeedbackResumo({ tipo, mensagem });
+  }
+
+  async function enviarVerificacao(resultado: "aprovada" | "reprovada") {
+    if (!ordem || !podeVerificar) return;
+
+    const motivo = motivoReprovacao.trim();
+    if (resultado === "reprovada" && !motivo) {
+      setErroMotivo(MENSAGEM_MOTIVO_OBRIGATORIO);
+      return;
+    }
+
+    setErroMotivo(null);
+    setErroVerificacao(null);
+    setEnviandoVerificacao(true);
+    try {
+      const resposta = await registrarVerificacaoOS(
+        ordem.id,
+        resultado,
+        resultado === "reprovada" ? motivo : undefined,
+      );
+      window.dispatchEvent(new Event("notifications:refresh"));
+      mostrarAvisoOS(
+        "success",
+        resultado === "aprovada" ? "Verificação aprovada" : "Verificação reprovada",
+        resposta.message,
+      );
+      navigate(ROTA_LISTA_OS);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        mostrarAvisoOS("success", "O.S. já verificada", error.message);
+        navigate(ROTA_LISTA_OS, { replace: true });
+        return;
+      }
+      setErroVerificacao(
+        error instanceof Error ? error.message : "Não foi possível registrar a verificação.",
+      );
+      setEnviandoVerificacao(false);
+    }
+  }
+
+  const totalPaginasHistorico = Math.ceil(eventosHistorico.length / itensPorPaginaHistorico);
+  const eventosPrevia = eventosHistorico.slice(paginaHistorico * itensPorPaginaHistorico, (paginaHistorico + 1) * itensPorPaginaHistorico);
+  const totalPaginasHistoricoModal = Math.ceil(eventosHistorico.length / itensPorPaginaHistoricoModal);
+  const eventosModal = eventosHistorico.slice(paginaHistoricoModal * itensPorPaginaHistoricoModal, (paginaHistoricoModal + 1) * itensPorPaginaHistoricoModal);
 
   return (
     <main className="page min-h-full p-5 md:p-8">
@@ -365,9 +568,11 @@ export default function OrdemServicoDetalhe() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={abrirModalEdicao}>
-                  Editar O.S.
-                </Button>
+                {!emVerificacao && (
+                  <Button variant="outline" onClick={abrirModalEdicao}>
+                    Editar O.S.
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => navigate(-1)}>
                   Voltar
                 </Button>
@@ -375,11 +580,14 @@ export default function OrdemServicoDetalhe() {
             </div>
 
             {/* Status, departamento, time e prioridade */}
-            <div className="my-6 grid grid-cols-5 gap-x-4 gap-y-6 [&>*>*]:w-full">
+            <div className="my-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 [&>*>*]:w-full">
               <CampoCaixa rotulo="Status">
                 <SeletorStatusOS
                   status={ordem.status}
                   responsavelDoTime={responsavelDoTime}
+                  timeMonitoramento={timeMonitoramento}
+                  superusuario={currentUser?.role === "superusuario"}
+                  aprovadaNaVerificacao={aprovadaNaVerificacao}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -401,6 +609,163 @@ export default function OrdemServicoDetalhe() {
                 <span className="text-text text-sm">{formatarData(ordem.data_limite)}</span>
               </CampoCaixa>
             </div>
+
+            {/* Motivo da última reprovação na verificação */}
+            {ordem.ultima_reprovacao && (
+              <div className="border-danger/30 bg-danger/10 mb-8 rounded-lg border p-4">
+                <div className="text-danger flex items-center gap-2 text-sm font-semibold">
+                  <AlertTriangle size={17} aria-hidden="true" />
+                  Reprovada na verificação do monitoramento
+                </div>
+                <p className="text-text mt-2 mb-2 text-sm leading-6 break-words whitespace-pre-line">
+                  {ordem.ultima_reprovacao.justificativa}
+                </p>
+                <p className="text-text-muted m-0 text-xs">
+                  {ordem.ultima_reprovacao.usuario ?? "Monitoramento"} em{" "}
+                  {ordem.ultima_reprovacao.data}
+                </p>
+              </div>
+            )}
+
+            {/* Indicativo: aprovada pelo monitoramento, aguardando o resumo do líder */}
+            {aprovadaNaVerificacao && ordem.aprovada_verificacao && (
+              <div className="border-success/30 bg-success/10 mb-8 rounded-lg border p-4" role="status">
+                <div className="text-success flex items-center gap-2 text-sm font-semibold">
+                  <CheckCircle2 size={17} aria-hidden="true" />
+                  Aprovada na verificação do monitoramento
+                </div>
+                <p className="text-text mt-2 mb-2 text-sm leading-6">
+                  {responsavelDoTime
+                    ? "Registre o resumo das atividades abaixo para concluir esta O.S."
+                    : "O líder do time deve registrar o resumo das atividades para concluir esta O.S."}
+                </p>
+                <p className="text-text-muted m-0 text-xs">
+                  {ordem.aprovada_verificacao.usuario ?? "Monitoramento"} em {ordem.aprovada_verificacao.data}
+                </p>
+              </div>
+            )}
+
+            {podeVerResumo && (
+              <section aria-labelledby="resumo-os" className="border-border mb-8 rounded-lg border p-4 md:p-5">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h2 id="resumo-os" className="text-text m-0 text-base font-bold">Resumo das atividades</h2>
+                    <p className="text-text-muted mt-1 mb-0 text-sm">
+                      {osConcluida
+                        ? "Resumo registrado. Esta O.S. já foi concluída."
+                        : "Registre em poucas palavras o trabalho realizado pela equipe. Ao registrar o resumo, a O.S. será concluída."}
+                    </p>
+                  </div>
+                  <span className="text-text-muted text-xs">{resumoOS.length}/{LIMITE_RESUMO_OS}</span>
+                </div>
+                <Textarea
+                  id="resumo-atividades-os"
+                  label="Resumo da conclusão"
+                  value={resumoOS}
+                  onChange={(event) => setResumoOS(event.target.value)}
+                  maxLength={LIMITE_RESUMO_OS}
+                  placeholder="Descreva brevemente as atividades realizadas"
+                  readOnly={!podeEditarResumo}
+                  disabled={salvandoResumo}
+                />
+                {podeEditarResumo && (
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <Button variant="primary" onClick={salvarResumoOS} disabled={salvandoResumo}>
+                      {salvandoResumo ? "Registrando..." : "Registrar Resumo"}
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Decisão da verificação (somente monitoramento) */}
+            {podeVerificar && (
+              <section
+                aria-labelledby="verificacao-os"
+                className="border-primary bg-primary-muted mb-8 rounded-lg border p-4 md:p-5"
+              >
+                <h2 id="verificacao-os" className="text-text m-0 text-base font-bold">
+                  Esta O.S. aguarda a sua verificação
+                </h2>
+                <p className="text-text-muted mt-1 mb-4 text-sm">
+                  Aprove para devolver a O.S. à equipe, que registrará o resumo e a concluirá, ou reprove para bloqueá-la.
+                </p>
+
+                {reprovando ? (
+                  <form
+                    noValidate
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      enviarVerificacao("reprovada");
+                    }}
+                  >
+                    <Textarea
+                      id="motivo-reprovacao"
+                      label="Motivo da reprovação"
+                      required
+                      value={motivoReprovacao}
+                      onChange={(event) => {
+                        setMotivoReprovacao(event.target.value);
+                        setErroMotivo(null);
+                      }}
+                      maxLength={5000}
+                      placeholder="Explique o que a equipe responsável precisa corrigir"
+                      aria-required="true"
+                      aria-invalid={Boolean(erroMotivo)}
+                      aria-describedby={erroMotivo ? "erro-motivo-reprovacao" : undefined}
+                      disabled={enviandoVerificacao}
+                    />
+                    {erroMotivo && (
+                      <p id="erro-motivo-reprovacao" className="text-danger mt-1.5 mb-0 text-xs" role="alert">
+                        {erroMotivo}
+                      </p>
+                    )}
+                    <div className="mt-4 flex flex-wrap justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        disabled={enviandoVerificacao}
+                        onClick={() => {
+                          setReprovando(false);
+                          setErroMotivo(null);
+                          setErroVerificacao(null);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button type="submit" variant="danger" disabled={enviandoVerificacao}>
+                        {enviandoVerificacao ? "Enviando..." : "Confirmar reprovação"}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      onClick={() => {
+                        setErroVerificacao(null);
+                        setConfirmarAprovacao(true);
+                      }}
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => {
+                        setErroVerificacao(null);
+                        setReprovando(true);
+                      }}
+                    >
+                      Reprovar
+                    </Button>
+                  </div>
+                )}
+
+                {erroVerificacao && !confirmarAprovacao && (
+                  <p className="text-danger mt-3 mb-0 text-xs" role="alert">
+                    {erroVerificacao}
+                  </p>
+                )}
+              </section>
+            )}
 
             {/* Descrição */}
             <div className="mb-8">
@@ -425,7 +790,7 @@ export default function OrdemServicoDetalhe() {
                         key={item.nome}
                         className="bg-primary/15 text-primary rounded-full px-3 py-1 text-xs font-medium"
                       >
-                        {item.quantidade}x {item.nome}
+                        {item.quantidade}x {nomeEquipamento(item.nome)}
                       </span>
                     ))}
                   </div>
@@ -442,9 +807,11 @@ export default function OrdemServicoDetalhe() {
                   Anexos
                 </div>
 
-                {ordem.anexos.length ? (
+                {ordem.anexos.filter((anexo) => anexo.tipo.toLowerCase().split(";")[0] !== "application/pdf").length ? (
                   <ul className="m-0 list-none space-y-3 p-0">
-                    {ordem.anexos.map((anexo) => (
+                    {ordem.anexos
+                      .filter((anexo) => anexo.tipo.toLowerCase().split(";")[0] !== "application/pdf")
+                      .map((anexo) => (
                       <li
                         key={anexo.id}
                         className="text-text-muted flex items-center gap-3 text-sm"
@@ -462,7 +829,7 @@ export default function OrdemServicoDetalhe() {
                           {formatarTamanho(anexo.tamanho)}
                         </span>
                       </li>
-                    ))}
+                      ))}
                   </ul>
                 ) : (
                   <p className="text-text-muted m-0 text-sm">Nenhum anexo</p>
@@ -474,6 +841,109 @@ export default function OrdemServicoDetalhe() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* 🚀 [US27] - SEÇÃO DE RELATÓRIOS DE TESTE (PDF) COM RESTRIÇÃO DE PERMISSÃO */}
+            {/* ========================================================================= */}
+            <div className="border-border bg-bg-secondary rounded-xl border p-4 sm:p-6 mb-8 space-y-5">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-text">Relatórios de Teste (PDF)</h3>
+                  <p className="text-sm text-muted mt-0.5">Histórico de laudos e resultados vinculados a esta Ordem de Serviço.</p>
+                </div>
+
+                {/* O botão de anexar só aparece se o usuário tiver permissão para gerenciar */}
+                {podeGerenciarPdfs && (
+                  <div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handlePdfUpload}
+                      accept=".pdf"
+                      disabled={uploadingPdf}
+                      className="hidden"
+                      id="pdf-upload-input-detalhe"
+                    />
+                    <label
+                      htmlFor="pdf-upload-input-detalhe"
+                      className={`inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold text-text-inverted transition-all shadow-sm cursor-pointer ${
+                        uploadingPdf 
+                          ? 'bg-primary/50 cursor-not-allowed' 
+                          : 'bg-primary hover:bg-primary-hover active:scale-[0.98]'
+                      }`}
+                    >
+                      {uploadingPdf ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-text-inverted" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Enviando PDF...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Anexar Relatório PDF
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {feedbackPdf && (
+                <div className={feedbackPdf.type === 'success' ? 'success flex items-center justify-between' : 'error flex items-center justify-between'}>
+                  <span>{feedbackPdf.message}</span>
+                  <button onClick={() => setFeedbackPdf(null)} className="text-lg font-bold leading-none">&times;</button>
+                </div>
+              )}
+
+              {carregandoPdfs ? (
+                <p className="text-text-muted m-0 text-sm" role="status">Carregando relatórios...</p>
+              ) : pdfs.length === 0 ? (
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center space-y-2 bg-bg">
+                  <p className="text-sm font-semibold text-text">Nenhum relatório PDF anexado</p>
+                  <p className="text-xs text-muted">Envie o resultado dos testes para orientar as próximas equipes.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-bg">
+                  {pdfs.map((pdf) => (
+                    <div key={pdf.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-bg-secondary transition-colors">
+                      <div className="flex items-center space-x-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-danger-muted text-danger font-bold text-xs flex items-center justify-center shrink-0">
+                          PDF
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text truncate" title={pdf.nome}>
+                            {pdf.nome}
+                          </p>
+                          <p className="text-xs text-muted">
+                            Enviado em {pdf.data_envio} • <span className="font-medium text-text">{formatarTamanho(pdf.tamanho)}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0 sm:ml-4">
+                        <button
+                          type="button"
+                          onClick={() => void abrirRelatorio(pdf)}
+                          className="px-3 py-1.5 text-xs font-semibold text-text bg-secondary hover:bg-secondary-hover border border-border rounded-md transition shadow-sm inline-flex items-center gap-1.5"
+                        >
+                          Visualizar <ExternalLink size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void abrirRelatorio(pdf, true)}
+                          className="px-3 py-1.5 text-xs font-semibold text-text bg-secondary hover:bg-secondary-hover border border-border rounded-md transition shadow-sm inline-flex items-center gap-1.5"
+                        >
+                          Baixar <Download size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Detalhes */}
@@ -503,21 +973,11 @@ export default function OrdemServicoDetalhe() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex gap-3">
+              <div className="flex w-full flex-col items-end gap-2 sm:w-auto">
+                <div className="flex flex-wrap justify-end gap-3">
                   <Button variant="outline" size="lg" onClick={() => navigate(-1)}>
                     Voltar
                   </Button>
-                  {podeDecidirReview && (
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      disabled={atualizandoStatus}
-                      onClick={() => setConfirmarConclusao(true)}
-                    >
-                      Concluir O.S.
-                    </Button>
-                  )}
                 </div>
 
                 {erroStatus && (
@@ -527,103 +987,65 @@ export default function OrdemServicoDetalhe() {
                 )}
               </div>
             </div>
-
-            {/* Histórico da O.S. */}
             <section className="mt-8 w-full">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="bg-primary-muted text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-                    <History size={22} />
-                  </div>
+                  <div className="bg-primary-muted text-primary flex h-11 w-11 items-center justify-center rounded-full"><History size={22} /></div>
                   <h2 className="text-text m-0 text-xl font-bold">Histórico de alterações</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setHistoricoAberto(true)}
-                  className="text-primary hover:text-primary/80 inline-flex items-center gap-1 rounded-md bg-transparent px-2 py-1 text-sm font-semibold transition"
-                >
-                  Ver todas <span aria-hidden="true">&gt;</span>
-                </button>
+                <button type="button" onClick={() => setHistoricoAberto(true)} className="text-primary rounded-md bg-transparent px-2 py-1 text-sm font-semibold">Ver todas <span aria-hidden="true">&gt;</span></button>
               </div>
               <div className="space-y-3">
-                {erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p>
-                  : eventosPrevia.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p>
-                  : eventosPrevia.map((item) => (
-                  <CartaoHistorico
-                    key={item.historico_id}
-                    tipo={item.tipo_acao}
-                    titulo={tituloHistorico(item)}
-                    descricao={`Status: ${item.os_status}${item.nome_time ? ` · Equipe: ${item.nome_time}` : ""}${item.data_limite ? ` · Prazo: ${formatarData(item.data_limite)}` : ""}`}
-                    usuario={item.usuario_email ?? "E-mail não identificado"}
-                    data={dataHistorico(item.data_historico)}
-                  />
-                ))}
+                {erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p> : eventosPrevia.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p> : eventosPrevia.map((item) => <CartaoHistorico key={item.historico_id} item={item} />)}
               </div>
-              <PaginacaoHistorico
-                pagina={paginaHistorico}
-                totalPaginas={totalPaginasHistorico}
-                onMudarPagina={setPaginaHistorico}
-              />
+              <PaginacaoHistorico pagina={paginaHistorico} totalPaginas={totalPaginasHistorico} onMudarPagina={setPaginaHistorico} />
             </section>
           </section>
         )}
       </div>
 
       {historicoAberto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
-          onClick={() => setHistoricoAberto(false)}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="historico-modal-titulo"
-            className="border-border bg-bg text-text w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary-muted text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-                  <History size={22} />
-                </div>
-                <h2 id="historico-modal-titulo" className="text-text m-0 text-xl font-bold">
-                  Histórico de alterações
-                </h2>
-              </div>
-              <button
-                type="button"
-                aria-label="Fechar histórico"
-                onClick={() => setHistoricoAberto(false)}
-                className="text-text-muted hover:text-text cursor-pointer rounded bg-transparent p-1"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p>
-                : eventosModal.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p>
-                : eventosModal.map((item) => (
-                  <CartaoHistorico
-                    key={item.historico_id}
-                    tipo={item.tipo_acao}
-                    titulo={tituloHistorico(item)}
-                    descricao={`Status: ${item.os_status}${item.nome_time ? ` · Equipe: ${item.nome_time}` : ""}${item.data_limite ? ` · Prazo: ${formatarData(item.data_limite)}` : ""}`}
-                    usuario={item.usuario_email ?? "E-mail não identificado"}
-                    data={dataHistorico(item.data_historico)}
-                  />
-                ))}
-            </div>
-            <PaginacaoHistorico
-              pagina={paginaHistoricoModal}
-              totalPaginas={totalPaginasHistoricoModal}
-              onMudarPagina={setPaginaHistoricoModal}
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" onClick={() => setHistoricoAberto(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="historico-modal-titulo" className="border-border bg-bg text-text max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-6 flex items-center justify-between gap-4"><h2 id="historico-modal-titulo" className="text-text m-0 text-xl font-bold">Histórico de alterações</h2><button type="button" aria-label="Fechar histórico" onClick={() => setHistoricoAberto(false)} className="text-text-muted hover:text-text rounded bg-transparent p-1"><X size={20} /></button></div>
+            <div className="space-y-3">{erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p> : eventosModal.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p> : eventosModal.map((item) => <CartaoHistorico key={item.historico_id} item={item} />)}</div>
+            <PaginacaoHistorico pagina={paginaHistoricoModal} totalPaginas={totalPaginasHistoricoModal} onMudarPagina={setPaginaHistoricoModal} />
           </section>
         </div>
       )}
 
-      {/* MODAL DE EDIÇÃO DA O.S. (Fundo sólido/opaco garantido para Light e Dark) */}
-    {modalEdicaoAberto && (
+      {modalFeedbackResumo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div role="dialog" aria-modal="true" aria-labelledby="titulo-feedback-resumo" className="border-border bg-bg text-text w-full max-w-md rounded-xl border p-6 shadow-2xl">
+            <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-full ${modalFeedbackResumo.tipo === "success" ? "bg-primary-muted text-primary" : "bg-danger/10 text-danger"}`}>
+              {modalFeedbackResumo.tipo === "success" ? <ClipboardList size={22} aria-hidden="true" /> : <AlertTriangle size={22} aria-hidden="true" />}
+            </div>
+            <h2 id="titulo-feedback-resumo" className="text-text m-0 text-xl font-bold">{modalFeedbackResumo.tipo === "success" ? "Resumo salvo" : "Não foi possível salvar"}</h2>
+            <p className={`${modalFeedbackResumo.tipo === "success" ? "text-text-muted" : "text-danger"} mt-2 mb-0 text-sm leading-6`} role={modalFeedbackResumo.tipo === "error" ? "alert" : "status"}>{modalFeedbackResumo.mensagem}</p>
+            <div className="mt-6 flex justify-end">
+              <Button variant="primary" onClick={() => setModalFeedbackResumo(null)}>Entendi</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarAprovacao && (
+        <ModalConfirmacao
+          titulo="Aprovar verificação"
+          descricao="A O.S. voltará para a equipe responsável (Review) como aprovada. O líder do time registrará o resumo das atividades para concluí-la."
+          confirmar="Aprovar"
+          enviando={enviandoVerificacao}
+          erro={erroVerificacao}
+          onConfirmar={() => enviarVerificacao("aprovada")}
+          onCancelar={() => {
+            setConfirmarAprovacao(false);
+            setErroVerificacao(null);
+          }}
+        />
+      )}
+
+      {/* MODAL DE EDIÇÃO DA O.S. */}
+      {modalEdicaoAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="border-border bg-bg text-text w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8">
             <div className="mb-6 flex items-center justify-between">
@@ -646,7 +1068,6 @@ export default function OrdemServicoDetalhe() {
             )}
 
             <form onSubmit={handleSalvarEdicao} className="space-y-6">
-              {/* LINHA 1: Título e Prioridade */}
               <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-3">
                 <div className="md:col-span-2">
                   <Input
@@ -663,7 +1084,6 @@ export default function OrdemServicoDetalhe() {
                 <SeletorPrioridade value={prioridadeEdit} onChange={setPrioridadeEdit} />
               </div>
 
-              {/* LINHA 2: Time responsável e Data limite */}
               <div className="grid grid-cols-1 gap-x-7 gap-y-6 md:grid-cols-2">
                 <Select
                   id="edit-os-time"
@@ -693,7 +1113,6 @@ export default function OrdemServicoDetalhe() {
                 />
               </div>
 
-              {/* DESCRIÇÃO */}
               <div>
                 <label className="text-text mb-1.5 block text-sm font-semibold">
                   Descrição
@@ -708,12 +1127,10 @@ export default function OrdemServicoDetalhe() {
                 />
               </div>
 
-              {/* EQUIPAMENTOS E MATERIAIS */}
               <div>
                 <CampoEquipamentos value={equipamentosEdit} onChange={setEquipamentosEdit} />
               </div>
 
-              {/* BOTÕES DE AÇÃO DO MODAL */}
               <div className="mt-6 flex justify-end gap-3">
                 <Button
                   type="button"

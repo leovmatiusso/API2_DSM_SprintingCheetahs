@@ -3,7 +3,6 @@ import "@/style/Times.css";
 
 import { FormEvent, useEffect, useState } from "react";
 import {
-  Check,
   ClipboardList,
   MoreHorizontal,
   Plus,
@@ -55,7 +54,6 @@ export default function Times() {
 
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
-  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [nomeTime, setNomeTime] = useState("");
@@ -152,9 +150,6 @@ export default function Times() {
     try {
       await deleteTime(timeToDelete.id);
       setTimeToDelete(null);
-      setSelectedTimes((current) =>
-        current.filter((id) => id !== timeToDelete.id),
-      );
       setMessage("Time excluído com sucesso.");
       await load();
     } catch (e) {
@@ -195,31 +190,6 @@ export default function Times() {
     return matchesSearch && matchesDepartment;
   });
 
-  function toggleSelected(timeId: string) {
-    setSelectedTimes((current) =>
-      current.includes(timeId)
-        ? current.filter((id) => id !== timeId)
-        : [...current, timeId],
-    );
-  }
-
-  function toggleAllVisible() {
-    const visibleIds = filteredTimes.map((time) => time.id);
-    const allVisibleSelected = visibleIds.every((id) =>
-      selectedTimes.includes(id),
-    );
-
-    setSelectedTimes((current) =>
-      allVisibleSelected
-        ? current.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...current, ...visibleIds])],
-    );
-  }
-
-  const allVisibleSelected =
-    filteredTimes.length > 0 &&
-    filteredTimes.every((time) => selectedTimes.includes(time.id));
-
   if (mostrarTime) {
     return (
       <CadastroTimes
@@ -235,8 +205,8 @@ export default function Times() {
   return (
     <main className="page min-h-full p-5 md:p-8">
       <div className="mx-auto w-full max-w-[1320px]">
-        {/* Cabeçalho */}
-        <header className="mb-8 flex items-center justify-between gap-4">
+        {/* Cabeçalho (quebra linha no celular para o botão não estourar a tela) */}
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-primary-muted text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full">
               <UsersRound size={32} />
@@ -407,23 +377,6 @@ export default function Times() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleAllVisible}
-            className="bg-primary-muted text-text mb-2 flex min-h-12 w-full items-center gap-3 rounded-lg px-5 text-left text-sm font-semibold"
-          >
-            <span
-              className={`flex h-4 w-4 items-center justify-center rounded border ${
-                allVisibleSelected
-                  ? "border-primary bg-primary text-white"
-                  : "border-border bg-bg"
-              }`}
-            >
-              {allVisibleSelected && <Check size={13} />}
-            </span>
-            {selectedTimes.length} Selecionados
-          </button>
-
           {loading ? (
             <p className="text-text-muted px-5 py-4">Carregando times...</p>
           ) : filteredTimes.length === 0 ? (
@@ -435,30 +388,11 @@ export default function Times() {
           ) : (
             <div className="divide-border divide-y">
               {filteredTimes.map((time) => {
-                const selected = selectedTimes.includes(time.id);
-
                 return (
                   <div
                     key={time.id}
-                    className="grid grid-cols-[28px_40px_minmax(0,1fr)_36px] items-center gap-3 border-border px-3 py-4 sm:grid-cols-[28px_40px_minmax(130px,1.1fr)_minmax(120px,1fr)_minmax(150px,1.2fr)_minmax(110px,0.8fr)_36px] sm:gap-4"
+                    className="grid grid-cols-[40px_minmax(0,1fr)_36px] items-center gap-3 border-border px-3 py-4 sm:grid-cols-[40px_minmax(130px,1.1fr)_minmax(120px,1fr)_minmax(150px,1.2fr)_minmax(110px,0.8fr)_36px] sm:gap-4"
                   >
-                    <button
-                      type="button"
-                      onClick={() => toggleSelected(time.id)}
-                      aria-label={
-                        selected
-                          ? `Desmarcar ${time.nome_time}`
-                          : `Selecionar ${time.nome_time}`
-                      }
-                      className={`flex h-4 w-4 items-center justify-center rounded border ${
-                        selected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-bg"
-                      }`}
-                    >
-                      {selected && <Check size={13} />}
-                    </button>
-
                     <div className="bg-primary-muted text-primary flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold">
                       {getInitials(time.nome_time)}
                     </div>

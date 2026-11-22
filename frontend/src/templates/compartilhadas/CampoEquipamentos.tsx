@@ -21,6 +21,28 @@ const EQUIPAMENTOS_DISPONIVEIS = [
   "Sensor de movimento",
 ];
 
+// O banco guarda os nomes em minúsculas ("torre"); a lista usa "Torre".
+// Comparar sem diferenciar maiúsculas evita criar um segundo item em vez de somar.
+export function mesmoEquipamento(a: string, b: string): boolean {
+  return a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+}
+
+// Nome padronizado da lista (ex.: "torre" -> "Torre"); se não estiver na lista, mantém o recebido.
+export function nomeEquipamento(nome: string): string {
+  return EQUIPAMENTOS_DISPONIVEIS.find((item) => mesmoEquipamento(item, nome)) ?? nome;
+}
+
+// Adiciona um equipamento: se já existe, soma 1 na quantidade (1x, 2x, 3x...).
+export function somarEquipamento(lista: EquipamentoForm[], nome: string): EquipamentoForm[] {
+  const existente = lista.find((item) => mesmoEquipamento(item.nome, nome));
+  if (!existente) return [...lista, { nome: nomeEquipamento(nome), quantidade: 1 }];
+  return lista.map((item) =>
+    item === existente
+      ? { nome: nomeEquipamento(item.nome), quantidade: item.quantidade + 1 }
+      : item,
+  );
+}
+
 // Converte para o formato esperado pelo backend
 export function equipamentosParaPayload(equipamentos: EquipamentoForm[]) {
   return equipamentos.map(({ nome, quantidade }) => ({
@@ -46,15 +68,7 @@ export default function CampoEquipamentos({
   );
 
   function adicionar(nome: string) {
-    const existente = value.find((item) => item.nome === nome);
-
-    onChange(
-      existente
-        ? value.map((item) =>
-            item.nome === nome ? { ...item, quantidade: item.quantidade + 1 } : item,
-          )
-        : [...value, { nome, quantidade: 1 }],
-    );
+    onChange(somarEquipamento(value, nome));
     setBusca("");
     setAberto(false);
   }
@@ -105,7 +119,7 @@ export default function CampoEquipamentos({
               key={item.nome}
               className="bg-primary/15 text-primary flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
             >
-              {item.quantidade}x {item.nome}
+              {item.quantidade}x {nomeEquipamento(item.nome)}
               <button
                 type="button"
                 className="cursor-pointer"

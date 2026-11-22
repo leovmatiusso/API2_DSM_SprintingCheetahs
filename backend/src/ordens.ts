@@ -4,13 +4,17 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
-import { validarTransicaoOS } from "./os_fluxo.js";
+import { isTimeMonitoramento, validarTransicaoOS } from "./os_fluxo.js";
+import { buscarAprovacaoPendente } from "./os_resumo.js";
 import { PERFIS_DE_TIME, SELECT_OS, filtroVisibilidadeOS, mapOS, podeVerOS } from "./os_comum.js";
 import {
+  buildOSAguardandoVerificacaoMessage,
   buildOSCreatedNotificationMessage,
   buildOSCreatedNotificationTitle,
+  buildOSEncaminhadaMessage,
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
+  buildOSVerificacaoMessage,
   buildStatusNotificationMessage,
   createNotificationsForTime,
   shouldCreateStatusNotification,
@@ -26,10 +30,21 @@ const PERFIS_COM_ACESSO: Role[] = [
   "monitoramento",
 ];
 
+// O superusuário consulta, cria e edita O.S. em qualquer projeto/manutenção
+// e pode enviá-las de Review para verificação.
+const PERFIS_COM_SUPER: Role[] = [...PERFIS_COM_ACESSO, "superusuario"];
+
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
-const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review"] as const;
+const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review", "verificacao"] as const;
 type Prioridade = (typeof PRIORIDADES)[number];
 type StatusOS = (typeof STATUS_OS)[number];
+
+const configuredPdfMaxSizeMb = Number(process.env.PDF_REPORT_MAX_SIZE_MB ?? 10);
+const pdfMaxSizeMb =
+  Number.isFinite(configuredPdfMaxSizeMb) && configuredPdfMaxSizeMb > 0
+    ? configuredPdfMaxSizeMb
+    : 10;
+const pdfMaxSizeBytes = Math.floor(pdfMaxSizeMb * 1024 * 1024);
 
 type RequireRole = (...roles: Role[]) => RequestHandler;
 
@@ -52,7 +67,10 @@ function podeAcessarOSNoFluxo(
 ): boolean {
   return (
     podeVerOS(user, os) ||
-    ((os.os_status === "review" || os.os_status === "bloqueado") && isResponsavelDoTime(user, os))
+    ((os.os_status === "review" || os.os_status === "bloqueado" || os.os_status === "verificacao") &&
+      isResponsavelDoTime(user, os)) ||
+    // O monitoramento enxerga a O.S. de outro time apenas enquanto ela aguarda a sua verificação.
+    (os.os_status === "verificacao" && user.role === "monitoramento")
   );
 }
 
@@ -62,10 +80,69 @@ function dataValida(data: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === data;
 }
 
+export async function ensureOsReportSchema(): Promise<void> {
+  const [tables] = await pool.query<RowDataPacket[]>("SHOW TABLES LIKE 'anexo'");
+  if (!tables.length) throw new Error("A tabela anexo não existe no banco de dados.");
+
+  const [columns] = await pool.query<RowDataPacket[]>("SHOW COLUMNS FROM anexo LIKE 'id_usuario_envio'");
+  if (!columns.length) {
+    await pool.query("ALTER TABLE anexo ADD COLUMN id_usuario_envio INT NULL AFTER data_anexo");
+  }
+
+  const [indexes] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'anexo'
+        AND INDEX_NAME = 'idx_anexo_usuario_envio' LIMIT 1`,
+  );
+  if (!indexes.length) {
+    await pool.query("ALTER TABLE anexo ADD INDEX idx_anexo_usuario_envio (id_usuario_envio)");
+  }
+
+  const [constraints] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
+      WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'anexo'
+        AND CONSTRAINT_NAME = 'fk_anexo_usuario_envio' LIMIT 1`,
+  );
+  if (!constraints.length) {
+    await pool.query(
+      `ALTER TABLE anexo
+       ADD CONSTRAINT fk_anexo_usuario_envio
+       FOREIGN KEY (id_usuario_envio) REFERENCES usuarios(id_usuario)
+       ON DELETE SET NULL`,
+    );
+  }
+}
+
+export async function ensureOsVerificationSchema(): Promise<void> {
+  await pool.query(`
+    ALTER TABLE os
+      MODIFY COLUMN os_status ENUM(
+        'aberta', 'em andamento', 'concluida', 'teste',
+        'bloqueado', 'review', 'verificacao'
+      ) NOT NULL DEFAULT 'aberta'
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS os_verificacoes (
+      verificacao_id INT PRIMARY KEY AUTO_INCREMENT,
+      os_id INT NOT NULL,
+      resultado ENUM('aprovada', 'reprovada') NOT NULL,
+      justificativa TEXT NULL,
+      usuario_id INT NULL,
+      data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_os_verificacoes_os (os_id, data_criacao),
+      CONSTRAINT fk_verificacao_os FOREIGN KEY (os_id) REFERENCES os(os_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT fk_verificacao_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
+    ) ENGINE=InnoDB
+  `);
+}
+
 // Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
-//  projeto:    gestor e comercial (todos) | produção/software/implantação/monitoramento (só se o
+//  projeto:    gestor, comercial e superusuário (todos) | produção/software/implantação/monitoramento (só se o
 //              projeto tiver O.S. do seu time)
-//  manutenção: gestor e suporte (todas)   | produção/software/implantação/monitoramento (idem)
+//  manutenção: gestor, suporte e superusuário (todas) | produção/software/implantação/monitoramento (idem)
 async function podeCriarNaOrigem(
   user: User,
   tipo: "projeto" | "manutencao",
@@ -73,7 +150,10 @@ async function podeCriarNaOrigem(
 ): Promise<boolean> {
   const tabela = tipo === "projeto" ? "projetos" : "manutencoes";
   const coluna = tipo === "projeto" ? "projeto_id" : "manutencao_id";
-  const donos: Role[] = tipo === "projeto" ? ["gestor", "comercial"] : ["gestor", "suporte"];
+  const donos: Role[] =
+    tipo === "projeto"
+      ? ["gestor", "comercial", "superusuario"]
+      : ["gestor", "suporte", "superusuario"];
 
   if (donos.includes(user.role)) {
     const [rows] = await pool.execute<RowDataPacket[]>(
@@ -110,21 +190,210 @@ async function podeCriarNaOrigem(
 
 export function createOrdensRouter(requireRole: RequireRole): Router {
   const router = Router();
+  const requireAccessibleOS: RequestHandler = async (req, res, next) => {
+    const osId = String(req.params.osId);
+    if (!/^\d+$/.test(osId)) {
+      res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      return;
+    }
+
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT o.id_time_responsavel, o.projeto_id, o.manutencao_id, o.os_status,
+                t.responsavel_id AS time_responsavel_id
+           FROM os o
+           LEFT JOIN time t ON t.id_time = o.id_time_responsavel
+          WHERE o.os_id = ? LIMIT 1`,
+        [osId],
+      );
+      const os = rows[0];
+      const user = res.locals.user as User;
+      if (
+        !os ||
+        !podeAcessarOSNoFluxo(user, {
+          id_time_responsavel: os.id_time_responsavel as number | null,
+          projeto_id: os.projeto_id as number | null,
+          manutencao_id: os.manutencao_id as number | null,
+          os_status: os.os_status as string,
+          time_responsavel_id: os.time_responsavel_id as number | null,
+        })
+      ) {
+        res.status(404).json({ message: "Ordem de serviço não encontrada." });
+        return;
+      }
+      next();
+    } catch (error) {
+      console.error("Erro ao validar acesso à O.S.:", error);
+      res.status(500).json({ message: "Não foi possível validar o acesso à ordem de serviço." });
+    }
+  };
+
+  const parsePdfUpload: RequestHandler = (req, res, next) => {
+    void import("multer")
+      .then(({ default: multer }) => {
+        const upload = multer({
+          storage: multer.memoryStorage(),
+          limits: { fileSize: pdfMaxSizeBytes, files: 1 },
+        });
+        upload.single("arquivo")(req, res, (error: unknown) => {
+          if (error instanceof multer.MulterError) {
+            const tooLarge = error.code === "LIMIT_FILE_SIZE";
+            res.status(tooLarge ? 413 : 400).json({
+              message: tooLarge
+                ? `O PDF excede o limite de ${pdfMaxSizeMb} MB.`
+                : "Envie somente um arquivo no campo arquivo.",
+            });
+            return;
+          }
+          if (error) {
+            console.error("Erro ao processar upload de PDF:", error);
+            res.status(400).json({ message: "Não foi possível processar o arquivo enviado." });
+            return;
+          }
+          next();
+        });
+      })
+      .catch((error: unknown) => {
+        console.error("Dependência de upload PDF indisponível:", error);
+        res.status(503).json({
+          message: 'Dependência "multer" ausente. Execute "npm install --prefix backend" na raiz do workspace e reinicie o backend.',
+        });
+      });
+  };
+
+  router.get(
+    "/:osId/relatorios",
+    requireRole(...PERFIS_COM_SUPER),
+    requireAccessibleOS,
+    async (req, res) => {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT anexo_id, nome_anexo, anexo_tipo, anexo_tamanho,
+                  DATE_FORMAT(data_anexo, '%d/%m/%Y %H:%i') AS data_envio
+             FROM anexo
+            WHERE os_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+            ORDER BY data_anexo DESC, anexo_id DESC`,
+          [String(req.params.osId)],
+        );
+        return res.json({
+          relatorios: rows.map((row) => ({
+            id: String(row.anexo_id),
+            nome: row.nome_anexo as string,
+            tipo: row.anexo_tipo as string,
+            tamanho: Number(row.anexo_tamanho ?? 0),
+            data_envio: row.data_envio as string,
+          })),
+        });
+      } catch (error) {
+        console.error("Erro ao listar relatórios da O.S.:", error);
+        return res.status(500).json({ message: "Não foi possível listar os relatórios." });
+      }
+    },
+  );
+
+  router.post(
+    "/:osId/relatorios",
+    requireRole("monitoramento"),
+    requireAccessibleOS,
+    parsePdfUpload,
+    async (req, res) => {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "Selecione um arquivo PDF." });
+      }
+      if (
+        !file.originalname.toLowerCase().endsWith(".pdf") ||
+        !file.buffer.subarray(0, 1024).includes(Buffer.from("%PDF-"))
+      ) {
+        return res.status(400).json({ message: "O arquivo enviado não é um PDF válido." });
+      }
+
+      try {
+        const { PDFDocument } = await import("pdf-lib");
+        const pdf = await PDFDocument.load(file.buffer);
+        if (pdf.getPageCount() < 1) {
+          return res.status(400).json({ message: "O PDF precisa conter ao menos uma página." });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Cannot find package 'pdf-lib'")) {
+          console.error("Dependência de validação PDF indisponível:", error);
+          return res.status(503).json({
+            message: 'Dependência "pdf-lib" ausente. Execute "npm install --prefix backend" na raiz do workspace e reinicie o backend.',
+          });
+        }
+        return res.status(400).json({ message: "O arquivo enviado não é um PDF válido ou está corrompido." });
+      }
+
+      const nome = file.originalname.trim();
+      if (!nome || nome.length > 255) {
+        return res.status(400).json({ message: "O nome do arquivo deve ter até 255 caracteres." });
+      }
+
+      try {
+        const [result] = await pool.execute<ResultSetHeader>(
+          `INSERT INTO anexo
+            (os_id, id_usuario_envio, nome_anexo, anexo_tipo, anexo_tamanho,
+             manutencao_id, projeto_id, conteudo_arquivo)
+           VALUES (?, ?, ?, 'application/pdf', ?, NULL, NULL, ?)`,
+          [String(req.params.osId), (res.locals.user as User).id, nome, file.size, file.buffer],
+        );
+        return res.status(201).json({
+          message: "Relatório PDF anexado com sucesso.",
+          relatorio: { id: String(result.insertId), nome },
+        });
+      } catch (error) {
+        console.error("Erro ao salvar relatório da O.S.:", error);
+        return res.status(500).json({ message: "Não foi possível salvar o relatório no banco de dados." });
+      }
+    },
+  );
+
+  router.get(
+    "/:osId/relatorios/:relatorioId",
+    requireRole(...PERFIS_COM_SUPER),
+    requireAccessibleOS,
+    async (req, res) => {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT nome_anexo, conteudo_arquivo
+             FROM anexo
+            WHERE anexo_id = ? AND os_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+            LIMIT 1`,
+          [String(req.params.relatorioId), String(req.params.osId)],
+        );
+        const report = rows[0];
+        if (!report) return res.status(404).json({ message: "Relatório não encontrado." });
+
+        const nome = report.nome_anexo as string;
+        const disposition = req.query.download === "true" ? "attachment" : "inline";
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(nome)}`);
+        return res.send(report.conteudo_arquivo as Buffer);
+      } catch (error) {
+        console.error("Erro ao recuperar relatório da O.S.:", error);
+        return res.status(500).json({ message: "Não foi possível abrir o relatório." });
+      }
+    },
+  );
 
   // ---------------------------------------------------
   // Listagem (aba "Ordens disponíveis")
   // gestor: todas | comercial: as de projetos | suporte: as de manutenções
   // demais: apenas as direcionadas ao seu time
   // ---------------------------------------------------
-  router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+  router.get("/", requireRole(...PERFIS_COM_SUPER), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
       const filtro = filtroVisibilidadeOS(user);
+      const emVerificacao = user.role === "monitoramento" ? "OR o.os_status = 'verificacao'" : "";
       const [rows] = await pool.execute<RowDataPacket[]>(
         `${SELECT_OS}
           WHERE (${filtro.sql})
-             OR (o.os_status IN ('review', 'bloqueado') AND t.responsavel_id = ?)
+             OR (o.os_status IN ('review', 'bloqueado', 'verificacao') AND t.responsavel_id = ?)
+             ${emVerificacao}
           ORDER BY o.data_criacao DESC, o.os_id DESC`,
         [...filtro.params, Number(user.id)],
       );
@@ -139,7 +408,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   // Detalhe de uma O.S. (tela expandida)
   // ---------------------------------------------------
-  router.get("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:osId", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
 
@@ -164,8 +433,31 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           time_responsavel_id: os.time_responsavel_id as number | null,
         })
       ) {
+        // Depois da decisão, a O.S. sai da visão do monitoramento. O 410 permite à tela
+        // redirecionar com um aviso, em vez de mostrar erro (ex.: notificação antiga).
+        if (os && user.role === "monitoramento") {
+          const [decisoes] = await pool.execute<RowDataPacket[]>(
+            "SELECT 1 FROM os_verificacoes WHERE os_id = ? LIMIT 1",
+            [osId],
+          );
+          if (decisoes.length) {
+            return res.status(410).json({ message: "Esta O.S. já foi verificada." });
+          }
+        }
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
+
+      const [verificacoes] = await pool.execute<RowDataPacket[]>(
+        `SELECT v.resultado, v.justificativa, u.nome AS usuario_nome,
+                DATE_FORMAT(v.data_criacao, '%d/%m/%Y %H:%i') AS data_verificacao
+           FROM os_verificacoes v
+           LEFT JOIN usuarios u ON u.id_usuario = v.usuario_id
+          WHERE v.os_id = ?
+          ORDER BY v.data_criacao DESC, v.verificacao_id DESC
+          LIMIT 1`,
+        [os.os_id],
+      );
+      const ultimaVerificacao = verificacoes[0];
 
       const [equipamentos] = await pool.execute<RowDataPacket[]>(
         `SELECT e.nome_equipamento, i.quantidade
@@ -226,6 +518,22 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         ordem: {
           ...mapOS(os),
           pedido_pai: pedidoPai,
+          ultima_reprovacao:
+            ultimaVerificacao?.resultado === "reprovada"
+              ? {
+                  justificativa: (ultimaVerificacao.justificativa as string | null) ?? "",
+                  usuario: (ultimaVerificacao.usuario_nome as string | null) ?? null,
+                  data: ultimaVerificacao.data_verificacao as string,
+                }
+              : null,
+          // Aprovada pelo monitoramento e aguardando o líder registrar o resumo para concluir.
+          aprovada_verificacao:
+            os.os_status === "review" && ultimaVerificacao?.resultado === "aprovada"
+              ? {
+                  usuario: (ultimaVerificacao.usuario_nome as string | null) ?? null,
+                  data: ultimaVerificacao.data_verificacao as string,
+                }
+              : null,
           equipamentos: equipamentos.map((e) => ({
             nome: e.nome_equipamento as string,
             quantidade: Number(e.quantidade),
@@ -284,7 +592,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   // Download de anexo (mesma regra de acesso)
   // ---------------------------------------------------
-  router.get("/:osId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:osId/anexos/:anexoId", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -331,7 +639,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // Criação - somente a partir de um projeto OU de uma manutenção existente
   // (botão "Nova O.S." na tela expandida do projeto/manutenção)
   // ---------------------------------------------------
-  router.post("/", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.post("/", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
 
     const {
@@ -397,11 +705,14 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       }
 
       const [times] = await pool.execute<RowDataPacket[]>(
-        "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+        "SELECT id_time, departamento FROM time WHERE id_time = ? LIMIT 1",
         [String(id_time_responsavel)],
       );
       const time = times[0];
       if (!time) return res.status(400).json({ message: "Time responsável inválido." });
+      if (isTimeMonitoramento(time.departamento as string | null)) {
+        return res.status(400).json({ message: "Uma O.S. não pode ser atribuída ao time de monitoramento." });
+      }
 
       const itens = new Map<string, { nome: string; quantidade: number }>();
       for (const equipamento of equipamentos) {
@@ -523,7 +834,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
   // ---------------------------------------------------
   // Edição dos dados de uma O.S. existente
   // ---------------------------------------------------
-  router.put("/:osId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.put("/:osId", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
     const {
@@ -596,17 +907,25 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
 
+      if (os.os_status === "verificacao") {
+        return res.status(409).json({ message: "A O.S. não pode ser editada durante a verificação." });
+      }
+
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
 
         const [times] = await connection.execute<RowDataPacket[]>(
-          "SELECT id_time FROM time WHERE id_time = ? LIMIT 1",
+          "SELECT id_time, nome_time, departamento FROM time WHERE id_time = ? LIMIT 1",
           [String(id_time_responsavel)],
         );
         if (!times[0]) {
           await connection.rollback();
           return res.status(400).json({ message: "Time responsável inválido." });
+        }
+        if (isTimeMonitoramento(times[0].departamento as string | null)) {
+          await connection.rollback();
+          return res.status(400).json({ message: "Uma O.S. não pode ser atribuída ao time de monitoramento." });
         }
 
         await connection.execute(
@@ -643,8 +962,27 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           }
         }
 
+        // Ao mudar de time, a O.S. sai do time atual e o novo time é avisado.
+        const encaminhada = String(os.id_time_responsavel ?? "") !== String(id_time_responsavel);
+        if (encaminhada) {
+          await createNotificationsForTime(connection, {
+            titulo: "O.S. encaminhada para o seu time",
+            mensagem: buildOSEncaminhadaMessage(
+              osId,
+              os_titulo.trim(),
+              (os.nome_time as string | null) ?? "sem time",
+              times[0].nome_time as string,
+              user.name,
+            ),
+            timeId: String(id_time_responsavel),
+            osId,
+            usuarioOrigemId: user.id,
+            incluirResponsavelDoTimeComoDestino: true,
+          });
+        }
+
         await connection.commit();
-        return res.json({ message: "Ordem de serviço atualizada com sucesso." });
+        return res.json({ message: "Ordem de serviço atualizada com sucesso.", encaminhada });
       } catch (error) {
         await connection.rollback();
         throw error;
@@ -657,7 +995,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     }
   });
 
-  router.put("/:osId/status", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.put("/:osId/status", requireRole(...PERFIS_COM_SUPER), async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
     const statusInput = req.body?.os_status ?? req.body?.status;
@@ -673,7 +1011,7 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
-          o.projeto_id, o.manutencao_id, t.nome_time,
+          o.projeto_id, o.manutencao_id, t.nome_time, t.departamento,
           t.responsavel_id AS time_responsavel_id
            FROM os o
            LEFT JOIN time t ON t.id_time = o.id_time_responsavel
@@ -706,7 +1044,17 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           message: "Cadastre o responsável do time antes de enviar esta O.S. para Review.",
         });
       }
-      const erroTransicao = validarTransicaoOS(statusAtual, statusNovo as StatusOS, responsavelDoTime);
+      // Aprovada na verificação, a O.S. só sai de Review quando o líder registra o resumo.
+      const aprovadaNaVerificacao =
+        statusAtual === "review" ? Boolean(await buscarAprovacaoPendente(osId)) : false;
+      const erroTransicao = validarTransicaoOS(
+        statusAtual,
+        statusNovo as StatusOS,
+        responsavelDoTime,
+        isTimeMonitoramento(os.departamento as string | null),
+        user.role === "superusuario",
+        aprovadaNaVerificacao,
+      );
       if (erroTransicao) {
         return res.status(erroTransicao.status).json({ message: erroTransicao.message });
       }
@@ -754,9 +1102,27 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           );
         }
 
+        // Ao entrar em verificação, a equipe de monitoramento também é avisada.
+        let usuariosMonitoramento: number[] = [];
+        if (statusNovo === "verificacao") {
+          mensagem = buildOSAguardandoVerificacaoMessage(
+            os.os_id as number,
+            os.os_titulo as string,
+            (os.nome_time as string | undefined) ?? "time responsável",
+            user.name,
+          );
+          const [monitoramento] = await connection.execute<RowDataPacket[]>(
+            "SELECT id_usuario FROM usuarios WHERE cargo = 'monitoramento' AND ativo = TRUE",
+          );
+          usuariosMonitoramento = monitoramento.map((row) => Number(row.id_usuario));
+        }
+
         await createNotificationsForTime(connection, {
+          usuariosDestinoExtras: usuariosMonitoramento,
           titulo:
-            statusNovo === "review"
+            statusNovo === "verificacao"
+              ? "O.S. aguardando verificação"
+              : statusNovo === "review"
               ? "O.S. aguardando revisão"
               : statusNovo === "teste" && statusAtual === "bloqueado"
                 ? "O.S. liberada para Teste"
@@ -785,6 +1151,125 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
     } catch (error) {
       console.error("Erro ao atualizar status da O.S.:", error);
       return res.status(500).json({ message: "Não foi possível atualizar o status da ordem de serviço." });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Verificação pelo monitoramento
+  // aprovada: devolve a O.S. ao time responsável em Review (aprovada); o líder registra o
+  //           resumo das atividades e é isso que conclui a O.S. (ver os_resumo.ts)
+  // reprovada: bloqueia e devolve ao time responsável.
+  // A O.S. nunca muda de time: o time responsável continua sendo o que a executou.
+  // ---------------------------------------------------
+  router.post("/:osId/verificacao", requireRole("monitoramento"), async (req, res) => {
+    const user = res.locals.user as User;
+    const osId = String(req.params.osId);
+    const { resultado, justificativa } = (req.body ?? {}) as {
+      resultado?: unknown;
+      justificativa?: unknown;
+    };
+
+    if (!/^\d+$/.test(osId)) {
+      return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+    }
+    if (resultado !== "aprovada" && resultado !== "reprovada") {
+      return res.status(400).json({ message: "Informe se a verificação foi aprovada ou reprovada." });
+    }
+
+    const motivo = typeof justificativa === "string" ? justificativa.trim() : "";
+    if (resultado === "reprovada" && !motivo) {
+      return res.status(400).json({ message: "O motivo do bloqueio é obrigatório" });
+    }
+    if (motivo.length > 5000) {
+      return res.status(400).json({ message: "O motivo pode ter até 5000 caracteres." });
+    }
+
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
+                m.responsavel_id AS manutencao_responsavel_id,
+                COALESCE(p.vendedor_id, p.responsavel_id) AS projeto_responsavel_id
+           FROM os o
+           LEFT JOIN manutencoes m ON m.manutencao_id = o.manutencao_id
+           LEFT JOIN projetos p ON p.projeto_id = o.projeto_id
+          WHERE o.os_id = ?
+          LIMIT 1`,
+        [osId],
+      );
+
+      const os = rows[0];
+      if (!os) {
+        return res.status(404).json({ message: "Ordem de serviço não encontrada." });
+      }
+      if (os.os_status !== "verificacao") {
+        return res.status(409).json({ message: "Esta O.S. já foi verificada." });
+      }
+
+      const statusNovo = resultado === "aprovada" ? "review" : "bloqueado";
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        // A condição de status evita duas decisões simultâneas sobre a mesma O.S.
+        const [updateResult] = await connection.execute<ResultSetHeader>(
+          "UPDATE os SET os_status = ? WHERE os_id = ? AND os_status = 'verificacao'",
+          [statusNovo, osId],
+        );
+        if (!updateResult.affectedRows) {
+          await connection.rollback();
+          return res.status(409).json({ message: "Esta O.S. já foi verificada." });
+        }
+
+        await connection.execute(
+          `INSERT INTO os_verificacoes (os_id, resultado, justificativa, usuario_id)
+           VALUES (?, ?, ?, ?)`,
+          [osId, resultado, resultado === "reprovada" ? motivo : null, user.id],
+        );
+
+        const [eventRows] = await connection.execute<RowDataPacket[]>(
+          "SELECT DATE_FORMAT(CURRENT_TIMESTAMP, '%d/%m/%Y %H:%i:%s') AS data_evento",
+        );
+
+        await createNotificationsForTime(connection, {
+          titulo: resultado === "aprovada" ? "O.S. aprovada na verificação" : buildOSStatusNotificationTitle("bloqueado"),
+          mensagem: buildOSVerificacaoMessage(
+            os.os_id as number,
+            os.os_titulo as string,
+            resultado,
+            user.name,
+            (eventRows[0]?.data_evento as string | undefined) ?? "data não informada",
+            motivo,
+          ),
+          timeId: os.id_time_responsavel as number | null,
+          osId: os.os_id as number,
+          usuarioOrigemId: user.id,
+          incluirResponsavelDoTimeComoDestino: true,
+          // Responsáveis pelo projeto/manutenção só são avisados do bloqueio; da conclusão, eles
+          // são avisados quando o líder registra o resumo.
+          usuariosDestinoExtras:
+            resultado === "reprovada"
+              ? [os.manutencao_responsavel_id as number | null, os.projeto_responsavel_id as number | null]
+              : [],
+        });
+
+        await connection.commit();
+        return res.json({
+          message:
+            resultado === "aprovada"
+              ? "Verificação aprovada. A O.S. voltou para a equipe responsável, que deve registrar o resumo para concluí-la."
+              : "Verificação reprovada. A O.S. voltou para a equipe responsável.",
+          os: { id: String(os.os_id), status: statusNovo },
+        });
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error("Erro ao registrar verificação da O.S.:", error);
+      return res.status(500).json({ message: "Não foi possível registrar a verificação da ordem de serviço." });
     }
   });
 
