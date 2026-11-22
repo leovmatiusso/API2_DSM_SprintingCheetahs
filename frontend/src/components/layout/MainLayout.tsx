@@ -8,7 +8,7 @@ export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="bg-bg-secondary text-text flex min-h-screen">
+    <div className="bg-bg-secondary text-text flex min-h-screen @container">
       <Sidebar onCollapsedChange={setSidebarCollapsed} />
 
       {/* min-w-0: o conteúdo nunca alarga a página além da tela (no celular isso cortava a sidebar). */}

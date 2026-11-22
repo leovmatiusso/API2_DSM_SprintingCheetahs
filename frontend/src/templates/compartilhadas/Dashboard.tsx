@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { getCurrentUser } from "@/auth";
+import { Card } from "@/components/ui/Card";
 import { getDashboardResumo } from "@/api";
 import type { DashboardResumo } from "@/api";
 
@@ -39,7 +40,7 @@ export default function Dashboard() {
         {erro && <p className="text-danger mb-4 text-sm" role="alert">{erro}</p>}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-10">
-          {user.role !== "suporte" && <section className={`card ${perfilComum ? "lg:col-span-5 lg:col-start-1" : "lg:col-span-6"}`}>
+          {user.role !== "suporte" && <Card className={`${perfilComum ? "lg:col-span-5 lg:col-start-1" : "lg:col-span-6"}`}>
             <div className="mb-6">
               <p className="text-text text-2xl">Projetos em andamento</p>
               <strong className="text-text mt-1 block text-4xl font-bold">{resumo?.projetos ?? "—"}</strong>
@@ -93,10 +94,10 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-          </section>}
+          </Card>}
 
           {(user.role === "comercial" || perfilComum) && (
-            <section className={`card ${perfilComum ? "lg:col-span-10 lg:col-start-1 lg:row-start-2" : "lg:col-span-4"}`}>
+            <Card className={`${perfilComum ? "lg:col-span-10 lg:col-start-1 lg:row-start-2" : "lg:col-span-4"}`}>
               <div className="mb-6"><p className="text-text text-2xl">OS por status</p></div>
               <div className="space-y-5">
                 {[
@@ -120,11 +121,11 @@ export default function Dashboard() {
                     <strong className="text-sm">{item.value ?? "—"}</strong></div>
                   </div>)}
               </div>
-            </section>
+            </Card>
           )}
 
           {user.role === "suporte" && (
-            <section className="card lg:col-span-4">
+            <Card className="lg:col-span-4">
               <div className="mb-6"><p className="text-text text-2xl font-bold">Minhas O.S. por equipe</p></div>
               <div className="space-y-5">
                 {[
@@ -150,10 +151,10 @@ export default function Dashboard() {
                   </div>
                 </div>)}
               </div>
-            </section>
+            </Card>
           )}
 
-          {user.role !== "comercial" && <section className={`card ${perfilComum ? "lg:col-span-5 lg:col-start-6 lg:row-start-1" : user.role === "suporte" ? "lg:col-span-6 lg:col-start-1 lg:row-start-1" : "lg:col-span-6"}`}>
+          {user.role !== "comercial" && <Card className={`${perfilComum ? "lg:col-span-5 lg:col-start-6 lg:row-start-1" : user.role === "suporte" ? "lg:col-span-6 lg:col-start-1 lg:row-start-1" : "lg:col-span-6"}`}>
             <div className="mb-6">
               <p className="text-text text-2xl">Manutenções em andamento</p>
               <strong className="text-text mt-1 block text-4xl font-bold">{resumo?.manutencoes.total ?? "—"}</strong>
@@ -202,7 +203,7 @@ export default function Dashboard() {
                 </div>
               </Link>
             </div>
-          </section>}
+          </Card>}
 
         </div>
       </section>
