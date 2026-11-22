@@ -5,16 +5,6 @@ const API_URL = (
   import.meta.env.VITE_API_URL ?? "http://localhost:3001/api"
 ).replace(/\/$/, "");
 
-export class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-  }
-}
-
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -52,7 +42,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(data?.message ?? "Erro na requisição.", response.status);
+    throw new Error(data?.message ?? "Erro na requisição.");
   }
 
   return data as T;
@@ -245,12 +235,6 @@ export function getNotificacoesNaoLidas(): Promise<{ total: number }> {
 export function marcarNotificacaoComoLida(id: string): Promise<{ message: string }> {
   return request<{ message: string }>(`/notificacoes/${encodeURIComponent(id)}/ler`, {
     method: "PATCH",
-  });
-}
-
-export function apagarNotificacao(id: string): Promise<{ message: string }> {
-  return request<{ message: string }>(`/notificacoes/${encodeURIComponent(id)}`, {
-    method: "DELETE",
   });
 }
 
@@ -513,8 +497,7 @@ export type OrdemStatus =
   | "concluida"
   | "teste"
   | "bloqueado"
-  | "review"
-  | "verificacao";
+  | "review";
 
 export interface OrdemServicoResumo {
   id: string;
@@ -542,11 +525,6 @@ export interface OrdemServicoDetalhe extends OrdemServicoResumo {
   pedido_pai: PedidoPai | null;
   equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
-  ultima_reprovacao: {
-    justificativa: string;
-    usuario: string | null;
-    data: string;
-  } | null;
 }
 
 export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
@@ -606,17 +584,6 @@ export function atualizarStatusOS(
   return request(`/os/${encodeURIComponent(id)}/status`, {
     method: "PUT",
     body: JSON.stringify({ os_status: status }),
-  });
-}
-
-export function registrarVerificacaoOS(
-  id: number | string,
-  resultado: "aprovada" | "reprovada",
-  justificativa?: string,
-): Promise<{ message: string; os: { id: string; status: OrdemStatus } }> {
-  return request(`/os/${encodeURIComponent(id)}/verificacao`, {
-    method: "POST",
-    body: JSON.stringify({ resultado, justificativa }),
   });
 }
 

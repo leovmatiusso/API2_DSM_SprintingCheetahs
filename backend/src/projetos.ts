@@ -5,8 +5,6 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS } from "./os_comum.js";
-import { isCriticalPriority, shouldNotifyCriticalPriority } from "./os_fluxo.js";
-import { createCriticalRelatedNotification, createEntityUpdateNotifications, type EntityUpdate } from "./notificacoes.js";
 
 const PERFIS_VEEM_TODOS: Role[] = ["gestor", "comercial"];
 const PERFIS_COM_ACESSO: Role[] = [
@@ -34,10 +32,7 @@ function filtroProjeto(user: User): { sql: string; params: number[] } {
   if (user.time_id === null) return { sql: "1 = 0", params: [] };
   return {
     sql: `EXISTS (SELECT 1 FROM os ox
-                   WHERE (ox.projeto_id = p.projeto_id OR ox.manutencao_id IN (
-                     SELECT m.manutencao_id FROM manutencoes m WHERE m.projeto_id = p.projeto_id
-                   ))
-                     AND ox.id_time_responsavel = ?)`,
+                   WHERE ox.projeto_id = p.projeto_id AND ox.id_time_responsavel = ?)`,
     params: [Number(user.time_id)],
   };
 }
@@ -116,40 +111,16 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
     }
 
     try {
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-        const [rows] = await connection.execute<RowDataPacket[]>(
-          "SELECT projeto_id, nome, status FROM projetos WHERE projeto_id = ? FOR UPDATE",
+      const [result] = await pool.execute<ResultSetHeader>(
+        "UPDATE projetos SET status = ? WHERE projeto_id = ?",
+        [status, projetoId],
+      );
+      if (result.affectedRows === 0) {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
           [projetoId],
         );
-        const projeto = rows[0];
-        if (!projeto) {
-          await connection.rollback();
-          return res.status(404).json({ message: "Projeto não encontrado." });
-        }
-
-        const statusAnterior = String(projeto.status ?? "aberto");
-        if (statusAnterior !== status) {
-          await connection.execute(
-            "UPDATE projetos SET status = ? WHERE projeto_id = ?",
-            [status, projetoId],
-          );
-          await createEntityUpdateNotifications(connection, {
-            entidade: "projeto",
-            entidadeId: projetoId,
-            entidadeNome: String(projeto.nome),
-            usuarioOrigemId: (res.locals.user as User).id,
-            usuarioNome: (res.locals.user as User).name,
-            atualizacoes: [{ descricao: `Status alterado de "${statusAnterior}" para "${status}".` }],
-          });
-        }
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
+        if (!rows[0]) return res.status(404).json({ message: "Projeto não encontrado." });
       }
       return res.json({ message: "Status do projeto atualizado com sucesso." });
     } catch (error) {
@@ -412,16 +383,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
         );
         const projetoId = result.insertId;
 
-        if (isCriticalPriority(prioridadeFinal)) {
-          await createCriticalRelatedNotification(connection, {
-            entidade: "projeto",
-            evento: "criada",
-            entidadeId: projetoId,
-            entidadeNome: nome.trim(),
-            usuarioOrigemId: user.id,
-          });
-        }
-
         for (const item of itens.values()) {
           await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
           const [rows] = await connection.execute<RowDataPacket[]>(
@@ -464,7 +425,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
   });
 
   router.put("/:projetoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
-    const user = res.locals.user as User;
     const projetoId = String(req.params.projetoId);
 
     if (!/^\d+$/.test(projetoId)) {
@@ -485,11 +445,7 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
 
     try {
       const [existentes] = await pool.execute<RowDataPacket[]>(
-        `SELECT projeto_id, nome, prioridade, tipo_sistema, descricao, responsavel_id, vendedor_id,
-          DATE_FORMAT(data_assinatura_contrato, '%Y-%m-%d') AS data_assinatura_contrato,
-          DATE_FORMAT(data_vencimento_contrato, '%Y-%m-%d') AS data_vencimento_contrato,
-          DATE_FORMAT(data_limite, '%Y-%m-%d') AS data_limite
-           FROM projetos WHERE projeto_id = ? LIMIT 1`,
+        "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
         [projetoId],
       );
       if (!existentes[0]) {
@@ -498,7 +454,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
 
       const sets: string[] = [];
       const valores: (string | number | null)[] = [];
-      let novoVendedorId: number | null = null;
 
       if (nome !== undefined) {
         if (typeof nome !== "string" || !nome.trim() || nome.trim().length > 150) {
@@ -570,51 +525,8 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
         if (!vendedores.length || !Boolean(vendedores[0].ativo)) {
           return res.status(400).json({ message: "Vendedor não encontrado ou inativo." });
         }
-        novoVendedorId = Number(vendedores[0].id_usuario);
         sets.push("responsavel_id = ?", "vendedor_id = ?");
-        valores.push(novoVendedorId, novoVendedorId);
-      }
-
-      const projetoAtual = existentes[0];
-      const atualizacoes: EntityUpdate[] = [];
-      if (typeof nome === "string" && nome.trim() !== String(projetoAtual.nome ?? "")) {
-        atualizacoes.push({ descricao: `Nome alterado para "${nome.trim()}".` });
-      }
-      if (
-        typeof data_assinatura_contrato === "string" &&
-        data_assinatura_contrato !== String(projetoAtual.data_assinatura_contrato ?? "")
-      ) {
-        atualizacoes.push({ descricao: `Data de assinatura alterada para ${data_assinatura_contrato}.` });
-      }
-      if (
-        typeof data_vencimento_contrato === "string" &&
-        data_vencimento_contrato !== String(projetoAtual.data_vencimento_contrato ?? "")
-      ) {
-        atualizacoes.push({ descricao: `Data de vencimento do contrato alterada para ${data_vencimento_contrato}.` });
-      }
-      if (typeof data_limite === "string" && data_limite !== String(projetoAtual.data_limite ?? "")) {
-        atualizacoes.push({ descricao: `Prazo alterado para ${data_limite}.` });
-      }
-      if (typeof tipo_sistema === "string" && tipo_sistema.trim() !== String(projetoAtual.tipo_sistema ?? "")) {
-        atualizacoes.push({ descricao: `Tipo de sistema alterado para "${tipo_sistema.trim()}".` });
-      }
-      if (typeof prioridade === "string" && prioridade.toLowerCase() !== String(projetoAtual.prioridade ?? "").toLowerCase()) {
-        const prioridadeNova = prioridade.toLowerCase();
-        const prioridadeCritica = shouldNotifyCriticalPriority(String(projetoAtual.prioridade ?? ""), prioridadeNova);
-        atualizacoes.push({
-          titulo: prioridadeCritica ? "Prioridade do projeto elevada para crítica" : undefined,
-          descricao: `Prioridade alterada de "${String(projetoAtual.prioridade ?? "não informada")}" para "${prioridadeNova}".`,
-        });
-      }
-      if (typeof descricao === "string" && descricao.trim() !== String(projetoAtual.descricao ?? "").trim()) {
-        atualizacoes.push({ descricao: "Descrição do projeto atualizada." });
-      }
-      if (
-        vendedor_nome !== undefined &&
-        novoVendedorId !== null &&
-        Number(projetoAtual.responsavel_id) !== novoVendedorId
-      ) {
-        atualizacoes.push({ descricao: "Vendedor responsável atualizado." });
+        valores.push(Number(vendedores[0].id_usuario), Number(vendedores[0].id_usuario));
       }
 
       const connection = await pool.getConnection();
@@ -622,11 +534,10 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
         await connection.beginTransaction();
 
         if (sets.length > 0) {
-          const [updateResult] = await connection.execute<ResultSetHeader>(
-            `UPDATE projetos SET ${sets.join(", ")} WHERE projeto_id = ?`,
-            [...valores, projetoId],
-          );
-          if (!updateResult.affectedRows) atualizacoes.length = 0;
+          await connection.execute(`UPDATE projetos SET ${sets.join(", ")} WHERE projeto_id = ?`, [
+            ...valores,
+            projetoId,
+          ]);
         }
 
         if (equipamentos !== undefined) {
@@ -649,23 +560,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
             else itens.set(key, { nome, quantidade });
           }
 
-          const [equipamentosAtuais] = await connection.execute<RowDataPacket[]>(
-            `SELECT LOWER(e.nome_equipamento) AS nome, i.quantidade
-               FROM item_equipamento_projeto i
-               JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
-              WHERE i.projeto_id = ?`,
-            [projetoId],
-          );
-          const itensAtuais = new Map(
-            equipamentosAtuais.map((item) => [String(item.nome), Number(item.quantidade)]),
-          );
-          const equipamentosMudaram =
-            itensAtuais.size !== itens.size ||
-            [...itens].some(([nome, item]) => itensAtuais.get(nome) !== item.quantidade);
-          if (equipamentosMudaram) {
-            atualizacoes.push({ descricao: "Equipamentos do projeto atualizados." });
-          }
-
           await connection.execute("DELETE FROM item_equipamento_projeto WHERE projeto_id = ?", [projetoId]);
           for (const item of itens.values()) {
             await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
@@ -681,15 +575,6 @@ router.get("/vendedores", requireRole(...PERFIS_COM_ACESSO), async (_req, res) =
             );
           }
         }
-
-        await createEntityUpdateNotifications(connection, {
-          entidade: "projeto",
-          entidadeId: projetoId,
-          entidadeNome: typeof nome === "string" ? nome.trim() : String(projetoAtual.nome),
-          usuarioOrigemId: user.id,
-          usuarioNome: user.name,
-          atualizacoes,
-        });
 
         await connection.commit();
       } catch (error) {
