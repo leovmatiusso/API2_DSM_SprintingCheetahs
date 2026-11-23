@@ -1,7 +1,6 @@
 import {
   ClipboardList,
   Home,
-  Settings,
   Users,
   User,
   ListTodo,
@@ -74,9 +73,4 @@ export const menuItems: SidebarItemConfig[] = [
     roles: ["suporte"],
   },
 
-  {
-    label: "Minha conta",
-    icon: Settings,
-    path: "/minha-conta",
-  },
 ];

@@ -7,11 +7,13 @@ import NotificationMessage from "@/components/ui/Notification/NotificationMessag
 import { useNotifications } from "@/components/ui/Notification/useNotifications";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import getInitials from "@/utils/getInitials";
+import MinhaConta from "@/templates/compartilhadas/MinhaConta";
 
 export default function Header() {
   const navigate = useNavigate();
   const [notificacaoAberto, setNotificacaoAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
+  const [contaAberta, setContaAberta] = useState(false);
   const user = getCurrentUser();
   const { notifications, hasUnread, markAsRead, markAllAsRead, deleteNotification, refresh } = useNotifications(user?.id ?? null);
 
@@ -160,7 +162,10 @@ export default function Header() {
           <DropdownMenu className="mt-2 w-44">
             <button
               type="button"
-              onClick={() => navigate("/minha-conta")}
+              onClick={() => {
+                setMenuAberto(false);
+                setContaAberta(true);
+              }}
               className="hover:bg-bg-tertiary w-full rounded-md px-3 py-2 text-left text-sm transition"
             >
               Minha conta
@@ -176,6 +181,7 @@ export default function Header() {
           </DropdownMenu>
         )}
       </div>
+      {contaAberta && <MinhaConta modal onClose={() => setContaAberta(false)} />}
     </header>
   );
 }
