@@ -3,7 +3,7 @@ import cors from "cors";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import { pool } from "./db.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 
 

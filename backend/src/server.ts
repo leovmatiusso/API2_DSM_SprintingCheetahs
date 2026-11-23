@@ -34,7 +34,7 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT ?? 3001);
 
-const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:5174")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -243,7 +243,7 @@ function requireRole(...roles: Role[]) {
         return res.status(401).json({ message: "Sessão inválida ou expirada." });
       }
 
-      if (!roles.includes(user.role)) {
+      if (user.role !== "superusuario" && !roles.includes(user.role)) {
         return res.status(403).json({ message: "Você não possui permissão para esta operação." });
       }
 

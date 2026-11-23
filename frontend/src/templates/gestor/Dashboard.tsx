@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { ClipboardList, Clock, CheckCircle2, CircleAlert } from "lucide-react";
-
 import { getCurrentUser } from "@/auth";
-import { Card, MiniCard, MetricCard } from "@/components/ui/Card";
 import { getDashboardResumo } from "@/api";
 import type { DashboardResumo } from "@/api";
 
@@ -42,23 +39,30 @@ function Indicadores({
 
   return (
     <section className="border-border bg-bg min-w-0 rounded-xl border p-5 sm:p-7">
-      <h2 className="mb-1 flex items-baseline gap-3 font-bold sm:text-xl">
+      <h2 className="mb-1 flex items-baseline gap-3 font-semibold sm:text-xl"> {titulo}:
         <strong className="text-2xl font-bold">{total}</strong>
-        {titulo}
       </h2>
-      <h3 className="text-text-muted mb-2 font-medium">OS por status</h3>
+
+      <h3 className="text-text-muted mb-1 font-medium">OS por status</h3>
+      
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
         {status.map((item) => (
-          <div className={`flex min-h-8 items-center justify-between gap-3 rounded-md border border-border px-4 sm:min-h-8 sm:px-5 ${cores[item.color]}`} key={item.key}>
+          <div
+            className={`flex items-center justify-between gap-3 rounded-lg border border-border px-4 min-h-8 sm:px-5 ${cores[item.color]}`}
+            key={item.key}
+          >
             <span className="font-medium">{item.label}</span>
             <strong className="text-xl">{valores[item.key] ?? 0}</strong>
           </div>
         ))}
       </div>
-      <h3 className="text-text-muted mb-2  font-medium">OS por prioridade</h3>
+      <h3 className="text-text-muted mb-1 font-medium">OS por prioridade</h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
         {prioridades.map((item) => (
-          <div className={`flex min-h-8 items-center justify-between gap-3 rounded-md border border-border px-4 sm:min-h-8 sm:px-5 ${cores[item.color]}`} key={item.label}>
+          <div
+            className={`flex min-h-8 items-center justify-between gap-3 rounded-lg border border-border px-4 sm:px-5 ${cores[item.color]}`}
+            key={item.label}
+          >
             <span className="font-medium">{item.label}</span>
             <strong className="text-xl">{valorPrioridade(item.key)}</strong>
           </div>

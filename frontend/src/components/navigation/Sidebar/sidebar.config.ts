@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   ClipboardList,
   Home,
   Settings,
@@ -65,13 +64,6 @@ export const menuItems: SidebarItemConfig[] = [
     icon: CirclePlus,
     path: "/os/nova-manutencao-suporte",
     roles: ["suporte"],
-  },
-
-  {
-    label: "Relatórios",
-    icon: BarChart3,
-    path: "/relatorios",
-    roles: ["gestor"],
   },
 
   {

@@ -13,6 +13,8 @@ import {
 } from "./osEstilos";
 import SeletorStatusProjeto from "./SeletorStatusProjeto";
 import AlternarVisualizacao, { useModoVisualizacao } from "./AlternarVisualizacao";
+import FiltroItens from "./FiltroItens";
+import { STATUS_PROJETO_LABEL } from "./osEstilos";
 
 export default function Projetos() {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ export default function Projetos() {
   const podeAlterarStatus = getCurrentUser()?.role !== "suporte";
 
   const [projetos, setProjetos] = useState<ProjetoResumo[]>([]);
+  const [filtros, setFiltros] = useState({ status: "", prioridade: "" });
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -59,7 +62,7 @@ export default function Projetos() {
               <ClipboardList size={32} />
             </div>
             <div>
-              <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
+              <h1 className="text-text m-0 text-2xl leading-tight font-bold">
                 Projetos
               </h1>
               <p className="text-text-muted mt-1 mb-0 text-sm md:text-base">
@@ -67,7 +70,10 @@ export default function Projetos() {
               </p>
             </div>
           </div>
-          <AlternarVisualizacao modo={modo} onChange={setModo} />
+          <div className="flex items-center gap-2">
+            <FiltroItens status={filtros.status} prioridade={filtros.prioridade} opcoesStatus={Object.entries(STATUS_PROJETO_LABEL).map(([value, label]) => ({ value, label }))} aoMudar={(campo, valor) => setFiltros((atuais) => ({ ...atuais, [campo]: valor }))} />
+            <AlternarVisualizacao modo={modo} onChange={setModo} />
+          </div>
         </section>
 
         {carregando ? (
@@ -76,7 +82,7 @@ export default function Projetos() {
           <p className="text-danger text-sm" role="alert">
             {erro}
           </p>
-        ) : projetos.length === 0 ? (
+        ) : projetos.filter((p) => (!filtros.status || p.status === filtros.status) && (!filtros.prioridade || p.prioridade === filtros.prioridade)).length === 0 ? (
           <p className="text-text-muted text-sm">Nenhum projeto disponível.</p>
         ) : (
           <div
@@ -86,7 +92,7 @@ export default function Projetos() {
                 : "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
             }
           >
-            {projetos.map((projeto) => {
+            {projetos.filter((p) => (!filtros.status || p.status === filtros.status) && (!filtros.prioridade || p.prioridade === filtros.prioridade)).map((projeto) => {
               const abrir = () => navigate(`/projetos-totais/${projeto.id}`);
               const prioridade = (
                 <Selo classe={PRIORIDADE_CLASSE[projeto.prioridade]}>

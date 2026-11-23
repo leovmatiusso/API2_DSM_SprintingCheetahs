@@ -6,7 +6,7 @@ import Dashboard from "@/templates/gestor/Dashboard";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export const gestorRoutes = (
-  <Route element={<ProtectedRoute allowedRoles={["gestor"]} />}>
+  <Route element={<ProtectedRoute allowedRoles={["gestor", "superusuario"]} />}>
     <Route path="/dashboard/gestor" element={<Dashboard />} />
 
     <Route
@@ -36,23 +36,6 @@ export const gestorRoutes = (
             "Consultar usuários de cada equipe",
             "Acompanhar O.S. atribuídas",
             "Organizar responsáveis",
-          ]}
-        />
-      }
-    />
-
-    <Route
-      path="/relatorios"
-      element={
-        <Modulo
-          title="Relatórios"
-          description="Área para indicadores e relatórios gerenciais das O.S."
-          items={[
-            "O.S. por status",
-            "O.S. por equipe",
-            "O.S. atrasadas",
-            "Materiais e serviços lançados",
-            "Totais por período e setor",
           ]}
         />
       }

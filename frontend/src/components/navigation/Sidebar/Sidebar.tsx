@@ -56,7 +56,7 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
   const visibleItems = menuItems
     .filter(
       (item) =>
-        (!item.roles || (user && item.roles.includes(user.role))) &&
+        (!item.roles || (user && (item.roles.includes(user.role) || user.role === "superusuario"))) &&
         (!item.excludedRoles || !user || !item.excludedRoles.includes(user.role)),
     )
     .map((item) => {
@@ -65,6 +65,10 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
           ...item,
           path: "/dashboard/gestor",
         };
+      }
+
+      if (item.label === "Dashboard" && user?.role === "superusuario") {
+        return { ...item, path: "/dashboard/superusuario" };
       }
 
       return item;

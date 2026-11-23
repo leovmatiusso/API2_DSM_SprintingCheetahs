@@ -12,12 +12,15 @@ import {
 } from "./osEstilos";
 import SeletorStatusManutencao from "./SeletorStatusManutencao";
 import AlternarVisualizacao, { useModoVisualizacao } from "./AlternarVisualizacao";
+import FiltroItens from "./FiltroItens";
+import { STATUS_ITEM_LABEL } from "./osEstilos";
 
 export default function Manutencoes() {
   const navigate = useNavigate();
   const [modo, setModo] = useModoVisualizacao("manutencoes");
 
   const [manutencoes, setManutencoes] = useState<ManutencaoResumo[]>([]);
+  const [filtros, setFiltros] = useState({ status: "", prioridade: "" });
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -56,7 +59,7 @@ export default function Manutencoes() {
               <Wrench size={32} />
             </div>
             <div>
-              <h1 className="text-text m-0 text-2xl leading-tight font-bold md:text-[32px]">
+              <h1 className="text-text m-0 text-2xl leading-tight font-bold">
                 Manutenções
               </h1>
               <p className="text-text-muted mt-1 mb-0 text-sm md:text-base">
@@ -64,7 +67,10 @@ export default function Manutencoes() {
               </p>
             </div>
           </div>
-          <AlternarVisualizacao modo={modo} onChange={setModo} />
+          <div className="flex items-center gap-2">
+            <FiltroItens status={filtros.status} prioridade={filtros.prioridade} opcoesStatus={Object.entries(STATUS_ITEM_LABEL).map(([value, label]) => ({ value, label }))} aoMudar={(campo, valor) => setFiltros((atuais) => ({ ...atuais, [campo]: valor }))} />
+            <AlternarVisualizacao modo={modo} onChange={setModo} />
+          </div>
         </section>
 
         {carregando ? (
@@ -73,7 +79,7 @@ export default function Manutencoes() {
           <p className="text-danger text-sm" role="alert">
             {erro}
           </p>
-        ) : manutencoes.length === 0 ? (
+        ) : manutencoes.filter((m) => (!filtros.status || m.status === filtros.status) && (!filtros.prioridade || m.prioridade === filtros.prioridade)).length === 0 ? (
           <p className="text-text-muted text-sm">Nenhuma manutenção disponível.</p>
         ) : (
           <div
@@ -83,7 +89,7 @@ export default function Manutencoes() {
                 : "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
             }
           >
-            {manutencoes.map((manutencao) => {
+            {manutencoes.filter((m) => (!filtros.status || m.status === filtros.status) && (!filtros.prioridade || m.prioridade === filtros.prioridade)).map((manutencao) => {
               const titulo = manutencao.resumo || "Resumo";
               const abrir = () => navigate(`/manutencoes-totais/${manutencao.id}`);
               const prioridade = (

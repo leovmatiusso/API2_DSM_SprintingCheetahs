@@ -418,15 +418,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
             usuarioOrigemId: user.id,
           });
         }
-          const equipamentoId = rows[0]?.equipamento_id;
-          if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-          await connection.execute(
-            `INSERT INTO item_equipamento_manutencao (manutencao_id, equipamento_id, quantidade)
-             VALUES (?, ?, ?)`,
-            [manutencaoId, equipamentoId, item.quantidade],
-          );
-        }
-
         for (const arquivo of arquivos) {
           await connection.execute(
             `INSERT INTO anexo
