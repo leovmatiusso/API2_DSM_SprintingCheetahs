@@ -21,6 +21,7 @@ export const STATUS_LABEL: Record<OrdemServicoResumo["status"], string> = {
   teste: "Teste",
   bloqueado: "Bloqueado",
   review: "Review",
+  verificacao: "Verificação",
 };
 
 export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
@@ -30,7 +31,12 @@ export const STATUS_CLASSE: Record<OrdemServicoResumo["status"], string> = {
   teste: "bg-orange-300/30 text-orange-950",
   bloqueado: "bg-danger-alt text-danger-alt-inverted",
   review: "bg-warning-alt text-warning-alt-inverted",
+  verificacao: "bg-laranja-alt text-laranja-alt-inverted",
 };
+
+export function isTimeMonitoramento(departamento: string | null | undefined): boolean {
+  return departamento?.trim().toLocaleLowerCase("pt-BR").includes("monitoramento") ?? false;
+}
 
 // Status de projeto/manutenção (derivado das O.S.)
 export const STATUS_ITEM_LABEL: Record<StatusItem, string> = {

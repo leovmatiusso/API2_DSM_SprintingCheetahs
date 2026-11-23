@@ -832,6 +832,7 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       id_time_responsavel: rows[0].id_time_responsavel as number | null,
       projeto_id: rows[0].projeto_id as number | null,
       manutencao_id: rows[0].manutencao_id as number | null,
+      os_status: rows[0].os_status as string,
     });
     if (!podeAcessar && !(rows[0].os_status === "review" && responsavelDoTime)) {
       return res.status(404).json({ message: "Ordem de serviço não encontrada." });

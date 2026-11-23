@@ -7,11 +7,14 @@ import { getCurrentUser } from "@/auth";
 
 import OrdemTicket, { CabecalhoListaOS } from "./OrdemTicket";
 import AlternarVisualizacao, { useModoVisualizacao } from "./AlternarVisualizacao";
+import FiltrosOS, { FILTROS_VAZIOS, aplicarFiltros } from "./FiltrosOS";
+import type { FiltrosOrdens } from "./FiltrosOS";
 
 export default function OrdensServico() {
   const currentUser = getCurrentUser();
   const [modo, setModo] = useModoVisualizacao("ordens-disponiveis");
   const [ordens, setOrdens] = useState<OrdemServicoResumo[]>([]);
+  const [filtros, setFiltros] = useState<FiltrosOrdens>(FILTROS_VAZIOS);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -41,13 +44,22 @@ export default function OrdensServico() {
     };
   }, []);
 
-  const ordensParaRevisar = ordens.filter(
+  const ordensFiltradas = aplicarFiltros(ordens, filtros);
+  const ordensParaRevisar = ordensFiltradas.filter(
     (os) =>
       os.status === "review" &&
       (os.time?.responsavel_id === currentUser?.id || currentUser?.role === "superusuario"),
   );
-  const idsEmRevisao = new Set(ordensParaRevisar.map((os) => os.id));
-  const outrasOrdens = ordens.filter((os) => !idsEmRevisao.has(os.id));
+  const ordensParaVerificar = ordensFiltradas.filter(
+    (os) =>
+      os.status === "verificacao" &&
+      (currentUser?.role === "monitoramento" || currentUser?.role === "superusuario"),
+  );
+  const idsEmRevisao = new Set([
+    ...ordensParaRevisar.map((os) => os.id),
+    ...ordensParaVerificar.map((os) => os.id),
+  ]);
+  const outrasOrdens = ordensFiltradas.filter((os) => !idsEmRevisao.has(os.id));
 
   async function recarregarOrdens() {
     try {
@@ -96,7 +108,10 @@ export default function OrdensServico() {
               </p>
             </div>
           </div>
-          <AlternarVisualizacao modo={modo} onChange={setModo} />
+          <div className="flex flex-wrap items-center gap-2">
+            <FiltrosOS ordens={ordens} filtros={filtros} onChange={setFiltros} />
+            <AlternarVisualizacao modo={modo} onChange={setModo} />
+          </div>
         </section>
 
         {carregando ? (
@@ -107,6 +122,10 @@ export default function OrdensServico() {
           </p>
         ) : ordens.length === 0 ? (
           <p className="text-text-muted text-sm">Nenhuma ordem de serviço disponível.</p>
+        ) : ordensFiltradas.length === 0 ? (
+          <p className="text-text-muted text-sm">
+            Nenhuma ordem de serviço encontrada com os filtros selecionados.
+          </p>
         ) : (
           <div className="space-y-9">
             {ordensParaVerificar.length > 0 && (

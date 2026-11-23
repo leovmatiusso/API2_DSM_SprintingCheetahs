@@ -12,7 +12,10 @@ import {
   buildOSCreatedNotificationTitle,
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
+  buildOSAguardandoVerificacaoMessage,
+  buildOSVerificacaoMessage,
   buildStatusNotificationMessage,
+  createOSChangeNotifications,
   createNotificationsForTime,
   shouldCreateStatusNotification,
 } from "./notificacoes.js";
@@ -32,7 +35,7 @@ const PERFIS_COM_ACESSO: Role[] = [
 const PERFIS_COM_SUPER: Role[] = [...PERFIS_COM_ACESSO, "superusuario"];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
-const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review"] as const;
+const STATUS_OS = ["aberta", "em andamento", "concluida", "teste", "bloqueado", "review", "verificacao"] as const;
 type Prioridade = (typeof PRIORIDADES)[number];
 type StatusOS = (typeof STATUS_OS)[number];
 
@@ -68,7 +71,7 @@ function podeAcessarOSNoFluxo(
   },
 ): boolean {
   return (
-    podeVerOS(user, os) ||
+    podeVerOS(user, { ...os, os_status: os.os_status }) ||
     ((os.os_status === "review" || os.os_status === "bloqueado") && isResponsavelDoTime(user, os))
   );
 }
@@ -468,6 +471,20 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           ORDER BY anexo_id`,
         [os.os_id],
       );
+
+      const [verificacoes] = await pool.execute<RowDataPacket[]>(
+        `SELECT v.resultado,
+                v.justificativa,
+                u.nome AS usuario_nome,
+                DATE_FORMAT(v.data_criacao, '%d/%m/%Y %H:%i') AS data_verificacao
+           FROM os_verificacoes v
+           LEFT JOIN usuarios u ON u.id_usuario = v.usuario_id
+          WHERE v.os_id = ?
+          ORDER BY v.data_criacao DESC, v.verificacao_id DESC
+          LIMIT 1`,
+        [os.os_id],
+      );
+      const ultimaVerificacao = verificacoes[0] ?? null;
 
       // Pedido pai (projeto ou manutenção de onde a O.S. foi criada)
       let pedidoPai: {
@@ -897,6 +914,18 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         return res.status(404).json({ message: "Ordem de serviço não encontrada." });
       }
 
+      const podeAlterarTimeResponsavel = ["comercial", "suporte", "gestor", "superusuario"].includes(
+        user.role,
+      );
+      if (
+        !podeAlterarTimeResponsavel &&
+        String(id_time_responsavel) !== String(os.id_time_responsavel)
+      ) {
+        return res.status(403).json({
+          message: "Somente Comercial, Suporte, Gestor ou Administrador podem alterar o time responsável.",
+        });
+      }
+
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
@@ -1016,14 +1045,24 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         statusAtual === "review" && statusNovo !== "verificacao"
           ? Boolean(await buscarAprovacaoPendente(osId))
           : false;
-      const erroTransicao = validarTransicaoOS(
-        statusAtual,
-        statusNovo as StatusOS,
-        responsavelDoTime,
-        isTimeMonitoramento(os.departamento as string | null),
-        user.role === "superusuario",
-        aprovadaNaVerificacao,
-      );
+      const suporteGerenciandoManutencao = user.role === "suporte" && os.manutencao_id !== null;
+      const fluxoStatusOSSuporte =
+        suporteGerenciandoManutencao &&
+        statusAtual !== "concluida" &&
+        statusAtual !== "verificacao" &&
+        statusNovo !== "concluida" &&
+        statusNovo !== "verificacao" &&
+        !aprovadaNaVerificacao;
+      const erroTransicao = fluxoStatusOSSuporte
+        ? null
+        : validarTransicaoOS(
+            statusAtual,
+            statusNovo as StatusOS,
+            responsavelDoTime,
+            isTimeMonitoramento(os.departamento as string | null),
+            user.role === "superusuario",
+            aprovadaNaVerificacao,
+          );
       if (erroTransicao) {
         return res.status(erroTransicao.status).json({ message: erroTransicao.message });
       }

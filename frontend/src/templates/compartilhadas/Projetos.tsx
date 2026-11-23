@@ -19,7 +19,7 @@ import { STATUS_PROJETO_LABEL } from "./osEstilos";
 export default function Projetos() {
   const navigate = useNavigate();
   const [modo, setModo] = useModoVisualizacao("projetos");
-  // Todos que veem projetos mudam o status; a opção "Concluído" é limitada no seletor.
+  // Mantém a permissão de status existente para todos que já acessam projetos.
   const podeAlterarStatus = getCurrentUser()?.role !== "suporte";
 
   const [projetos, setProjetos] = useState<ProjetoResumo[]>([]);

@@ -117,8 +117,14 @@ export default function Times() {
     setEditing(time);
     setNomeTime(time.nome_time);
     setDepartamento(time.departamento);
-    setResponsavelId(time.responsavel_id ?? "");
-    setPessoasVinculadas(time.pessoasVinculadas.map((user) => user.id));
+    const responsavelAtual = time.responsavel_id ?? "";
+    setResponsavelId(responsavelAtual);
+    setPessoasVinculadas([
+      ...new Set([
+        ...time.pessoasVinculadas.map((user) => user.id),
+        ...(responsavelAtual ? [responsavelAtual] : []),
+      ]),
+    ]);
     setError("");
     setMessage("");
     setOpenMenu(null);
@@ -137,7 +143,15 @@ export default function Times() {
     setPessoasVinculadas([...pessoasVinculadas, id]);
   }
 
+  function definirResponsavel(id: string) {
+    setResponsavelId(id);
+    if (id && !pessoasVinculadas.includes(id)) {
+      setPessoasVinculadas((atuais) => [...atuais, id]);
+    }
+  }
+
   function removerPessoa(id: string) {
+    if (id === responsavelId) return;
     setPessoasVinculadas(pessoasVinculadas.filter((item) => item !== id));
   }
 
@@ -225,7 +239,7 @@ export default function Times() {
           <Select
             label="Pessoa responsável"
             value={responsavelId}
-            onChange={(e) => setResponsavelId(e.target.value)}
+            onChange={(e) => definirResponsavel(e.target.value)}
             required
           >
             <option value="">Selecione um usuário</option>
@@ -260,14 +274,19 @@ export default function Times() {
                   className="bg-primary-muted text-primary flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
                 >
                   {user.name}
-                  <button
-                    type="button"
-                    onClick={() => removerPessoa(id)}
-                    aria-label={`Remover ${user.name}`}
-                    className="font-bold"
-                  >
-                    ×
-                  </button>
+                  {id === responsavelId && (
+                    <span className="text-text-muted border-border border-l pl-2 text-xs">Responsável</span>
+                  )}
+                  {id !== responsavelId && (
+                    <button
+                      type="button"
+                      onClick={() => removerPessoa(id)}
+                      aria-label={`Remover ${user.name} do time`}
+                      className="hover:bg-primary/10 rounded-full p-0.5"
+                    >
+                      ×
+                    </button>
+                  )}
                 </span>
               );
             })}

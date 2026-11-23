@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { UsersRound } from "lucide-react";
+import { UsersRound, X } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -97,7 +97,15 @@ export default function CadastroTimes({
     setPessoasVinculadas([...pessoasVinculadas, id]);
   }
 
+  function definirResponsavel(id: string) {
+    setResponsavelId(id);
+    if (id && !pessoasVinculadas.includes(id)) {
+      setPessoasVinculadas((atuais) => [...atuais, id]);
+    }
+  }
+
   function removerPessoa(id: string) {
+    if (id === responsavelId) return;
     setPessoasVinculadas(pessoasVinculadas.filter((item) => item !== id));
   }
 
@@ -123,7 +131,7 @@ export default function CadastroTimes({
     }
 
     if (!departamento) {
-      setError("Selecione a equipe relacionada.");
+      setError("Selecione o departamento relacionado.");
 
       return;
     }
@@ -139,7 +147,7 @@ export default function CadastroTimes({
         nome_time: nomeTime.trim(),
         departamento,
         responsavel_id: responsavelId,
-        usuarios_ids: pessoasVinculadas,
+        usuarios_ids: [...new Set([...pessoasVinculadas, responsavelId])],
       });
 
       setNomeTime("");
@@ -172,8 +180,7 @@ export default function CadastroTimes({
         </header>
 
         <Card className="content flex flex-col gap-5">
-
-        <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
+        <form className="col-span-full grid grid-cols-1 gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
           <Input
             label="Nome do time"
             value={nomeTime}
@@ -185,10 +192,10 @@ export default function CadastroTimes({
             value={departamento}
             onChange={(e) => setDepartamento(e.target.value)}
             required
-            label="Equipe relacionada"
+            label="Departamento relacionado"
           >
             <option value="" hidden>
-              Selecione uma equipe
+              Selecione um departamento
             </option>
             {equipes.map((equipe) => (
               <option key={equipe.value} value={equipe.value}>
@@ -199,7 +206,7 @@ export default function CadastroTimes({
 
           <Select
             value={responsavelId}
-            onChange={(e) => setResponsavelId(e.target.value)}
+            onChange={(e) => definirResponsavel(e.target.value)}
             required
             label="Pessoa responsável"
             disabled={loadingUsers}
@@ -216,9 +223,8 @@ export default function CadastroTimes({
 
           <div>
             <Select
-              value={responsavelId}
+              value=""
               onChange={(e) => adicionarPessoa(e.target.value)}
-              required
               label="Pessoas vinculadas"
               disabled={loadingUsers}
             >
@@ -235,9 +241,9 @@ export default function CadastroTimes({
                 ))}
             </Select>
 
-            <div className="linked-users">
+            <div className="mt-2 flex min-h-7 flex-wrap gap-2">
               {pessoasVinculadas.length === 0 ? (
-                <span className="muted">Nenhuma pessoa vinculada.</span>
+                <span className="text-text-muted text-sm">Nenhuma pessoa vinculada.</span>
               ) : (
                 pessoasVinculadas.map((id) => {
                   const user = getUser(id);
@@ -247,20 +253,32 @@ export default function CadastroTimes({
                   }
 
                   return (
-                    <div className="linked-user" key={id}>
-                      <span>{user.name}</span>
-
-                      <button type="button" onClick={() => removerPessoa(id)}>
-                        Remover
-                      </button>
-                    </div>
+                    <span
+                      className="bg-primary-muted text-primary inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
+                      key={id}
+                    >
+                      {user.name}
+                      {id === responsavelId && (
+                        <span className="text-text-muted border-border border-l pl-2 text-xs">Responsável</span>
+                      )}
+                      {id !== responsavelId && (
+                        <button
+                          type="button"
+                          onClick={() => removerPessoa(id)}
+                          aria-label={`Remover ${user.name} do time`}
+                          className="hover:bg-primary/10 rounded-full p-0.5"
+                        >
+                          <X size={14} aria-hidden="true" />
+                        </button>
+                      )}
+                    </span>
                   );
                 })
               )}
             </div>
           </div>
 
-          <div className="nav-actions">
+          <div className="nav-actions flex flex-wrap gap-3 md:col-span-2">
             <Button type="submit" variant="primary" size="lg">
               Cadastrar
             </Button>

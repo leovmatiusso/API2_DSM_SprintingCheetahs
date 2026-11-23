@@ -5,6 +5,13 @@ const API_URL = (
   import.meta.env.VITE_API_URL ?? "http://localhost:3001/api"
 ).replace(/\/$/, "");
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -42,7 +49,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new Error(data?.message ?? "Erro na requisição.");
+    throw new ApiError(data?.message ?? "Erro na requisição.", response.status);
   }
 
   return data as T;
@@ -583,7 +590,8 @@ export type OrdemStatus =
   | "concluida"
   | "teste"
   | "bloqueado"
-  | "review";
+  | "review"
+  | "verificacao";
 
 export interface OrdemServicoResumo {
   id: string;

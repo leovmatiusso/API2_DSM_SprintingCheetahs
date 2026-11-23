@@ -259,7 +259,7 @@ CREATE TABLE notificacoes (
     notificacao_id INT PRIMARY KEY AUTO_INCREMENT,
     titulo VARCHAR(150) NOT NULL,
     mensagem VARCHAR(200) NOT NULL,
-    time_id INT NOT NULL,
+    time_id INT NULL,
     os_id INT NULL,
     usuario_origem_id INT NULL,
     data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

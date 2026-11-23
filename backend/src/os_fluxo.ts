@@ -4,7 +4,8 @@ export type StatusOSFluxo =
   | "teste"
   | "review"
   | "bloqueado"
-  | "concluida";
+  | "concluida"
+  | "verificacao";
 
 export type ErroTransicaoOS = { status: 400 | 403 | 409; message: string };
 

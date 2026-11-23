@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ListFilter, X } from "lucide-react";
 
 import type { OrdemServicoResumo } from "@/api";
 import SeletorPrioridade, { type PrioridadeValor } from "./SeletorPrioridade";
 import SeletorDepartamento from "./SeletorDepartamento";
 import SelectFiltro from "./SelectFiltro";
+import FecharSelectAoClicarFora from "./FecharSelectAoClicarFora";
 
 import { PRIORIDADE_LABEL, STATUS_LABEL } from "./osEstilos";
 
@@ -80,19 +81,17 @@ export default function FiltrosOS({
     ...new Set(ordens.map((os) => os.departamento).filter((d): d is string => Boolean(d))),
   ].sort();
 
+  const fecharPainel = useCallback(() => setAberto(false), []);
+
+  FecharSelectAoClicarFora(containerRef, aberto, fecharPainel);
+
   useEffect(() => {
     if (!aberto) return;
-    function fecharFora(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node))
-        setAberto(false);
-    }
     function fecharEsc(event: KeyboardEvent) {
       if (event.key === "Escape") setAberto(false);
     }
-    document.addEventListener("mousedown", fecharFora);
     document.addEventListener("keydown", fecharEsc);
     return () => {
-      document.removeEventListener("mousedown", fecharFora);
       document.removeEventListener("keydown", fecharEsc);
     };
   }, [aberto]);

@@ -473,7 +473,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         return res.status(404).json({ message: "Manutenção não encontrada." });
       }
 
-      // Somente gestor, superusuário e suporte concluem a manutenção; os demais mudam para os outros estados.
+      // Somente suporte, gestor e superusuário podem concluir a manutenção.
       if (
         typeof status_manutencao === "string" &&
         status_manutencao.toLowerCase() === "concluida" &&
@@ -564,6 +564,10 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
           valores.push(Number(novoProjeto));
         }
       }
+
+      const atualizacoes: EntityUpdate[] = sets.length
+        ? [{ descricao: "As informações da manutenção foram atualizadas." }]
+        : [];
 
 
       const connection = await pool.getConnection();

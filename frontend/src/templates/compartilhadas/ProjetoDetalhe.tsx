@@ -34,8 +34,8 @@ const TIPOS_SISTEMA = ["Sistema de Torres", "Sistema de Embarcação", "Sistema 
 export default function ProjetoDetalhe() {
   const { projetoId } = useParams<{ projetoId: string }>();
   const navigate = useNavigate();
-  // Todos que veem projetos mudam o status; a opção "Concluído" é limitada no seletor.
-  const podeAlterarStatus = getCurrentUser()?.role !== "suporte";
+  const role = getCurrentUser()?.role;
+  const podeAlterarStatus = role !== "suporte";
 
   const [projeto, setProjeto] = useState<Projeto | null>(null);
   const [carregando, setCarregando] = useState(true);

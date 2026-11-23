@@ -71,6 +71,13 @@ export function filtroVisibilidadeOS(user: User): { sql: string; params: number[
   if (user.role === "gestor" || user.role === "superusuario") return { sql: "1 = 1", params: [] };
   if (user.role === "comercial") return { sql: "o.projeto_id IS NOT NULL", params: [] };
   if (user.role === "suporte") return { sql: "o.manutencao_id IS NOT NULL", params: [] };
+  if (user.role === "monitoramento") {
+    if (user.time_id === null) return { sql: "o.os_status = 'verificacao'", params: [] };
+    return {
+      sql: "(o.os_status = 'verificacao' OR o.id_time_responsavel = ?)",
+      params: [Number(user.time_id)],
+    };
+  }
   if (user.time_id === null) return { sql: "1 = 0", params: [] };
   return { sql: "o.id_time_responsavel = ?", params: [Number(user.time_id)] };
 }
@@ -78,11 +85,17 @@ export function filtroVisibilidadeOS(user: User): { sql: string; params: number[
 // Mesma regra do filtro acima, para uma O.S. já carregada.
 export function podeVerOS(
   user: User,
-  os: { id_time_responsavel: number | null; projeto_id: number | null; manutencao_id: number | null },
+  os: {
+    id_time_responsavel: number | null;
+    projeto_id: number | null;
+    manutencao_id: number | null;
+    os_status?: string | null;
+  },
 ): boolean {
   if (user.role === "gestor" || user.role === "superusuario") return true;
   if (user.role === "comercial") return os.projeto_id !== null;
   if (user.role === "suporte") return os.manutencao_id !== null;
+  if (user.role === "monitoramento" && os.os_status === "verificacao") return true;
   if (os.id_time_responsavel === null || user.time_id === null) return false;
   return String(os.id_time_responsavel) === String(user.time_id);
 }

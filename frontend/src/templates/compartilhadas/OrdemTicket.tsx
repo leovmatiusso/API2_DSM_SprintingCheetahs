@@ -87,6 +87,7 @@ export default function OrdemTicket({
       responsavelDoTime={responsavelDoTime}
       timeMonitoramento={isTimeMonitoramento(os.departamento)}
       superusuario={currentUser?.role === "superusuario"}
+      suporteManutencao={currentUser?.role === "suporte" && os.manutencao_id !== null}
       disabled={salvando}
       onChange={alterarStatus}
     />

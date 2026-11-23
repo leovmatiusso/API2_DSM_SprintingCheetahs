@@ -86,52 +86,33 @@ export default function Header() {
                             navigate(`/os/disponiveis/${notification.osId}`);
                           }
                         }}
-                        className={`border-border cursor-pointer flex w-full relative items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
+                        className={`border-border flex w-full cursor-pointer items-center gap-4 border-b px-4 py-4 text-left transition-colors last:border-b-0 ${notification.read ? "bg-bg hover:bg-bg-tertiary" : "bg-primary/10 hover:bg-primary/15"}`}
                       >
                         <div
                           className="flex size-12 shrink-0 items-center justify-center rounded-full"
-                          style={{ color: color, backgroundColor: `${color}20`  }}
+                          style={{ color, backgroundColor: `${color}20` }}
                         >
-                          <div
-                            className="flex size-12 shrink-0 items-center justify-center rounded-full"
-                            style={{ color: color, backgroundColor: `${color}20` }}
-                          >
-                            <Icon className="size-7" strokeWidth={1.7} />
+                          <Icon className="size-7" strokeWidth={1.7} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold">
+                              {notification.title}
+                            </p>
+                            {!notification.read && (
+                              <span className="bg-primary size-2 shrink-0 rounded-full" />
+                            )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold">
-                                {notification.title}
-                              </p>
-                              {!notification.read && (
-                                <span className={`size-2 shrink-0 rounded-full ${isCritical ? "bg-[#E24056]" : "bg-primary"}`} />
-                              )}
-                              {isCritical && (
-                                <span className="flex min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded bg-[#E24056] px-1.5 py-1 text-[9px] leading-none font-extrabold text-white">
-                                  CRÍTICA
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-1 max-h-10 overflow-hidden text-xs font-medium transition-[max-height] duration-300 ease-in-out group-hover/notification:max-h-[60vh] group-hover/notification:overflow-y-auto group-focus-within/notification:max-h-[60vh] group-focus-within/notification:overflow-y-auto [@media(hover:none)]:max-h-none">
-                              <p className="text-text/70 line-clamp-2 wrap-break-word group-hover/notification:line-clamp-none group-focus-within/notification:line-clamp-none [@media(hover:none)]:line-clamp-none">
-                                <NotificationMessage message={notification.description} />
-                              </p>
-                            </div>
-                            <p className="text-text-muted mt-0.5 text-[10px] font-medium">
-                              {notification.time}
+                          <div className="mt-1 max-h-10 overflow-hidden text-xs font-medium transition-[max-height] duration-300 ease-in-out group-hover/notification:max-h-[60vh] group-hover/notification:overflow-y-auto group-focus-within/notification:max-h-[60vh] group-focus-within/notification:overflow-y-auto [@media(hover:none)]:max-h-none">
+                            <p className="text-text/70 line-clamp-2 wrap-break-word group-hover/notification:line-clamp-none group-focus-within/notification:line-clamp-none [@media(hover:none)]:line-clamp-none">
+                              <NotificationMessage message={notification.description} />
                             </p>
                           </div>
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Apagar notificação: ${notification.title}`}
-                          title="Apagar notificação"
-                          onClick={() => void deleteNotification(notification.id)}
-                          className="text-text-muted hover:text-red-600 relative z-20 mt-4 mr-2 shrink-0 cursor-pointer rounded-lg bg-inherit p-2 transition-colors"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
+                          <p className="text-text-muted mt-0.5 text-[10px] font-medium">
+                            {notification.time}
+                          </p>
+                        </div>
+                      </button>
                     );
                   })}
                 </div>

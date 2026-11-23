@@ -55,9 +55,16 @@ export async function ensureNotificationSchema(): Promise<void> {
   const [columns] = await pool.query<RowDataPacket[]>(`SHOW COLUMNS FROM notificacoes`);
   const columnNames = new Set(columns.map((column) => column.Field));
   const messageColumn = columns.find((column) => column.Field === "mensagem");
+  const timeColumn = columns.find((column) => column.Field === "time_id");
 
   if (String(messageColumn?.Type ?? "").toLowerCase().startsWith("varchar")) {
     await pool.query(`ALTER TABLE notificacoes MODIFY COLUMN mensagem TEXT NOT NULL`);
+  }
+
+  // Bancos anteriores exigiam um time em toda notificação. Notificações de
+  // projetos/manutenções são direcionadas a usuários e não pertencem a um time.
+  if (timeColumn && String(timeColumn.Null).toUpperCase() !== "YES") {
+    await pool.query(`ALTER TABLE notificacoes MODIFY COLUMN time_id INT NULL`);
   }
 
   if (!columnNames.has("usuario_destino_id")) {
@@ -145,6 +152,187 @@ export async function ensureNotificationSchema(): Promise<void> {
 export type ConnectionLike = {
   execute: <T = RowDataPacket[]>(query: string, params?: any[]) => Promise<[T, any]>;
 };
+
+export interface EntityUpdate {
+  descricao: string;
+}
+
+type RelatedEntity = "projeto" | "manutencao";
+
+async function getRelatedEntityRecipients(
+  connection: ConnectionLike,
+  entidade: RelatedEntity,
+  entidadeId: number | string,
+  includeAdministrators = false,
+): Promise<number[]> {
+  const [owners] = await connection.execute<RowDataPacket[]>(
+    entidade === "projeto"
+      ? `SELECT responsavel_id AS usuario_id, vendedor_id AS vendedor_id
+           FROM projetos WHERE projeto_id = ? LIMIT 1`
+      : `SELECT m.responsavel_id AS usuario_id, p.responsavel_id AS vendedor_id
+           FROM manutencoes m
+           LEFT JOIN projetos p ON p.projeto_id = m.projeto_id
+          WHERE m.manutencao_id = ? LIMIT 1`,
+    [entidadeId],
+  );
+
+  const ids = new Set<number>();
+  for (const owner of owners) {
+    for (const value of [owner.usuario_id, owner.vendedor_id]) {
+      if (value !== null && value !== undefined) ids.add(Number(value));
+    }
+  }
+
+  if (includeAdministrators) {
+    const [administrators] = await connection.execute<RowDataPacket[]>(
+      `SELECT id_usuario FROM usuarios
+        WHERE ativo = TRUE AND cargo IN ('gestor', 'superusuario')`,
+    );
+    administrators.forEach((row) => ids.add(Number(row.id_usuario)));
+  }
+
+  return [...ids];
+}
+
+async function insertRelatedNotifications(
+  connection: ConnectionLike,
+  payload: {
+    titulo: string;
+    mensagem: string;
+    destinatarios: number[];
+    usuarioOrigemId: number | string;
+    projetoId?: number | string;
+    manutencaoId?: number | string;
+  },
+): Promise<void> {
+  const destinatarios = [...new Set(payload.destinatarios)].filter(
+    (id) => String(id) !== String(payload.usuarioOrigemId),
+  );
+  if (!destinatarios.length) return;
+
+  const placeholders = destinatarios.map(() => "(?, ?, NULL, NULL, ?, ?, ?, ?)").join(", ");
+  const values = destinatarios.flatMap((destinatarioId) => [
+    payload.titulo,
+    payload.mensagem,
+    payload.projetoId == null ? null : Number(payload.projetoId),
+    payload.manutencaoId == null ? null : Number(payload.manutencaoId),
+    Number(payload.usuarioOrigemId),
+    destinatarioId,
+  ]);
+
+  await connection.execute<ResultSetHeader>(
+    `INSERT INTO notificacoes
+       (titulo, mensagem, time_id, os_id, projeto_id, manutencao_id, usuario_origem_id, usuario_destino_id)
+     VALUES ${placeholders}
+     ON DUPLICATE KEY UPDATE notificacao_id = notificacao_id`,
+    values,
+  );
+}
+
+export async function createCriticalRelatedNotification(
+  connection: ConnectionLike,
+  payload: {
+    entidade: RelatedEntity;
+    evento: "criada";
+    entidadeId: number | string;
+    entidadeNome: string;
+    usuarioOrigemId: number | string;
+  },
+): Promise<void> {
+  const destinatarios = await getRelatedEntityRecipients(
+    connection,
+    payload.entidade,
+    payload.entidadeId,
+    true,
+  );
+  const isProject = payload.entidade === "projeto";
+  await insertRelatedNotifications(connection, {
+    titulo: `${isProject ? "Projeto" : "Manutenção"} com prioridade crítica`,
+    mensagem: `${isProject ? "O projeto" : "A manutenção"} <strong>${escapeNotificationHtml(payload.entidadeNome)}</strong> foi criada com prioridade crítica.`,
+    destinatarios,
+    usuarioOrigemId: payload.usuarioOrigemId,
+    ...(isProject ? { projetoId: payload.entidadeId } : { manutencaoId: payload.entidadeId }),
+  });
+}
+
+export async function createEntityUpdateNotifications(
+  connection: ConnectionLike,
+  payload: {
+    entidade: RelatedEntity;
+    entidadeId: number | string;
+    entidadeNome: string;
+    usuarioOrigemId: number | string;
+    usuarioNome: string;
+    atualizacoes: EntityUpdate[];
+  },
+): Promise<void> {
+  if (!payload.atualizacoes.length) return;
+  const isProject = payload.entidade === "projeto";
+  const mensagem = `${isProject ? "Projeto" : "Manutenção"} <strong>${escapeNotificationHtml(payload.entidadeNome)}</strong> atualizado por <strong>${escapeNotificationHtml(payload.usuarioNome)}</strong>: ${payload.atualizacoes.map((item) => escapeNotificationHtml(item.descricao)).join("; ")}`;
+  const destinatarios = await getRelatedEntityRecipients(connection, payload.entidade, payload.entidadeId);
+  await insertRelatedNotifications(connection, {
+    titulo: `${isProject ? "Projeto" : "Manutenção"} atualizado`,
+    mensagem,
+    destinatarios,
+    usuarioOrigemId: payload.usuarioOrigemId,
+    ...(isProject ? { projetoId: payload.entidadeId } : { manutencaoId: payload.entidadeId }),
+  });
+}
+
+export async function createOSChangeNotifications(
+  connection: ConnectionLike,
+  payload: {
+    titulo: string;
+    mensagem: string;
+    timeId: number | string | null;
+    osId: number | string;
+    usuarioOrigemId: number | string;
+    usuarioNome: string;
+    osTitulo: string;
+    changes: string[];
+    usuariosDestinoExtras?: number[];
+    incluirUsuarioOrigemComoDestino?: boolean;
+    incluirResponsavelDoTimeComoDestino?: boolean;
+  },
+): Promise<number> {
+  const recipients = new Set<number>(payload.usuariosDestinoExtras ?? []);
+  if (payload.timeId !== null) {
+    const [teamUsers] = await connection.execute<RowDataPacket[]>(
+      `SELECT id_usuario FROM usuarios WHERE time_id = ? AND ativo = TRUE`,
+      [payload.timeId],
+    );
+    teamUsers.forEach((row) => recipients.add(Number(row.id_usuario)));
+
+    if (payload.incluirResponsavelDoTimeComoDestino) {
+      const [leaders] = await connection.execute<RowDataPacket[]>(
+        `SELECT responsavel_id AS id_usuario FROM time WHERE id_time = ? LIMIT 1`,
+        [payload.timeId],
+      );
+      if (leaders[0]?.id_usuario != null) recipients.add(Number(leaders[0].id_usuario));
+    }
+  }
+  if (payload.incluirUsuarioOrigemComoDestino) recipients.add(Number(payload.usuarioOrigemId));
+
+  const recipientsList = [...recipients];
+  if (!recipientsList.length) return 0;
+  const placeholders = recipientsList.map(() => "(?, ?, ?, ?, NULL, NULL, ?, ?)").join(", ");
+  const values = recipientsList.flatMap((destinatarioId) => [
+    payload.titulo,
+    payload.mensagem,
+    payload.timeId,
+    Number(payload.osId),
+    Number(payload.usuarioOrigemId),
+    destinatarioId,
+  ]);
+  await connection.execute<ResultSetHeader>(
+    `INSERT INTO notificacoes
+       (titulo, mensagem, time_id, os_id, projeto_id, manutencao_id, usuario_origem_id, usuario_destino_id)
+     VALUES ${placeholders}
+     ON DUPLICATE KEY UPDATE notificacao_id = notificacao_id`,
+    values,
+  );
+  return recipientsList.length;
+}
 
 export function shouldCreateStatusNotification(
   statusAnterior: string | null | undefined,

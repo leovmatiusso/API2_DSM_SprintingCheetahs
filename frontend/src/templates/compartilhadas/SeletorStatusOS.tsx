@@ -10,7 +10,15 @@ function obterOpcoes(
   timeMonitoramento: boolean,
   superusuario: boolean,
   aprovadaNaVerificacao: boolean,
+  suporteManutencao: boolean,
 ): OrdemStatus[] {
+  // Suporte pode conduzir os status operacionais das O.S. de manutenção.
+  // Verificação e conclusão continuam seguindo o fluxo normal do sistema.
+  if (suporteManutencao) {
+    if (status === "concluida" || status === "verificacao" || aprovadaNaVerificacao) return [];
+    return (["aberta", "em andamento", "teste", "review", "bloqueado"] as OrdemStatus[])
+      .filter((opcao) => opcao !== status);
+  }
   // Aprovada na verificação: a O.S. só sai de Review quando o líder registra o resumo (que a conclui).
   if (status === "review" && aprovadaNaVerificacao) {
     return responsavelDoTime && !timeMonitoramento ? ["verificacao"] : [];
@@ -38,6 +46,7 @@ export default function SeletorStatusOS({
   timeMonitoramento = false,
   superusuario = false,
   aprovadaNaVerificacao = false,
+  suporteManutencao = false,
   disabled = false,
   onChange,
 }: {
@@ -46,11 +55,19 @@ export default function SeletorStatusOS({
   timeMonitoramento?: boolean;
   superusuario?: boolean;
   aprovadaNaVerificacao?: boolean;
+  suporteManutencao?: boolean;
   disabled?: boolean;
   onChange: (status: OrdemStatus) => void;
 }) {
   const [aberto, setAberto] = useState(false);
-  const opcoes = obterOpcoes(status, responsavelDoTime, timeMonitoramento, superusuario, aprovadaNaVerificacao);
+  const opcoes = obterOpcoes(
+    status,
+    responsavelDoTime,
+    timeMonitoramento,
+    superusuario,
+    aprovadaNaVerificacao,
+    suporteManutencao,
+  );
 
   if (opcoes.length === 0) {
     return (

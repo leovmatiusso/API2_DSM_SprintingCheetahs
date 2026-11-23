@@ -4,7 +4,6 @@ import { Check, ChevronDown } from "lucide-react";
 import { atualizarManutencao } from "@/api";
 import { getCurrentUser } from "@/auth";
 
-// Somente gestor, superusuário e suporte concluem a manutenção; os demais mudam para os outros estados.
 const PERFIS_CONCLUEM_MANUTENCAO = ["gestor", "superusuario", "suporte"];
 
 export type StatusManutencaoValor = "aberta" | "em_andamento" | "concluida" | "cancelada";

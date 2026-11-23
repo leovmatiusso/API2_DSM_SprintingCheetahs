@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, ClipboardList, Download, History, File, Link, X, Upload, ExternalLink } from "lucide-react";
 
 import {
@@ -29,7 +30,9 @@ import Button from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
 import { getCurrentUser } from "@/auth";
+import NotificationToast from "@/components/ui/Notification/NotificationToast";
 
 import SeletorStatusOS from "./SeletorStatusOS";
 import SeletorPrioridade from "../compartilhadas/SeletorPrioridade";
@@ -48,6 +51,23 @@ import {
 const ROTA_LISTA_OS = "/os/disponiveis";
 const MENSAGEM_MOTIVO_OBRIGATORIO = "O motivo do bloqueio é obrigatório";
 const LIMITE_RESUMO_OS = 500;
+
+function mostrarAvisoOS(tipo: "success" | "error", titulo: string, mensagem: string) {
+  const duracao = 5000;
+  toast.custom(
+    (toastId) => (
+      <NotificationToast
+        title={titulo}
+        description={mensagem}
+        time="Agora"
+        toastId={toastId}
+        type={tipo === "success" ? "success" : "danger"}
+        duration={duracao}
+      />
+    ),
+    { duration: duracao },
+  );
+}
 
 function ModalConfirmacao({
   titulo,
@@ -272,11 +292,22 @@ export default function OrdemServicoDetalhe() {
   const podeGerenciarPdfs = currentUser?.role === "monitoramento";
 
   const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
-  const perfisQueExcluem = ordem?.projeto_id ? ["gestor", "comercial", "superusuario"] : ["gestor", "suporte", "superusuario"];
+  const podeAlterarTimeResponsavel = ["comercial", "suporte", "gestor", "superusuario"].includes(
+    currentUser?.role ?? "",
+  );
+  const podeEditarOSDuranteVerificacao = [
+    "gestor",
+    "superusuario",
+    "comercial",
+    "suporte",
+  ].includes(currentUser?.role ?? "");
+  const perfilPodeExcluir = ["gestor", "superusuario", "comercial", "suporte"].includes(
+    currentUser?.role ?? "",
+  );
   const podeExcluir = Boolean(
       ordem &&
       currentUser &&
-      perfisQueExcluem.includes(currentUser.role) &&
+      (perfilPodeExcluir || responsavelDoTime) &&
       ordem.status !== "concluida" &&
       ordem.status !== "verificacao",
   );
@@ -348,11 +379,15 @@ export default function OrdemServicoDetalhe() {
       } catch (error) {
         if (!ativo) return;
         if (error instanceof ApiError && error.status === 410) {
-          redirecionando = true;
           mostrarAvisoOS("success", "O.S. já verificada", error.message);
           navigate(ROTA_LISTA_OS, { replace: true });
           return;
         }
+        setErro(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar a ordem de serviço.",
+        );
       } finally {
         if (ativo) setCarregando(false);
       }
@@ -422,7 +457,7 @@ export default function OrdemServicoDetalhe() {
     }
     setModalEdicaoAberto(true);
     
-    if (times.length === 0) {
+    if (podeAlterarTimeResponsavel && times.length === 0) {
       setCarregandoTimes(true);
       try {
         const { getTimes } = await import("@/api");
@@ -646,7 +681,7 @@ export default function OrdemServicoDetalhe() {
               </div>
 
               <div className="flex items-center gap-3">
-                {!emVerificacao && (
+                {(!emVerificacao || podeEditarOSDuranteVerificacao) && (
                   <Button variant="outline" onClick={abrirModalEdicao}>
                     Editar O.S.
                   </Button>
@@ -671,6 +706,7 @@ export default function OrdemServicoDetalhe() {
                   timeMonitoramento={timeMonitoramento}
                   superusuario={currentUser?.role === "superusuario"}
                   aprovadaNaVerificacao={aprovadaNaVerificacao}
+                  suporteManutencao={currentUser?.role === "suporte" && ordem?.manutencao_id != null}
                   disabled={atualizandoStatus}
                   onChange={alterarStatus}
                 />
@@ -1258,9 +1294,12 @@ export default function OrdemServicoDetalhe() {
                   label="Time responsável"
                   value={timeResponsavelIdEdit}
                   onChange={(event) => setTimeResponsavelIdEdit(event.target.value)}
-                  disabled={carregandoTimes}
+                  disabled={!podeAlterarTimeResponsavel || carregandoTimes}
                   required
                 >
+                  {!podeAlterarTimeResponsavel && ordem?.time && (
+                    <option value={ordem.time.id}>{ordem.time.nome}</option>
+                  )}
                   <option value="" hidden>
                     {carregandoTimes ? "Carregando..." : "Selecione o time responsável"}
                   </option>

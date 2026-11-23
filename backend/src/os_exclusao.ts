@@ -11,10 +11,11 @@ import type { Role, User } from "./users.js";
 //
 //   DELETE /api/os/:osId  -> { message }
 //
-// Quem pode: os "donos" da origem da O.S. (os mesmos que podem criá-la):
-//   - O.S. de projeto:     gestor, comercial e superusuário
-//   - O.S. de manutenção:  gestor, suporte e superusuário
-// Os times que executam a O.S. não a excluem.
+// Quem pode:
+//   - gestor e superusuário: qualquer O.S.
+//   - comercial: O.S. de projeto
+//   - suporte: O.S. de manutenção
+//   - líder/responsável: O.S. do próprio time
 //
 // Anexos, equipamentos e verificações da O.S. saem junto (ON DELETE CASCADE do banco).
 // As notificações antigas ficam, só que sem o vínculo com a O.S. (ON DELETE SET NULL).
@@ -24,10 +25,7 @@ type RequireRole = (...roles: Role[]) => RequestHandler;
 
 export type OrigemOS = "projeto" | "manutencao";
 
-const PERFIS_QUE_EXCLUEM: Record<OrigemOS, Role[]> = {
-  projeto: ["gestor", "comercial", "superusuario"],
-  manutencao: ["gestor", "suporte", "superusuario"],
-};
+const PERFIS_QUE_EXCLUEM: Role[] = ["gestor", "superusuario", "comercial", "suporte"];
 
 export const MENSAGEM_EXCLUSAO_SEM_PERMISSAO = "Você não tem permissão para excluir esta O.S.";
 export const MENSAGEM_EXCLUSAO_CONCLUIDA =
@@ -40,8 +38,8 @@ export function origemDaOS(os: { projeto_id: number | string | null; manutencao_
   return os.projeto_id != null ? "projeto" : "manutencao";
 }
 
-export function podeExcluirOS(role: Role, origem: OrigemOS): boolean {
-  return PERFIS_QUE_EXCLUEM[origem].includes(role);
+export function podeExcluirOS(role: Role, responsavelDoTime = false): boolean {
+  return responsavelDoTime || PERFIS_QUE_EXCLUEM.includes(role);
 }
 
 // null = pode excluir; senão, o motivo (409).
@@ -76,7 +74,10 @@ export function montarMensagemExclusao(osTitulo: string, autor: string): string 
 export function createOsExclusaoRouter(requireRole: RequireRole): Router {
   const router = Router();
 
-  router.delete("/:osId", requireRole("gestor", "comercial", "suporte", "superusuario"), async (req, res) => {
+  router.delete(
+    "/:osId",
+    requireRole("gestor", "comercial", "suporte", "superusuario", "producao", "software", "implantacao", "monitoramento"),
+    async (req, res) => {
     const user = res.locals.user as User;
     const osId = String(req.params.osId);
 
@@ -87,8 +88,10 @@ export function createOsExclusaoRouter(requireRole: RequireRole): Router {
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel, o.projeto_id, o.manutencao_id,
+                t.responsavel_id AS time_responsavel_id,
                 p.status AS projeto_status, m.status AS manutencao_status
            FROM os o
+           LEFT JOIN time t ON t.id_time = o.id_time_responsavel
            LEFT JOIN projetos p ON p.projeto_id = o.projeto_id
            LEFT JOIN manutencoes m ON m.manutencao_id = o.manutencao_id
           WHERE o.os_id = ?
@@ -104,7 +107,9 @@ export function createOsExclusaoRouter(requireRole: RequireRole): Router {
         projeto_id: os.projeto_id as number | null,
         manutencao_id: os.manutencao_id as number | null,
       });
-      if (!podeExcluirOS(user.role, origem)) {
+      const responsavelDoTime =
+        os.time_responsavel_id != null && String(os.time_responsavel_id) === String(user.id);
+      if (!podeExcluirOS(user.role, responsavelDoTime)) {
         return res.status(403).json({ message: MENSAGEM_EXCLUSAO_SEM_PERMISSAO });
       }
 
@@ -153,7 +158,8 @@ export function createOsExclusaoRouter(requireRole: RequireRole): Router {
       console.error("Erro ao excluir O.S.:", error);
       return res.status(500).json({ message: "Não foi possível excluir a ordem de serviço." });
     }
-  });
+    },
+  );
 
   return router;
 }

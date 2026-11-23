@@ -24,7 +24,7 @@ const PERFIS_CONSULTA: Role[] = [...PERFIS_COM_ACESSO, "superusuario"];
 
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
 const STATUS_PROJETO = ["aberto", "em_andamento", "concluido", "cancelado"] as const;
-// Somente comercial, gestor e superusuário concluem o projeto; os demais mudam para os outros estados.
+// Comercial, gestor e superusuário podem concluir o projeto.
 const PERFIS_CONCLUEM_PROJETO: Role[] = ["comercial", "gestor", "superusuario"];
 type Prioridade = (typeof PRIORIDADES)[number];
 type StatusProjeto = (typeof STATUS_PROJETO)[number];
@@ -187,7 +187,7 @@ router.get("/vendedores", requireRole(...PERFIS_CONSULTA), async (_req, res) => 
     }
   });
 
-  // Todos que enxergam o projeto alteram o status; só comercial, gestor e superusuário concluem.
+  // Mantém a alteração de status para todos os perfis que já podiam consultar projetos.
   router.patch("/:projetoId/status", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const user = res.locals.user as User;
     const projetoId = String(req.params.projetoId);
@@ -535,10 +535,11 @@ router.get("/vendedores", requireRole(...PERFIS_CONSULTA), async (_req, res) => 
 
     try {
       const [existentes] = await pool.execute<RowDataPacket[]>(
-        "SELECT projeto_id FROM projetos WHERE projeto_id = ? LIMIT 1",
+        "SELECT projeto_id, nome FROM projetos WHERE projeto_id = ? LIMIT 1",
         [projetoId],
       );
-      if (!existentes[0]) {
+      const projetoAtual = existentes[0];
+      if (!projetoAtual) {
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
@@ -618,6 +619,10 @@ router.get("/vendedores", requireRole(...PERFIS_CONSULTA), async (_req, res) => 
         sets.push("responsavel_id = ?", "vendedor_id = ?");
         valores.push(Number(vendedores[0].id_usuario), Number(vendedores[0].id_usuario));
       }
+
+      const atualizacoes: EntityUpdate[] = sets.length
+        ? [{ descricao: "As informações do projeto foram atualizadas." }]
+        : [];
 
       const connection = await pool.getConnection();
       try {
