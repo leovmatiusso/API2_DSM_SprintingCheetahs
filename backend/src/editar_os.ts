@@ -1,5 +1,7 @@
 import express from "express";
+import type { ResultSetHeader } from "mysql2";
 import { pool } from "./db.js";
+import type { ResultSetHeader } from "mysql2";
 
 const router = express.Router();
 

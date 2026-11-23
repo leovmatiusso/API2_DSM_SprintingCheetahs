@@ -68,6 +68,47 @@ export function getAccount(): Promise<{ user: User }> {
   return request<{ user: User }>("/account");
 }
 
+export interface HistoricoAtividadeItem {
+  historico_id: number;
+  os_id: number;
+  os_titulo: string;
+  tipo_acao: "criado" | "atualizado" | "deletado";
+  os_status: string;
+  id_time_responsavel: number | null;
+  nome_time: string | null;
+  usuario_id: number | null;
+  usuario_email: string | null;
+  data_historico: string;
+  data_limite: string;
+}
+
+export interface RegistroHistorico {
+  historico_id: number;
+  tabela: string;
+  registro_id: string;
+  tipo_acao: "criado" | "atualizado" | "deletado";
+  dados: Record<string, unknown> | string;
+  usuario_id: number | null;
+  usuario_email: string | null;
+  data_historico: string;
+}
+
+export function getRegistrosHistorico(data?: string): Promise<{ registros: RegistroHistorico[] }> {
+  const query = data ? `?data=${encodeURIComponent(data)}` : "";
+  return request<{ registros: RegistroHistorico[] }>(`/historico/registros${query}`);
+}
+
+export function getHistorico(data?: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
+  const path = data
+    ? `/historico-filtro?data=${encodeURIComponent(data)}`
+    : "/historico";
+  return request<{ historico: HistoricoAtividadeItem[] }>(path);
+}
+
+export function getHistoricoOS(osId: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
+  return request<{ historico: HistoricoAtividadeItem[] }>(`/os/${encodeURIComponent(osId)}/historico`);
+}
+
 export function changePassword(
   currentPassword: string,
   newPassword: string,
@@ -309,7 +350,6 @@ export interface ProjetoPayload {
   vendedor_nome: string;
   prioridade: "baixa" | "media" | "alta" | "critica";
   descricao?: string;
-  equipamentos?: { nome_equipamento: string; quantidade: number }[];
   anexos: {
     nome_anexo: string;
     anexo_tipo: string;
@@ -335,7 +375,7 @@ export function createProjeto(data: ProjetoPayload): Promise<{
 }
 
 export type StatusItem = "nao_iniciado" | "em_andamento" | "concluido" | "cancelado";
-export type StatusProjeto = "aberto" | "em_andamento" | "finalizado";
+export type StatusProjeto = "aberto" | "em_andamento" | "concluido" | "cancelado";
 
 // Dados do ticket (listagem)
 export interface ProjetoResumo {
@@ -354,7 +394,6 @@ export interface Projeto extends ProjetoResumo {
   data_vencimento_contrato: string | null;
   data_limite: string | null;
   vendedor: string | null;
-  equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
   ordens: OrdemServicoResumo[];
 }
@@ -413,11 +452,6 @@ export interface ManutencaoPayload {
 
   descricao_situacao: string;
 
-  equipamentos?: {
-    nome_equipamento: string;
-    quantidade: number;
-  }[];
-
   anexos: {
     nome_anexo: string;
     anexo_tipo: string;
@@ -464,7 +498,6 @@ export interface Manutencao extends ManutencaoResumo {
   data_inicio_problema: string | null;
   data_limite: string | null;
   projeto: { id: string; nome: string } | null;
-  equipamentos: { nome: string; quantidade: number }[];
   anexos: ManutencaoAnexo[];
   ordens: OrdemServicoResumo[];
 }
@@ -484,6 +517,59 @@ export function abrirAnexoManutencao(
   return abrirAnexoPorCaminho(
     `/manutencoes/${encodeURIComponent(manutencaoId)}/anexos/${encodeURIComponent(anexo.id)}`,
     anexo,
+  );
+}
+
+// =====================================================
+// RELATÓRIO DE FINAL DE PROJETO/MANUTENÇÃO
+// =====================================================
+
+function nomeArquivoRelatorio(nome: string): string {
+  const limpo = nome.replace(/[\\/:*?"<>|]/g, "").trim()
+  return `Relatório - ${limpo || "sem título"}.pdf`
+}
+
+async function baixarPdfPorCaminho (
+  caminho: string,
+  nomeArquivo: string,
+): Promise<void> {
+  const token = getToken()
+  const response = await fetch(`${API_URL}${caminho}`, {
+    headers: token ? { Authorization: `Bearer ${token}`} : {}
+  })
+
+  if (!response.ok) {
+    let mensagem = "Não foi possível gerar o relatório.";
+    try {
+      mensagem = (await response.json())?.message ?? mensagem;
+    } catch {
+      /* resposta sem JSON */
+    }
+    throw new ApiError(mensagem, response.status);
+  }
+
+  const blob = new Blob([await response.blob()], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export function baixarRelatorioProjeto(id: string, nome: string): Promise<void> {
+  return baixarPdfPorCaminho(
+    `/projetos/${encodeURIComponent(id)}/relatorio`,
+    nomeArquivoRelatorio(nome),
+  );
+}
+
+export function baixarRelatorioManutencao(id: string, resumo: string): Promise<void> {
+  return baixarPdfPorCaminho(
+    `/manutencoes/${encodeURIComponent(id)}/relatorio`,
+    nomeArquivoRelatorio(resumo),
   );
 }
 
@@ -525,6 +611,24 @@ export interface OrdemServicoDetalhe extends OrdemServicoResumo {
   pedido_pai: PedidoPai | null;
   equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
+  ultima_reprovacao: {
+    justificativa: string;
+    usuario: string | null;
+    data: string;
+  } | null;
+  // Aprovada pelo monitoramento e de volta ao time em Review, aguardando o resumo do líder.
+  aprovada_verificacao: {
+    usuario: string | null;
+    data: string;
+  } | null;
+}
+
+export interface RelatorioOS {
+  id: string;
+  nome: string;
+  tipo: "application/pdf";
+  tamanho: number;
+  data_envio: string;
 }
 
 export function getOrdens(): Promise<{ ordens: OrdemServicoResumo[] }> {
@@ -546,6 +650,16 @@ export interface DashboardResumo {
       monitoramento: number;
       implantacao: number;
     };
+      porPrioridade: { baixa: number; media: number; alta: number; critica: number };
+      porStatus: {
+        aberta: number;
+        emAndamento: number;
+        teste: number;
+        concluida: number;
+        bloqueado: number;
+        review: number;
+        verificacao: number;
+      };
   };
   manutencoes: {
     total: number;
@@ -570,11 +684,62 @@ export function abrirAnexoOS(osId: string, anexo: ProjetoAnexo): Promise<void> {
   );
 }
 
-export function concluirOS(id: number | string): Promise<any> {
-  return request(`/os/${encodeURIComponent(id)}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ os_status: "concluida" }),
+export function getRelatoriosOS(osId: string): Promise<{ relatorios: RelatorioOS[] }> {
+  return request(`/os/${encodeURIComponent(osId)}/relatorios`);
+}
+
+export function enviarRelatorioOS(osId: string, arquivo: File): Promise<{
+  message: string;
+  relatorio: { id: string; nome: string };
+}> {
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+  return request(`/os/${encodeURIComponent(osId)}/relatorios`, {
+    method: "POST",
+    body: formData,
   });
+}
+
+export async function abrirRelatorioOS(
+  osId: string,
+  relatorio: RelatorioOS,
+  baixar = false,
+): Promise<void> {
+  const caminho = `/os/${encodeURIComponent(osId)}/relatorios/${encodeURIComponent(relatorio.id)}`;
+  const token = getToken();
+  const preview = baixar ? null : window.open("about:blank", "_blank");
+  if (preview) preview.opener = null;
+
+  try {
+    const response = await fetch(`${API_URL}${caminho}${baixar ? "?download=true" : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      let mensagem = "Não foi possível abrir o relatório.";
+      try {
+        mensagem = (await response.json())?.message ?? mensagem;
+      } catch {
+        // A resposta pode não conter JSON.
+      }
+      throw new Error(mensagem);
+    }
+
+    const url = URL.createObjectURL(await response.blob());
+    if (preview) {
+      preview.location.href = url;
+    } else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = relatorio.nome;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    preview?.close();
+    throw error;
+  }
 }
 
 export function atualizarStatusOS(
@@ -584,6 +749,38 @@ export function atualizarStatusOS(
   return request(`/os/${encodeURIComponent(id)}/status`, {
     method: "PUT",
     body: JSON.stringify({ os_status: status }),
+  });
+}
+
+export function registrarVerificacaoOS(
+  id: number | string,
+  resultado: "aprovada" | "reprovada",
+  justificativa?: string,
+): Promise<{ message: string; os: { id: string; status: OrdemStatus } }> {
+  return request(`/os/${encodeURIComponent(id)}/verificacao`, {
+    method: "POST",
+    body: JSON.stringify({ resultado, justificativa }),
+  });
+}
+// Exclui a O.S. (gestor, comercial/suporte dono da origem e superusuário). Falha se ela estiver
+// concluída, em verificação ou se o projeto/manutenção já foi concluído.
+export function excluirOrdemServico(id: number | string): Promise<{ message: string }> {
+  return request(`/os/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+// Resumo das atividades da O.S. (US24): somente o líder do time responsável.
+// Registrar o resumo conclui a O.S. (depois que o monitoramento a aprovou).
+export function getResumoOS(id: number | string): Promise<{ resumo: string }> {
+  return request(`/os/${encodeURIComponent(id)}/resumo`);
+}
+
+export function registrarResumoOS(
+  id: number | string,
+  resumo: string,
+): Promise<{ message: string; resumo: string; os: { id: string; status: OrdemStatus } }> {
+  return request(`/os/${encodeURIComponent(id)}/resumo`, {
+    method: "PUT",
+    body: JSON.stringify({ resumo }),
   });
 }
 
@@ -606,9 +803,7 @@ export function atualizarOrdemServico(
 
 export function atualizarProjeto(
   id: string,
-  dados: Partial<Omit<Projeto, "equipamentos">> & {
-    equipamentos?: { nome_equipamento: string; quantidade: number }[];
-  },
+  dados: Partial<Projeto>,
 ) {
   return request(`/projetos/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -627,7 +822,6 @@ export function atualizarManutencao(
     prioridade?: "baixa" | "media" | "alta" | "critica";
     status_manutencao?: string;
     descricao_situacao?: string;
-    equipamentos?: { nome_equipamento: string; quantidade: number }[];
   }
 ): Promise<{ message: string; manutencao: Manutencao }> {
   return request(`/manutencoes/${encodeURIComponent(id)}`, {

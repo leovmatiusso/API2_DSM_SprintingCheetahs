@@ -5,12 +5,15 @@ import { getCurrentUser, logout } from "@/auth";
 import { notificationConfig } from "@/components/ui/Notification/notification.config";
 import NotificationMessage from "@/components/ui/Notification/NotificationMessage";
 import { useNotifications } from "@/components/ui/Notification/useNotifications";
-import Input from "@/components/ui/Input";
+import DropdownMenu from "@/components/ui/DropdownMenu";
+import getInitials from "@/utils/getInitials";
+import MinhaConta from "@/templates/compartilhadas/MinhaConta";
 
 export default function Header() {
   const navigate = useNavigate();
   const [notificacaoAberto, setNotificacaoAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
+  const [contaAberta, setContaAberta] = useState(false);
   const user = getCurrentUser();
   const { notifications, hasUnread, markAsRead, markAllAsRead, refresh } = useNotifications(user?.id ?? null);
 
@@ -20,8 +23,8 @@ export default function Header() {
   }
 
   return (
-    <header className="border-border bg-bg flex items-center justify-between border-b px-6 py-4">
-      <div className="flex items-center gap-3 min-w-[450px] w-1/3">
+    <header className="border-border bg-bg flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
         {/* <Input 
         iconLeft={Search}
         placeholder="Buscar usuários, equipes, ordens de serviço..."
@@ -48,7 +51,10 @@ export default function Header() {
               <div className="border-border bg-bg absolute -top-2 left-[16.5%] z-10 size-4 -translate-x-1/2 rotate-45 border-t border-l" />
               <section className="border-border bg-bg relative overflow-hidden rounded-3xl border shadow-2xl">
                 <header className="border-border flex items-center justify-between gap-4 border-b px-4 py-5">
-                  <h2 className="text-text text-lg font-bold">Notificações ({notifications.filter((notification) => !notification.read).length})</h2>
+                  <h2 className="text-text text-lg font-bold">
+                    Notificações (
+                    {notifications.filter((notification) => !notification.read).length})
+                  </h2>
                   <button
                     type="button"
                     onClick={markAllAsRead}
@@ -57,7 +63,7 @@ export default function Header() {
                     Marcar como lidas
                   </button>
                 </header>
-                <div className="h-[min(400px,calc(100vh-2rem))] overflow-y-auto scrollbar-thin scrollbar-thumb-primary scrollbar-track-transparent">
+                <div className="scrollbar-thumb-primary h-[min(400px,calc(100vh-2rem))] scrollbar-thin scrollbar-track-transparent overflow-y-auto">
                   {notifications.length === 0 && (
                     <p className="text-text-muted p-6 text-center text-sm">Nenhuma notificação.</p>
                   )}
@@ -86,23 +92,46 @@ export default function Header() {
                           className="flex size-12 shrink-0 items-center justify-center rounded-full"
                           style={{ color: color, backgroundColor: `${color}20`  }}
                         >
-                          <Icon className="size-7" strokeWidth={1.7} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-text truncate text-sm font-semibold">
-                            {notification.title}
-                          </p>
-                          <p className="text-text/70 truncate text-xs font-medium">
-                              <NotificationMessage message={notification.description} />
-                          </p>
-                          <p className="text-text-muted mt-0.5 text-[10px] font-medium">
-                            {notification.time}
-                          </p>
-                        </div>
-                        {!notification.read && (
-                          <div className="absolute bg-primary size-2 top-5 right-5 rounded-full"></div>
-                        )}
-                      </button>
+                          <div
+                            className="flex size-12 shrink-0 items-center justify-center rounded-full"
+                            style={{ color: color, backgroundColor: `${color}20` }}
+                          >
+                            <Icon className="size-7" strokeWidth={1.7} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <p className="text-text min-w-0 flex-1 truncate text-sm font-semibold">
+                                {notification.title}
+                              </p>
+                              {!notification.read && (
+                                <span className={`size-2 shrink-0 rounded-full ${isCritical ? "bg-[#E24056]" : "bg-primary"}`} />
+                              )}
+                              {isCritical && (
+                                <span className="flex min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded bg-[#E24056] px-1.5 py-1 text-[9px] leading-none font-extrabold text-white">
+                                  CRÍTICA
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 max-h-10 overflow-hidden text-xs font-medium transition-[max-height] duration-300 ease-in-out group-hover/notification:max-h-[60vh] group-hover/notification:overflow-y-auto group-focus-within/notification:max-h-[60vh] group-focus-within/notification:overflow-y-auto [@media(hover:none)]:max-h-none">
+                              <p className="text-text/70 line-clamp-2 wrap-break-word group-hover/notification:line-clamp-none group-focus-within/notification:line-clamp-none [@media(hover:none)]:line-clamp-none">
+                                <NotificationMessage message={notification.description} />
+                              </p>
+                            </div>
+                            <p className="text-text-muted mt-0.5 text-[10px] font-medium">
+                              {notification.time}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Apagar notificação: ${notification.title}`}
+                          title="Apagar notificação"
+                          onClick={() => void deleteNotification(notification.id)}
+                          className="text-text-muted hover:text-red-600 relative z-20 mt-4 mr-2 shrink-0 cursor-pointer rounded-lg bg-inherit p-2 transition-colors"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -116,26 +145,32 @@ export default function Header() {
         <button
           type="button"
           onClick={() => setMenuAberto(!menuAberto)}
-          className="hover:bg-bg-tertiary flex items-center gap-2 rounded-lg px-3 py-2 transition"
+          className="hover:bg-bg-tertiary flex cursor-pointer items-center gap-2 rounded-xl p-2 transition"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-purple-700">
-            <User size={18} />
+          <div className="bg-primary-muted text-primary flex size-9 items-center justify-center rounded-full text-xs font-semibold @3xl:size-10">
+            {getInitials(user?.name ?? "Usuário")}
           </div>
-          <span className="text-sm font-medium">{user?.name ?? "Usuário"}</span>
+          <span className="hidden text-sm font-medium text-nowrap @3xl:block">
+            {user?.name ?? "Usuário"}
+          </span>
           <ChevronDown
             size={17}
-            className={`transition-transform ${menuAberto ? "rotate-180" : ""}`}
+            className={`hidden transition-transform @3xl:block ${menuAberto ? "rotate-180" : ""}`}
           />
         </button>
         {menuAberto && (
-          <div className="border-border bg-bg absolute right-0 z-10 mt-2 w-44 rounded-lg border p-1 shadow-md">
+          <DropdownMenu className="mt-2 w-44">
             <button
               type="button"
-              onClick={() => navigate("/minha-conta")}
+              onClick={() => {
+                setMenuAberto(false);
+                setContaAberta(true);
+              }}
               className="hover:bg-bg-tertiary w-full rounded-md px-3 py-2 text-left text-sm transition"
             >
               Minha conta
             </button>
+
             <button
               type="button"
               onClick={sair}
@@ -143,9 +178,10 @@ export default function Header() {
             >
               Sair
             </button>
-          </div>
+          </DropdownMenu>
         )}
       </div>
+      {contaAberta && <MinhaConta modal onClose={() => setContaAberta(false)} />}
     </header>
   );
 }

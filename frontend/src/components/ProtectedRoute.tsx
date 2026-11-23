@@ -10,9 +10,9 @@ interface Props {
 export default function ProtectedRoute({ allowedRoles, excludedRoles }: Props) {
   const user = getCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role))
+  if (user.role !== "superusuario" && allowedRoles && !allowedRoles.includes(user.role))
     return <Navigate to="/dashboard" replace />;
-  if (excludedRoles?.includes(user.role))
+  if (user.role !== "superusuario" && excludedRoles?.includes(user.role))
     return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }

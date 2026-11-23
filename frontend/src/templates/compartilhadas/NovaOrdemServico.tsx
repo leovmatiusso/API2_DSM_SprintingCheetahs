@@ -32,6 +32,9 @@ import Textarea from "@/components/ui/Textarea";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
+import { isTimeMonitoramento } from "./osEstilos";
+import { somarEquipamento } from "./CampoEquipamentos";
+
 import "@/style/NovaOrdemServico.css";
 
 const EQUIPAMENTOS_DISPONIVEIS = [
@@ -119,7 +122,7 @@ export default function NovaOrdemServico() {
 
   const user = getCurrentUser();
 
-  const manutencao = user?.role === "suporte";
+  const manutencao = user?.role === "suporte" || Boolean(manutencaoOrigemId);
 
   useEffect(() => {
     let ativo = true;
@@ -171,30 +174,8 @@ export default function NovaOrdemServico() {
   }, []);
 
   function adicionarEquipamento(nome: string) {
-    setEquipamentos((prev) => {
-      const existente = prev.find(
-        (eq) => eq.nome === nome,
-      );
-
-      if (existente) {
-        return prev.map((eq) =>
-          eq.nome === nome
-            ? {
-                ...eq,
-                quantidade: eq.quantidade + 1,
-              }
-            : eq,
-        );
-      }
-
-      return [
-        ...prev,
-        {
-          nome,
-          quantidade: 1,
-        },
-      ];
-    });
+    // Mesmo item de novo soma a quantidade (1x, 2x, 3x...).
+    setEquipamentos((prev) => somarEquipamento(prev, nome));
 
     setBuscaEquipamento("");
     setDropdownEquipamentoAberto(false);

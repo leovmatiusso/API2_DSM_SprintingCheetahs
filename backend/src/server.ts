@@ -6,12 +6,17 @@ import { promisify } from "node:util";
 import dotenv from "dotenv";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
-import { pool } from "./db.js";
+import { pool, runWithAuditActor } from "./db.js";
 import type { Role, User } from "./users.js";
 import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
-import { createOrdensRouter } from "./ordens.js";
+import { createOrdensRouter, ensureOsReportSchema, ensureOsVerificationSchema } from "./ordens.js";
+import { createOsExclusaoRouter } from "./os_exclusao.js";
+import { createOsResumoRouter, ensureOsResumoSchema } from "./os_resumo.js";
+import { createHistoricoRouter } from "./historico.js";
+import { createDataFiltroRouter } from "./data_filtro.js";
+
 import {
   buildOSStatusEventMessage,
   buildOSStatusNotificationTitle,
@@ -20,6 +25,7 @@ import {
   ensureNotificationSchema,
 } from "./notificacoes.js";
 import { podeVerOS } from "./os_comum.js";
+import { isTimeMonitoramento } from "./os_fluxo.js";
 import osConcluidasRouter from "./os_concluida.js";
 import { createDashboardRouter } from "./dashboard.js";
 
@@ -32,14 +38,21 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT ?? 3001);
 
-const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:5174")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(
   cors({
-    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    origin: (origin, callback) => {
+      const origemLocal = origin ? /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) : false;
+      if (!origin || allowedOrigins.includes(origin) || origemLocal) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Origem não permitida pelo CORS."));
+    },
   }),
 );
 app.use(express.json({ limit: "25mb" }));
@@ -226,7 +239,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     }
 
     res.locals.user = user;
-    next();
+    runWithAuditActor(user, next);
   } catch (error) {
     console.error(error);
     return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
@@ -241,12 +254,12 @@ function requireRole(...roles: Role[]) {
         return res.status(401).json({ message: "Sessão inválida ou expirada." });
       }
 
-      if (!roles.includes(user.role)) {
+      if (user.role !== "superusuario" && !roles.includes(user.role)) {
         return res.status(403).json({ message: "Você não possui permissão para esta operação." });
       }
 
       res.locals.user = user;
-      next();
+      runWithAuditActor(user, next);
     } catch (error) {
       console.error(error);
       return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
@@ -267,7 +280,7 @@ function requireNotRole(...roles: Role[]) {
       }
 
       res.locals.user = user;
-      next();
+      runWithAuditActor(user, next);
     } catch (error) {
       console.error(error);
       return res.status(503).json({ message: "Não foi possível consultar o banco de dados." });
@@ -449,7 +462,7 @@ app.post("/api/users", requireRole("superusuario", "gestor"), async (req, res) =
 });
 
 app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
-  const id = req.params.id;
+  const id = String(req.params.id);
   const { name, email, password, role, active, time_id } = req.body as Partial<{
     name: string;
     email: string;
@@ -559,14 +572,15 @@ app.put("/api/users/:id", requireRole("superusuario"), async (req, res) => {
 
 app.delete("/api/users/:id", requireRole("superusuario"), async (req, res) => {
   const currentUser = res.locals.user as User;
-  if (currentUser.id === req.params.id) {
+  const userId = String(req.params.id);
+  if (currentUser.id === userId) {
     return res.status(400).json({ message: "O próprio usuário logado não pode ser excluído." });
   }
 
   try {
     const [result] = await pool.execute<ResultSetHeader>(
       "DELETE FROM usuarios WHERE id_usuario = ?",
-      [req.params.id],
+      [userId],
     );
 
     if (!result.affectedRows) return res.status(404).json({ message: "Usuário não encontrado." });
@@ -703,6 +717,7 @@ app.post("/api/times", requireRole("superusuario", "gestor"), async (req, res) =
 });
 
 app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res) => {
+  const timeId = String(req.params.id);
   const { nome_time, departamento, responsavel_id, usuarios_ids } = req.body as {
     nome_time?: string;
     departamento?: string;
@@ -711,10 +726,10 @@ app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res
   };
 
   try {
-    const current = await getTimeById(req.params.id);
+    const current = await getTimeById(timeId);
     if (!current) return res.status(404).json({ message: "Time não encontrado." });
 
-    const error = await validateTimePayload(nome_time, departamento, responsavel_id, usuarios_ids, req.params.id);
+    const error = await validateTimePayload(nome_time, departamento, responsavel_id, usuarios_ids, timeId);
     if (error) return res.status(400).json({ message: error });
 
     const ids = [...new Set([...(usuarios_ids ?? []).map(String), ...(responsavel_id ? [String(responsavel_id)] : [])])];
@@ -725,21 +740,21 @@ app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res
 
       await connection.execute(
         `UPDATE time SET nome_time = ?, departamento = ?, responsavel_id = ? WHERE id_time = ?`,
-        [nome_time!.trim(), departamento!.trim(), responsavel_id || null, req.params.id],
+        [nome_time!.trim(), departamento!.trim(), responsavel_id || null, timeId],
       );
 
-      await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [req.params.id]);
+      await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [timeId]);
 
       if (ids.length) {
         const placeholders = ids.map(() => "?").join(",");
         await connection.execute(
           `UPDATE usuarios SET time_id = ? WHERE id_usuario IN (${placeholders})`,
-          [req.params.id, ...ids],
+          [timeId, ...ids],
         );
       }
 
       await connection.commit();
-      const updated = await getTimeById(req.params.id);
+      const updated = await getTimeById(timeId);
       if (!updated) return res.status(500).json({ message: "Não foi possível recuperar o time atualizado." });
       res.json({ time: await buildPublicTime(updated) });
     } catch (error) {
@@ -755,11 +770,12 @@ app.put("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res
 });
 
 app.delete("/api/times/:id", requireRole("superusuario", "gestor"), async (req, res) => {
+  const timeId = String(req.params.id);
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [req.params.id]);
-    const [result] = await connection.execute<ResultSetHeader>("DELETE FROM time WHERE id_time = ?", [req.params.id]);
+    await connection.execute("UPDATE usuarios SET time_id = NULL WHERE time_id = ?", [timeId]);
+    const [result] = await connection.execute<ResultSetHeader>("DELETE FROM time WHERE id_time = ?", [timeId]);
 
     if (!result.affectedRows) {
       await connection.rollback();
@@ -829,6 +845,10 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
       return res.status(403).json({ message: "Somente o responsável do time pode concluir uma O.S. em revisão." });
     }
 
+    if (!isTimeMonitoramento(rows[0].departamento as string | null)) {
+      return res.status(409).json({ message: "A O.S. precisa ser aprovada na verificação do monitoramento para ser concluída." });
+    }
+
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
@@ -878,6 +898,9 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
 // ORDENS DE SERVIÇO
 // =====================================================
 
+// Resumo das atividades da O.S. (US24) - rotas em os_resumo.ts (/api/os/:osId/resumo)
+app.use("/api/os", createOsResumoRouter(requireRole));
+app.use("/api/os", createOsExclusaoRouter(requireRole));
 app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================
@@ -897,6 +920,12 @@ app.use("/api/notificacoes", createNotificacoesRouter(requireAuth));
 app.use("/api/manutencoes", createManutencoesRouter(requireRole));
 
 // =====================================================
+// HISTÓRICO DE ORDENS DE SERVIÇO
+// =====================================================
+app.use("/api/historico", createHistoricoRouter(requireRole));
+app.use("/api/historico-filtro", createDataFiltroRouter(requireRole));
+
+// =====================================================
 // DASHBOARD
 // =====================================================
 app.use("/api/dashboard", createDashboardRouter(requireRole));
@@ -913,11 +942,14 @@ async function startServer() {
   try {
     await ensureProjectStatusSchema();
     await ensureNotificationSchema();
+    await ensureOsReportSchema();
+    await ensureOsVerificationSchema();
+    await ensureOsResumoSchema();
     app.listen(PORT, () => {
       console.log(`Backend Express rodando em http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("Erro ao inicializar o banco de notificações:", error);
+    console.error("Erro ao inicializar o schema do banco de dados:", error);
     process.exit(1);
   }
 }

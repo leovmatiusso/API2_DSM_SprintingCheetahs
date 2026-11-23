@@ -5,8 +5,19 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./db.js";
 import type { Role, User } from "./users.js";
 import { SELECT_OS, filtroVisibilidadeOS, mapOS, statusDoItem } from "./os_comum.js";
+import { isCriticalPriority, shouldNotifyCriticalPriority } from "./os_fluxo.js";
+import {
+  createCriticalRelatedNotification,
+  createEntityUpdateNotifications,
+  type EntityUpdate,
+} from "./notificacoes.js";
+import {
+  construirDadosRelatorio,
+  gerarEArmazenarRelatorio,
+  gerarPdfRelatorio,
+} from "./report_generation.js";
 
-const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte"];
+const PERFIS_VEEM_TODOS: Role[] = ["gestor", "suporte", "superusuario"];
 const PERFIS_COM_ACESSO: Role[] = [
   "gestor",
   "suporte",
@@ -17,8 +28,12 @@ const PERFIS_COM_ACESSO: Role[] = [
 ];
 
 const TIPOS = ["preventiva", "corretiva", "adaptativa", "evolutiva"] as const;
+// O superusuário consulta e edita todas as manutenções (e cria O.S. dentro delas).
+const PERFIS_CONSULTA: Role[] = [...PERFIS_COM_ACESSO, "superusuario"];
+
 const PRIORIDADES = ["baixa", "media", "alta", "critica"] as const;
 const STATUS_MANUTENCAO = ["aberta", "em_andamento", "concluida", "cancelada"] as const;
+const PERFIS_CONCLUEM_MANUTENCAO: Role[] = ["gestor", "superusuario", "suporte"];
 
 type Tipo = (typeof TIPOS)[number];
 type Prioridade = (typeof PRIORIDADES)[number];
@@ -82,7 +97,8 @@ function mapManutencaoResumo(m: RowDataPacket) {
 export function createManutencoesRouter(requireRole: RequireRole): Router {
   const router = Router();
 
-  router.get("/projetos", requireRole("suporte"), async (_req, res) => {
+  // Lista de projetos para vincular a manutenção (criação e edição).
+  router.get("/projetos", requireRole(...PERFIS_CONSULTA), async (_req, res) => {
     try {
       const [projetos] = await pool.execute<RowDataPacket[]>(
         `SELECT projeto_id AS id_projeto, nome
@@ -96,7 +112,75 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     }
   });
 
-  router.get("/", requireRole(...PERFIS_COM_ACESSO), async (_req, res) => {
+  router.get("/:manutencaoId/relatorio", requireRole(...PERFIS_CONSULTA), async (req, res) => {
+    const manutencaoId = String(req.params.manutencaoId);
+    if (!/^\d+$/.test(manutencaoId)) {
+      return res.status(404).json({ message: "Manutenção não encontrada." });
+    }
+
+    try {
+      const [manutencoes] = await pool.execute<RowDataPacket[]>(
+        "SELECT manutencao_id, status FROM manutencoes WHERE manutencao_id = ? LIMIT 1",
+        [manutencaoId],
+      );
+      const manutencao = manutencoes[0];
+      if (!manutencao) return res.status(404).json({ message: "Manutenção não encontrada." });
+      if (manutencao.status !== "concluida") {
+        return res.status(409).json({ message: "O relatório fica disponível após a conclusão da manutenção." });
+      }
+
+      const [existentes] = await pool.execute<RowDataPacket[]>(
+        `SELECT anexo_id, nome_anexo, conteudo_arquivo
+           FROM anexo
+          WHERE manutencao_id = ? AND LOWER(anexo_tipo) = 'application/pdf'
+          ORDER BY data_anexo DESC, anexo_id DESC LIMIT 1`,
+        [manutencaoId],
+      );
+      let relatorio: {
+        anexo_id: number;
+        nome_anexo: unknown;
+        conteudo_arquivo: unknown;
+      } | undefined = existentes[0] as {
+        anexo_id: number;
+        nome_anexo: unknown;
+        conteudo_arquivo: unknown;
+      } | undefined;
+      if (!relatorio) {
+        const gerado = await gerarEArmazenarRelatorio("manutencao", manutencaoId);
+        relatorio = {
+          anexo_id: gerado.id,
+          nome_anexo: gerado.nome,
+          conteudo_arquivo: gerado.pdf,
+        };
+      } else {
+        const dados = await construirDadosRelatorio("manutencao", manutencaoId);
+        const pdfAtualizado = await gerarPdfRelatorio(dados);
+        await pool.execute(
+          `UPDATE anexo
+              SET conteudo_arquivo = ?, anexo_tamanho = ?, data_anexo = CURRENT_TIMESTAMP
+            WHERE anexo_id = ?`,
+          [pdfAtualizado, pdfAtualizado.length, Number(relatorio.anexo_id)],
+        );
+        relatorio = {
+          ...relatorio,
+          conteudo_arquivo: pdfAtualizado,
+        };
+      }
+
+      const nome = relatorio.nome_anexo as string;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(nome)}`);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.send(relatorio.conteudo_arquivo as Buffer);
+    } catch (error) {
+      console.error("Erro ao gerar relatório da manutenção:", error);
+      return res.status(500).json({ message: "Não foi possível gerar o relatório da manutenção." });
+    }
+  });
+
+  router.get("/", requireRole(...PERFIS_CONSULTA), async (_req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -116,7 +200,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     }
   });
 
-  router.get("/:manutencaoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:manutencaoId", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const user = res.locals.user as User;
     const manutencaoId = String(req.params.manutencaoId);
 
@@ -133,15 +217,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       );
       const m = rows[0];
       if (!m) return res.status(404).json({ message: "Manutenção não encontrada." });
-
-      const [equipamentos] = await pool.execute<RowDataPacket[]>(
-        `SELECT e.nome_equipamento, i.quantidade
-           FROM item_equipamento_manutencao i
-           JOIN equipamentos e ON e.equipamento_id = i.equipamento_id
-          WHERE i.manutencao_id = ?
-          ORDER BY e.nome_equipamento`,
-        [manutencaoId],
-      );
 
       const [anexos] = await pool.execute<RowDataPacket[]>(
         `SELECT anexo_id, nome_anexo, anexo_tipo, anexo_tamanho
@@ -171,10 +246,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
               : { id: String(m.projeto_id), nome: m.projeto_nome as string },
           descricao: (m.descricao_situacao as string | null) ?? "",
           data_inicio_problema: m.data_inicio_problema as string | null,
-          equipamentos: equipamentos.map((e) => ({
-            nome: e.nome_equipamento as string,
-            quantidade: Number(e.quantidade),
-          })),
           anexos: anexos.map((a) => ({
             id: String(a.anexo_id),
             nome: a.nome_anexo as string,
@@ -190,7 +261,7 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     }
   });
 
-  router.get("/:manutencaoId/anexos/:anexoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.get("/:manutencaoId/anexos/:anexoId", requireRole(...PERFIS_CONSULTA), async (req, res) => {
     const user = res.locals.user as User;
 
     try {
@@ -232,7 +303,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       prioridade,
       status_manutencao,
       descricao_situacao,
-      equipamentos = [],
       anexos = [],
     } = (req.body ?? {}) as {
       resumo?: string;
@@ -243,7 +313,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       prioridade?: string;
       status_manutencao?: string;
       descricao_situacao?: string;
-      equipamentos?: { nome_equipamento?: string; quantidade?: number }[];
       anexos?: {
         nome_anexo?: string;
         anexo_tipo?: string;
@@ -278,8 +347,8 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     if (!descricao_situacao?.trim() || descricao_situacao.length > 5000) {
       return res.status(400).json({ message: "Informe a descrição (até 5000 caracteres)." });
     }
-    if (!Array.isArray(equipamentos) || !Array.isArray(anexos)) {
-      return res.status(400).json({ message: "Equipamentos ou anexos em formato inválido." });
+    if (!Array.isArray(anexos)) {
+      return res.status(400).json({ message: "Anexos em formato inválido." });
     }
 
     try {
@@ -292,19 +361,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
           [String(projeto_id)],
         );
         if (!projetos.length) return res.status(400).json({ message: "Projeto não encontrado." });
-      }
-
-      const itens = new Map<string, { nome: string; quantidade: number }>();
-      for (const equipamento of equipamentos) {
-        const equipamentoNome = equipamento?.nome_equipamento?.trim();
-        const quantidade = Number(equipamento?.quantidade);
-        if (!equipamentoNome || equipamentoNome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
-          return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
-        }
-        const key = equipamentoNome.toLocaleLowerCase();
-        const existing = itens.get(key);
-        if (existing) existing.quantidade += quantidade;
-        else itens.set(key, { nome: equipamentoNome, quantidade });
       }
 
       const arquivos: { nome: string; tipo: string; tamanho: number; conteudo: Buffer }[] = [];
@@ -353,21 +409,15 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
         );
         const manutencaoId = result.insertId;
 
-        for (const item of itens.values()) {
-          await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
-          const [rows] = await connection.execute<RowDataPacket[]>(
-            "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
-            [item.nome],
-          );
-          const equipamentoId = rows[0]?.equipamento_id;
-          if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-          await connection.execute(
-            `INSERT INTO item_equipamento_manutencao (manutencao_id, equipamento_id, quantidade)
-             VALUES (?, ?, ?)`,
-            [manutencaoId, equipamentoId, item.quantidade],
-          );
+        if (isCriticalPriority(prioridadeFinal)) {
+          await createCriticalRelatedNotification(connection, {
+            entidade: "manutencao",
+            evento: "criada",
+            entidadeId: manutencaoId,
+            entidadeNome: resumo.trim(),
+            usuarioOrigemId: user.id,
+          });
         }
-
         for (const arquivo of arquivos) {
           await connection.execute(
             `INSERT INTO anexo
@@ -394,7 +444,8 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
     }
   });
 
-  router.put("/:manutencaoId", requireRole(...PERFIS_COM_ACESSO), async (req, res) => {
+  router.put("/:manutencaoId", requireRole(...PERFIS_CONSULTA), async (req, res) => {
+    const user = res.locals.user as User;
     const manutencaoId = String(req.params.manutencaoId);
 
     if (!/^\d+$/.test(manutencaoId)) {
@@ -410,7 +461,6 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       prioridade,
       status_manutencao,
       descricao_situacao,
-      equipamentos,
     } = (req.body ?? {}) as Record<string, unknown>;
 
     try {
@@ -421,6 +471,18 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
       const atual = existentes[0];
       if (!atual) {
         return res.status(404).json({ message: "Manutenção não encontrada." });
+      }
+
+      // Somente gestor, superusuário e suporte concluem a manutenção; os demais mudam para os outros estados.
+      if (
+        typeof status_manutencao === "string" &&
+        status_manutencao.toLowerCase() === "concluida" &&
+        atual.status_manutencao !== "concluida" &&
+        !PERFIS_CONCLUEM_MANUTENCAO.includes(user.role)
+      ) {
+        return res.status(403).json({
+          message: "Somente gestor, superusuário ou suporte podem concluir a manutenção.",
+        });
       }
 
       const sets: string[] = [];
@@ -515,48 +577,33 @@ export function createManutencoesRouter(requireRole: RequireRole): Router {
           ]);
         }
 
-        if (equipamentos !== undefined) {
-          if (!Array.isArray(equipamentos)) {
-            await connection.rollback();
-            return res.status(400).json({ message: "Equipamentos em formato inválido." });
-          }
-
-          const itens = new Map<string, { nome: string; quantidade: number }>();
-          for (const equipamento of equipamentos as { nome_equipamento?: string; quantidade?: number }[]) {
-            const nome = equipamento?.nome_equipamento?.trim();
-            const quantidade = Number(equipamento?.quantidade);
-            if (!nome || nome.length > 150 || !Number.isInteger(quantidade) || quantidade < 1) {
-              await connection.rollback();
-              return res.status(400).json({ message: "Informe equipamentos válidos e quantidades positivas." });
-            }
-            const key = nome.toLocaleLowerCase();
-            const existing = itens.get(key);
-            if (existing) existing.quantidade += quantidade;
-            else itens.set(key, { nome, quantidade });
-          }
-
-          await connection.execute("DELETE FROM item_equipamento_manutencao WHERE manutencao_id = ?", [manutencaoId]);
-          for (const item of itens.values()) {
-            await connection.execute("INSERT IGNORE INTO equipamentos (nome_equipamento) VALUES (?)", [item.nome]);
-            const [rowsEq] = await connection.execute<RowDataPacket[]>(
-              "SELECT equipamento_id FROM equipamentos WHERE LOWER(nome_equipamento) = LOWER(?) LIMIT 1",
-              [item.nome],
-            );
-            const equipamentoId = rowsEq[0]?.equipamento_id;
-            if (!equipamentoId) throw new Error("Não foi possível registrar um equipamento.");
-            await connection.execute(
-              `INSERT INTO item_equipamento_manutencao (manutencao_id, equipamento_id, quantidade) VALUES (?, ?, ?)`,
-              [manutencaoId, equipamentoId, item.quantidade],
-            );
-          }
-        }
-
+        await createEntityUpdateNotifications(connection, {
+          entidade: "manutencao",
+          entidadeId: manutencaoId,
+          entidadeNome: typeof resumo === "string" ? resumo.trim() : String(atual.resumo),
+          usuarioOrigemId: user.id,
+          usuarioNome: user.name,
+          atualizacoes,
+        });
+        
         await connection.commit();
       } catch (error) {
         await connection.rollback();
         throw error;
       } finally {
         connection.release();
+      }
+
+      if (
+        status_manutencao !== undefined &&
+        status_manutencao.toLowerCase() === "concluida" &&
+        atual.status_manutencao !== "concluida"
+      ) {
+        try {
+          await gerarEArmazenarRelatorio("manutencao", manutencaoId, user.id);
+        } catch (error) {
+          console.error("Manutenção concluída, mas o relatório automático não pôde ser gerado:", error);
+        }
       }
 
       const [rows] = await pool.execute<RowDataPacket[]>(`${SELECT_MANUTENCAO} WHERE m.manutencao_id = ? LIMIT 1`, [

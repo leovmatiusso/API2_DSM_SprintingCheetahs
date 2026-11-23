@@ -161,6 +161,10 @@ O projeto está dividido em três Sprints, seguindo a metodologia ágil Scrum. O
 
 O padrão de commits e a estratégia de branches pode ser visualizada em [GUIA.md](./docs/GUIA.md).
 
+### Histórico geral de alterações
+
+O histórico registra alterações em usuários, equipes, projetos, manutenções, ordens de serviço, anexos, equipamentos, notificações e vínculos, incluindo o e-mail do usuário autenticado que realizou a ação. Para um banco existente, aplique em ordem `backend/migrations/20261120_add_general_audit_history.sql` e `backend/migrations/20261121_add_audit_actor.sql` com um cliente MySQL que aceite `DELIMITER` (como o cliente `mysql`). Em uma instalação nova, use o `script.sql` atualizado. **O `script.sql` apaga e recria as tabelas; não o execute sobre um banco com dados que deseja manter.**
+
 ---
 
 ## 👤 Equipe <a id="equipe"></a>

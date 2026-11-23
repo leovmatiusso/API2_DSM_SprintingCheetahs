@@ -1,11 +1,12 @@
 import "@/style/MinhaConta.css";
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { X } from "lucide-react";
 import { changePassword, getAccount } from "@/api";
 import { getCurrentUser } from "@/auth";
 import PasswordInput from "@/components/PasswordInput";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 
 const roleLabels: Record<string, string> = {
   superusuario: "superusuario",
@@ -18,8 +19,12 @@ const roleLabels: Record<string, string> = {
   monitoramento: "monitoramento",
 };
 
-export default function MinhaConta() {
-  const navigate = useNavigate();
+interface MinhaContaProps {
+  modal?: boolean;
+  onClose?: () => void;
+}
+
+export default function MinhaConta({ modal = false, onClose }: MinhaContaProps) {
   const currentUser = getCurrentUser();
 
   const [email, setEmail] = useState(currentUser?.email ?? "");
@@ -42,6 +47,16 @@ export default function MinhaConta() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Erro."));
   }, []);
+
+  useEffect(() => {
+    if (!modal || !onClose) return;
+    const fechar = onClose;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") fechar();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modal, onClose]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -78,11 +93,16 @@ export default function MinhaConta() {
     }
   }
 
-  return (
-    <main className="page">
-
-      <section className="card content account-card flex flex-col gap-5">
-        <h1>Minha conta</h1>
+  const content = (
+      <Card className={`account-card flex flex-col gap-5 ${modal ? "w-full max-w-[650px]" : "content"}`}>
+        {modal ? (
+          <div className="flex items-center justify-between">
+            <h1 id="account-modal-title">Minha conta</h1>
+            <button type="button" aria-label="Fechar" onClick={onClose} className="text-text-muted hover:text-text cursor-pointer rounded-lg p-1">
+              <X size={20} />
+            </button>
+          </div>
+        ) : <h1>Minha conta</h1>}
 
         <Input label="Nome" value={name} readOnly />
 
@@ -119,7 +139,18 @@ export default function MinhaConta() {
             </Button>
           </div>
         </form>
-      </section>
-    </main>
+      </Card>
   );
+
+  if (modal) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
+        <div role="dialog" aria-modal="true" aria-labelledby="account-modal-title" className="w-full max-w-[650px]" onMouseDown={(event) => event.stopPropagation()}>
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  return <main className="page">{content}</main>;
 }

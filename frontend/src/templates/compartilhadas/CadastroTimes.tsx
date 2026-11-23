@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { UsersRound } from "lucide-react";
 
 import Button from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 import { createTime, getUsers } from "@/api";
 
@@ -170,7 +171,7 @@ export default function CadastroTimes({
           </div>
         </header>
 
-        <section className="card content flex flex-col gap-5">
+        <Card className="content flex flex-col gap-5">
 
         <form className="grid grid-cols-2 gap-5 col-span-full" onSubmit={handleSubmit}>
           <Input
@@ -278,7 +279,7 @@ export default function CadastroTimes({
         {message && <div className="success">{message}</div>}
 
         {error && <div className="error">{error}</div>}
-      </section>
+      </Card>
       </div>
     </main>
   );

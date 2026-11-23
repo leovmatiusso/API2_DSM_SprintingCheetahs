@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { ClipboardList, File, Link, Package } from "lucide-react";
+import { ClipboardList, File, Link } from "lucide-react";
 
 import type { ProjetoAnexo } from "@/api";
 
@@ -24,18 +24,17 @@ function Campo({ icone: Icone, rotulo, valor }: CampoDetalhe) {
   );
 }
 
-// Painel de 3 colunas (dados | descrição e equipamentos | anexos)
+// Painel de 3 colunas (dados | descrição | anexos)
 // usado na tela expandida de projetos e manutenções.
+// Equipamentos e materiais não são cadastrados em projetos/manutenções (só nas O.S.).
 export default function DetalhePainel({
   campos,
   descricao,
-  equipamentos,
   anexos,
   abrirAnexo,
 }: {
   campos: CampoDetalhe[];
   descricao: string;
-  equipamentos: { nome: string; quantidade: number }[];
   anexos: ProjetoAnexo[];
   abrirAnexo: (anexo: ProjetoAnexo) => Promise<void>;
 }) {
@@ -53,16 +52,16 @@ export default function DetalhePainel({
   }
 
   return (
-    <section className="nova-os-card border-border grid overflow-hidden rounded-xl border shadow-sm md:grid-cols-3">
+    <section className="nova-os-card border-border grid overflow-hidden rounded-xl border shadow-sm xl:grid-cols-3">
       {/* Dados */}
-      <div className="border-border grid grid-cols-1 content-start gap-x-6 gap-y-5 border-b p-6 sm:grid-cols-2 md:border-r md:border-b-0">
+      <div className="border-border grid grid-cols-1 content-start gap-x-6 gap-y-5 border-b p-5 sm:grid-cols-2 sm:p-6 xl:border-r xl:border-b-0">
         {campos.map((campo) => (
           <Campo key={campo.rotulo} {...campo} />
         ))}
       </div>
 
-      {/* Descrição e equipamentos */}
-      <div className="border-border flex flex-col gap-6 border-b p-6 md:border-r md:border-b-0">
+      {/* Descrição */}
+      <div className="border-border flex flex-col gap-6 border-b p-5 sm:p-6 xl:border-r xl:border-b-0">
         <div className="flex gap-3">
           <ClipboardList className="text-text-muted mt-0.5 shrink-0" size={22} />
           <div className="min-w-0">
@@ -72,30 +71,10 @@ export default function DetalhePainel({
             </p>
           </div>
         </div>
-
-        {/* Equipamentos: só aparecem se existirem (agora ficam nas O.S.) */}
-        {equipamentos.length > 0 && (
-          <div className="flex gap-3">
-            <Package className="text-text-muted mt-0.5 shrink-0" size={22} />
-            <div className="min-w-0">
-              <span className="text-text-muted block text-xs">
-                Equipamentos e materiais
-              </span>
-              <ul className="text-text m-0 mt-1 list-none space-y-1 p-0 text-sm">
-                {equipamentos.map((item) => (
-                  <li key={item.nome}>
-                    {item.nome}{" "}
-                    <span className="text-text-muted">× {item.quantidade}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Anexos */}
-      <div className="p-6">
+      <div className="p-5 sm:p-6">
         <div className="text-text mb-4 flex items-center gap-2 font-semibold">
           <Link className="text-text-muted" size={19} />
           Anexos

@@ -1,10 +1,11 @@
 @reference "./Theme.css";
 
+
 .dashboard-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 24px;
+  margin-top: 0px;
 }
 
 .dashboard-actions small {
@@ -12,7 +13,7 @@
 }
 
 .dashboard-section-title {
-  margin-top: 32px;
+  margin-top: 20px;
 }
 
 .menu-grid {

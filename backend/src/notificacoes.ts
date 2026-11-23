@@ -195,6 +195,46 @@ export function buildOSStatusEventMessage(
   return `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong> ${acao} pelo time <strong>${escapeNotificationHtml(timeNome)}</strong>, por <strong>${escapeNotificationHtml(usuarioNome)}</strong>, em ${escapeNotificationHtml(dataEvento)}.`;
 }
 
+export function buildOSEncaminhadaMessage(
+  osId: number | string,
+  osTitulo: string,
+  timeAnterior: string,
+  timeNovo: string,
+  usuarioNome: string,
+): string {
+  return `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong> foi encaminhada do time <strong>${escapeNotificationHtml(timeAnterior)}</strong> para o time <strong>${escapeNotificationHtml(timeNovo)}</strong> por <strong>${escapeNotificationHtml(usuarioNome)}</strong>.`;
+}
+
+export function buildOSAguardandoVerificacaoMessage(
+  osId: number | string,
+  osTitulo: string,
+  timeNome: string,
+  usuarioNome: string,
+): string {
+  return `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong> do time <strong>${escapeNotificationHtml(timeNome)}</strong> foi enviada para verificação por <strong>${escapeNotificationHtml(usuarioNome)}</strong>.`;
+}
+
+// O motivo fica dentro de <strong> e em uma só linha porque o NotificationMessage só
+// decodifica (e reconhece) o conteúdo escapado nesse trecho.
+export function buildOSVerificacaoMessage(
+  osId: number | string,
+  osTitulo: string,
+  resultado: "aprovada" | "reprovada",
+  usuarioNome: string,
+  dataEvento: string,
+  justificativa?: string | null,
+): string {
+  const os = `A O.S. #${escapeNotificationHtml(String(osId))} — <strong>${escapeNotificationHtml(osTitulo)}</strong>`;
+  const autor = `<strong>${escapeNotificationHtml(usuarioNome)}</strong> (Monitoramento), em ${escapeNotificationHtml(dataEvento)}`;
+
+  if (resultado === "aprovada") {
+    return `${os} foi aprovada na verificação por ${autor}. Ela voltou para o time em Review: o líder deve registrar o resumo das atividades para concluí-la.`;
+  }
+
+  const motivo = escapeNotificationHtml((justificativa ?? "").replace(/\s+/g, " ").trim());
+  return `${os} foi reprovada na verificação por ${autor}. Motivo: <strong>${motivo}</strong>`;
+}
+
 export function buildMaintenanceCreatedNotificationMessage(
   resumo: string,
   manutencaoId: number | string,
@@ -431,7 +471,7 @@ export function createNotificacoesRouter(requireAuth: RequestHandler): Router {
 
   router.patch("/:notificacaoId/ler", requireAuth, async (req, res) => {
     const user = res.locals.user as User;
-    const notId = req.params.notificacaoId;
+    const notId = String(req.params.notificacaoId);
 
     if (!/^\d+$/.test(notId)) {
       return res.status(404).json({ message: "Notificação não encontrada." });
