@@ -1,10 +1,10 @@
 # <div align="center">📌 MVP - Sprint 3 <a id="topo"></a> </div>
-> Status da Sprint: Em andamento 🟨
+> Status da Sprint: Concluída 🟩
 ---
 ### 🎯 Objetivo do MVP
 Na terceira e última Sprint, o foco será nas funcionalidades de filtragem de Ordens de Serviço por prioridade, atraso, departamento e status (US19 e US18), além de um histórico (log de auditoria) que guarda as atividades do sistema para o gestor, permitindo-o que veja quem fez o quê e quando (US23).
 
-> <a href="">Clique aqui para ver o vídeo da Sprint!</a>
+> <a href="https://youtu.be/QjcxUW_zaYQ?si=hTd_VnE60UZylMrJ">Clique aqui para ver o vídeo da Sprint!</a>
 
 ### 👥 Personas
 
@@ -24,21 +24,21 @@ Na terceira e última Sprint, o foco será nas funcionalidades de filtragem de O
 |     RANK      | USER STORY   | PRIORIDADE | ESTIMATIVA | ÉPICO | SPRINT | STATUS |
 | :-----------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------: | :--------: | :---: | :----: | ------ |
 | 18<sup>★</sup> | Como usuário quero um filtro no qual apareça as OS ordenadas por status, prioridade e departamento, para que eu consiga agir antes que surja um problema                                                                |    Must    |     2      |  E3   |   2    | 🟢     |
-| 19<sup>★</sup> | Como usuário, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                                                                                  |    Must    |     3      |  E3   |   2    | 🟡     |
-| 23<sup>★</sup> | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                         |    Must    |     3      |  E4   |   2    | 🟡     |
+| 19<sup>★</sup> | Como usuário, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                                                                                  |    Must    |     3      |  E3   |   2    | 🟢     |
+| 23<sup>★</sup> | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                         |    Must    |     3      |  E4   |   2    | 🟢     |
 
 ### 📋 Backlog da Sprint
 
 | RANK | USER STORY                                                                                                                                                                                                                | PRIORIDADE | ESTIMATIVA | ÉPICO | SPRINT | STATUS |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- | ----- | ------ | ------ |
 | 18<sup>★</sup> | Como usuário quero um filtro no qual apareça as OS ordenadas por status, prioridade e departamento, para que eu consiga agir antes que surja um problema                                                                  | Must       | 5          | E4    | 3      | 🟢    |
-| 19<sup>★</sup> | Como usuário, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                                                                                    | Must       | 3          | E4    | 3      | 🟡    |
+| 19<sup>★</sup> | Como usuário, quero ver quais OS estão atrasadas, para que eu possa agir antes que o atraso se torne um problema maior                                                                                                    | Must       | 3          | E4    | 3      | 🟢    |
 | 20              | Como equipe de produção, software, monitoramento ou implantação, quero receber notificação quando houver uma mudança relevante na minha OS, para que eu me mantenha atualizado sem precisar checar o sistema o tempo todo | Could      | 3          | E5    | 3      | 🟢    |
 | 21              | Como equipe de produção, software, monitoramento ou implantação, quero ser notificado quando uma OS crítica for aberta, para que eu reaja rapidamente a casos urgentes                                                    | Could      | 2          | E5    | 3      | 🟢    |
-| 22              | Como usuário, quero ver o histórico completo de uma OS (status, responsáveis, prazos), para que eu tenha rastreabilidade e clareza sobre o que já ocorreu                                                                 | Should     | 5          | E6    | 3      | 🟡    |
-| 23<sup>★</sup> | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                            | Should     | 13         | E6    | 3      | 🟡    |
-| 24              | Como líder da equipe de produção, software, monitoramento ou implantação, quero um campo feito para eu resumir em poucas palavras o que foi feito na OS, para que na hora de gerar o relatório final do projeto ou manutenção esteja escrita a contribuição do meu departamento | Could    | 3         | E6    | 3     | 🔴   |
-| 25              | Como gestor, suporte ou equipe comercial, quero poder gerar relatórios automaticamente quando um projeto ou manutenção for finalizada com sucesso, para que eu possa ter a visualização completa e resumida de toda a operação | Could | 8          | E6    | 3      | 🔴    |
+| 22              | Como usuário, quero ver o histórico completo de uma OS (status, responsáveis, prazos), para que eu tenha rastreabilidade e clareza sobre o que já ocorreu                                                                 | Should     | 5          | E6    | 3      | 🟢    |
+| 23<sup>★</sup> | Como gestor, quero que o sistema guarde um registro de tudo que acontece nele, para que eu consiga checar depois quem fez o quê                                                                                            | Should     | 13         | E6    | 3      | 🟢    |
+| 24              | Como líder da equipe de produção, software, monitoramento ou implantação, quero um campo feito para eu resumir em poucas palavras o que foi feito na OS, para que na hora de gerar o relatório final do projeto ou manutenção esteja escrita a contribuição do meu departamento | Could    | 3         | E6    | 3     | 🟢   |
+| 25              | Como gestor, suporte ou equipe comercial, quero poder gerar relatórios automaticamente quando um projeto ou manutenção for finalizada com sucesso, para que eu possa ter a visualização completa e resumida de toda a operação | Could | 8          | E6    | 3      | 🟢    |
 | 26              | Como equipe de monitoramento, quero aprovar ou reprovar a verificação de uma, para que a OS seja encerrada (se aprovada) ou volte para a equipe de software (se reprovada)                                                | Should     | 3          | E7    | 3      | 🟢    |
 | 27              | Como equipe de monitoramento, quero poder anexar relatórios em PDF do resultado dos testes, para que a próxima equipe responsável saiba o que fazer                                                                       | Should     | 3          | E7    | 3      | 🟢    |
 

@@ -13,13 +13,13 @@
   <a href="#metodologia">Metodologia</a> |
   <a href="#dor">DoR</a> | 
   <a href="#dod">DoD</a> | 
-  <a href="#cronograma">Cronograma</a>
+  <a href="#cronograma">Cronograma</a> |
   <a href="#equipe">Equipe</a>
 </p>
 
-> **Status do Projeto:** Em andamento ⏱️
+> **Status do Projeto:** Concluído ✔️
 
----
+
 
 ## 📌 Apresentação <a id="apresentacao"></a>
 
@@ -33,7 +33,7 @@
   O software foi desenvolvido a partir da necessidade de facilitar a comunicação entre equipes e o gerenciamento de novas Ordens de Serviço (OS) da empresa <strong><a href="https://altave.com.br/home/">ALTAVE</a></strong>. Sendo assim, a proposta principal do sistema é a gestão do processo de novos produtos e pedidos de manutenção, além de proporcionar maior clareza sobre as etapas de andamento das atividades aos funcionários.
 </p>
 
----
+
 
 ## 🎯 Objetivo do Projeto <a id="objetivo"></a>
 
@@ -41,7 +41,7 @@
   O projeto foi desenvolvido em parceria com a <strong>ALTAVE</strong>, empresa especializada em soluções completas de monitoramento que integram software, hardware e inteligência artificial, com o objetivo de desenvolver um <strong>sistema de gerenciamento de ordens de serviço</strong> voltado à organização e otimização dos processos internos da empresa. A solução possui <strong>hierarquia de permissões de acesso</strong>, divisão por setores, comunicação entre equipes e recursos para <strong>registro, acompanhamento e detalhamento das ordens de serviço</strong>, permitindo a inclusão de informações, descrições, análises e atualizações relacionadas a cada atendimento, proporcionando maior controle, organização e rastreabilidade sobre os serviços realizados.
 </p>
 
----
+
 
 ## 👨🏻‍💻 Tecnologias Utilizadas <a id="tecnologias"></a>
 
@@ -67,7 +67,7 @@
   
 </p>
 
----
+
 
 ## 🏷️ Épicos <a id="epicos"></a>
 
@@ -79,7 +79,7 @@
 - <strong>E6: </strong>Histórico de OS e rastreabilidade
 - <strong>E7: </strong>Verificação de qualidade e testes
 
----
+
 
 ## 📋 Backlog <a id="backlog"></a>
 
@@ -120,7 +120,7 @@
   A <strong>filosofia ágil</strong>, especificamente o <strong>Scrum</strong>, foi utilizada como abordagem para o gerenciamento e desenvolvimento do projeto. O Scrum é baseado em ciclos iterativos e incrementais, promovendo colaboração constante, entregas frequentes e adaptação contínua às mudanças. O trabalho foi dividido em ciclos curtos chamados <strong>sprints</strong>, com duração de 3 semanas. Durante cada sprint, a equipe trabalhou de forma colaborativa para planejar, desenvolver, testar e entregar funcionalidades incrementais do sistema. O Scrum também estabeleceu papéis bem definidos entre os integrantes, como o <strong>Product Owner</strong>, responsável pela priorização das tarefas e alinhamento das necessidades do projeto; o <strong>Scrum Master</strong>, responsável por facilitar o processo e auxiliar na remoção de impedimentos; e a <strong>Equipe de Desenvolvimento</strong>, responsável pela implementação das funcionalidades. A metodologia promoveu transparência, comunicação constante e melhoria contínua, contribuindo para entregas mais organizadas e alinhadas às necessidades apresentadas pela empresa parceira.
 </p>
 
----
+
 
 ## 🏃‍♂️ DoR - Definition of Ready <a id="dor"></a>
 
@@ -130,7 +130,7 @@
 - **Épico:** A qual épico a funcionalidade faz parte
 - **Obstáculos:** Não há dúvidas ou impedimentos
 
----
+
 
 ## 🏆 DoD - Definition of Done <a id="dod"></a>
 
@@ -155,11 +155,13 @@ O projeto está dividido em três Sprints, seguindo a metodologia ágil Scrum. O
 | :---: | :---: | :---: | :---: |
 | **01** | 07/09 à 27/09 | [📄 Acessar](docs/mvp/mvp-sprint1.md) | ✔️ |
 | **02** | 05/10 à 25/10 | [📄 Acessar](docs/mvp/mvp-sprint2.md) | ✔️ |
-| **03** | 02/11 à 22/11 | [📄 Acessar](docs/mvp/mvp-sprint3.md) | 🕒 |
+| **03** | 02/11 à 22/11 | [📄 Acessar](docs/mvp/mvp-sprint3.md) | ✔️ |
 
-## Contribuição
+## Guias e manuais
 
-O padrão de commits e a estratégia de branches pode ser visualizada em [GUIA.md](./docs/GUIA.md).
+- O padrão de commits e a estratégia de branches pode ser visualizada em [GUIA.md](./docs/GUIA.md).
+- Para rodar o projeto clique em [Manual de Instalação.md](./docs/Manual de Instalação.md). 
+- Para saber como usa-se o sistema clique em [Manual do Usuário](./docs/Manual do Usuário.md).
 
 ### Histórico geral de alterações
 
