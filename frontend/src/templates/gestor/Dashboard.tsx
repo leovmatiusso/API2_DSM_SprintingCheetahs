@@ -32,8 +32,7 @@ export default function Dashboard() {
     <main className="bg-bg-secondary text-text min-h-screen p-8">
       {/* Conteúdo */}
       <section>
-        <p className="text-text-muted mb-1 text-sm">Painel inicial</p>
-
+        
         <h1 className="mb-6 text-3xl font-bold">Olá, {user.name}</h1>
         {erro && <p className="text-danger mb-4 text-sm" role="alert">{erro}</p>}
 
