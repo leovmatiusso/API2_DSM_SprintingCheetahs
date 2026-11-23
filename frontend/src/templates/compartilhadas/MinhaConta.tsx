@@ -50,8 +50,9 @@ export default function MinhaConta({ modal = false, onClose }: MinhaContaProps) 
 
   useEffect(() => {
     if (!modal || !onClose) return;
+    const fechar = onClose;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") fechar();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);

@@ -12,6 +12,7 @@ import type { Time } from "./times.js";
 import { createProjetosRouter, ensureProjectStatusSchema } from "./projetos.js";
 import { createManutencoesRouter } from "./manutencoes.js";
 import { createOrdensRouter, ensureOsReportSchema, ensureOsVerificationSchema } from "./ordens.js";
+import { createOsExclusaoRouter } from "./os_exclusao.js";
 import { createOsResumoRouter, ensureOsResumoSchema } from "./os_resumo.js";
 import { createHistoricoRouter } from "./historico.js";
 import { createDataFiltroRouter } from "./data_filtro.js";
@@ -44,7 +45,14 @@ const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http:/
 
 app.use(
   cors({
-    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    origin: (origin, callback) => {
+      const origemLocal = origin ? /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) : false;
+      if (!origin || allowedOrigins.includes(origin) || origemLocal) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Origem não permitida pelo CORS."));
+    },
   }),
 );
 app.use(express.json({ limit: "25mb" }));
@@ -892,6 +900,7 @@ app.patch("/api/os/:id/concluir", requireRole("gestor", "comercial", "suporte", 
 
 // Resumo das atividades da O.S. (US24) - rotas em os_resumo.ts (/api/os/:osId/resumo)
 app.use("/api/os", createOsResumoRouter(requireRole));
+app.use("/api/os", createOsExclusaoRouter(requireRole));
 app.use("/api/os", createOrdensRouter(requireRole));
 
 // =====================================================

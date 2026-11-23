@@ -1,7 +1,7 @@
 import { Route } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-import Dashboard from "@/templates/compartilhadas/Dashboard";
+import Dashboard from "@/templates/compartilhadas/DashboardHome";
 import MinhaConta from "@/templates/compartilhadas/MinhaConta";
 import MinhasOS from "@/templates/compartilhadas/MinhasOS";
 import NovaOrdemServico from "@/templates/compartilhadas/NovaOrdemServico";

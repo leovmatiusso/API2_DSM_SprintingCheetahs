@@ -12,6 +12,18 @@ ALTER TABLE os
         'verificacao'
     ) NOT NULL DEFAULT 'aberta';
 
+-- O trigger de histórico grava o mesmo status em historico_os.
+ALTER TABLE historico_os
+    MODIFY COLUMN os_status ENUM(
+        'aberta',
+        'em andamento',
+        'concluida',
+        'teste',
+        'bloqueado',
+        'review',
+        'verificacao'
+    ) NOT NULL DEFAULT 'aberta';
+
 CREATE TABLE IF NOT EXISTS os_verificacoes (
     verificacao_id INT PRIMARY KEY AUTO_INCREMENT,
     os_id INT NOT NULL,

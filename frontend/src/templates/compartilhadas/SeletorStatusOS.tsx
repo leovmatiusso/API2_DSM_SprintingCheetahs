@@ -12,9 +12,13 @@ function obterOpcoes(
   aprovadaNaVerificacao: boolean,
 ): OrdemStatus[] {
   // Aprovada na verificação: a O.S. só sai de Review quando o líder registra o resumo (que a conclui).
-  if (status === "review" && aprovadaNaVerificacao) return [];
+  if (status === "review" && aprovadaNaVerificacao) {
+    return responsavelDoTime && !timeMonitoramento ? ["verificacao"] : [];
+  }
   // O superusuário só envia O.S. em Review para verificação.
-  if (superusuario) return status === "review" && !timeMonitoramento ? ["verificacao"] : [];
+  if (superusuario) {
+    return status === "review" && responsavelDoTime && !timeMonitoramento ? ["verificacao"] : [];
+  }
   if (status === "review") {
     if (!responsavelDoTime) return [];
     // Todas as equipes, exceto o próprio monitoramento, podem enviar para verificação.

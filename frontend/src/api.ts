@@ -668,6 +668,15 @@ export interface DashboardResumo {
       implantacao: number;
     };
       porPrioridade: { baixa: number; media: number; alta: number; critica: number };
+      porStatus: {
+        aberta: number;
+        emAndamento: number;
+        teste: number;
+        concluida: number;
+        bloqueado: number;
+        review: number;
+        verificacao: number;
+      };
   };
   manutencoes: {
     total: number;
@@ -769,6 +778,11 @@ export function registrarVerificacaoOS(
     method: "POST",
     body: JSON.stringify({ resultado, justificativa }),
   });
+}
+// Exclui a O.S. (gestor, comercial/suporte dono da origem e superusuário). Falha se ela estiver
+// concluída, em verificação ou se o projeto/manutenção já foi concluído.
+export function excluirOrdemServico(id: number | string): Promise<{ message: string }> {
+  return request(`/os/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // Resumo das atividades da O.S. (US24): somente o líder do time responsável.

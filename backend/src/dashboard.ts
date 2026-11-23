@@ -32,7 +32,11 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
       let filtroProjetos = "";
       let filtroManutencoes = "";
 
-      if (user.role !== "gestor") {
+      if (user.role === "comercial") {
+        filtroOS = "WHERE o.projeto_id IS NOT NULL";
+      } else if (user.role === "suporte") {
+        filtroOS = "WHERE o.manutencao_id IS NOT NULL";
+      } else if (user.role !== "gestor" && user.role !== "superusuario") {
         if (user.time_id !== null) {
           const timeId = Number(user.time_id);
           filtroOS = "WHERE o.id_time_responsavel = ?";
@@ -117,6 +121,15 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
         alta: os.filter((ordem) => ordem.prioridade?.toLowerCase() === "alta").length,
         critica: os.filter((ordem) => ordem.prioridade?.toLowerCase() === "critica").length,
       };
+      const porStatus = {
+        aberta: os.filter((ordem) => ordem.status === "aberta").length,
+        emAndamento: os.filter((ordem) => ordem.status === "em andamento").length,
+        teste: os.filter((ordem) => ordem.status === "teste").length,
+        concluida: os.filter((ordem) => ordem.status === "concluida").length,
+        bloqueado: os.filter((ordem) => ordem.status === "bloqueado").length,
+        review: os.filter((ordem) => ordem.status === "review").length,
+        verificacao: os.filter((ordem) => ordem.status === "verificacao").length,
+      };
 
       return res.json({
         projetos: Number(projetoRows[0]?.total ?? 0),
@@ -129,6 +142,7 @@ export function createDashboardRouter(requireRole: RequireRole): Router {
           total: os.length,
           porDepartamento,
           porPrioridade,
+          porStatus,
         },
         manutencoes: {
           total: manutencaoRows.reduce((total, row) => total + Number(row.total), 0),

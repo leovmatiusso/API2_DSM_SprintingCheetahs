@@ -54,7 +54,12 @@ function isResponsavelDoTime(
   user: User,
   os: { time_responsavel_id?: number | string | null },
 ): boolean {
-  return os.time_responsavel_id != null && String(os.time_responsavel_id) === String(user.id);
+  if (os.time_responsavel_id == null || user.id == null) return false;
+  const responsavelId = Number(os.time_responsavel_id);
+  const usuarioId = Number(user.id);
+  return Number.isFinite(responsavelId) && Number.isFinite(usuarioId)
+    ? responsavelId === usuarioId
+    : String(os.time_responsavel_id).trim() === String(user.id).trim();
 }
 
 function podeAcessarOSNoFluxo(
@@ -116,13 +121,7 @@ export async function ensureOsReportSchema(): Promise<void> {
 }
 
 export async function ensureOsVerificationSchema(): Promise<void> {
-  await pool.query(`
-    ALTER TABLE os
-      MODIFY COLUMN os_status ENUM(
-        'aberta', 'em andamento', 'concluida', 'teste',
-        'bloqueado', 'review', 'verificacao'
-      ) NOT NULL DEFAULT 'aberta'
-  `);
+  await ensureOsStatusEnum();
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS os_verificacoes (
@@ -139,6 +138,31 @@ export async function ensureOsVerificationSchema(): Promise<void> {
         ON DELETE SET NULL ON UPDATE CASCADE
     ) ENGINE=InnoDB
   `);
+}
+
+async function ensureOsStatusEnum(): Promise<void> {
+  for (const tabela of ["os", "historico_os"]) {
+    const [columns] = await pool.execute<RowDataPacket[]>(
+      `SELECT COLUMN_TYPE
+         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = 'os_status'
+        LIMIT 1`,
+      [tabela],
+    );
+    const columnType = String(columns[0]?.COLUMN_TYPE ?? "");
+    if (!columnType) throw new Error(`A coluna ${tabela}.os_status não foi encontrada no banco conectado à API.`);
+    if (columnType.includes("'verificacao'")) continue;
+
+    await pool.query(`
+      ALTER TABLE \`${tabela}\`
+        MODIFY COLUMN os_status ENUM(
+          'aberta', 'em andamento', 'concluida', 'teste',
+          'bloqueado', 'review', 'verificacao'
+        ) NOT NULL DEFAULT 'aberta'
+    `);
+  }
 }
 
 // Verifica se o usuário pode abrir O.S. dentro do projeto/manutenção informado.
@@ -1023,6 +1047,8 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       return res.status(400).json({ message: "Status inválido." });
     }
     try {
+      if (statusNovo === "verificacao") await ensureOsStatusEnum();
+
       const [rows] = await pool.execute<RowDataPacket[]>(
         `SELECT o.os_id, o.os_titulo, o.os_status, o.id_time_responsavel,
           o.projeto_id, o.manutencao_id, t.nome_time, t.departamento,
@@ -1059,8 +1085,12 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
         });
       }
       // Aprovada na verificação, a O.S. só sai de Review quando o líder registra o resumo.
+      // Enviar de Review para Verificação não depende de consultar o histórico anterior.
+      // Isso evita que uma falha/tabela de verificação desatualizada bloqueie a decisão atual do líder.
       const aprovadaNaVerificacao =
-        statusAtual === "review" ? Boolean(await buscarAprovacaoPendente(osId)) : false;
+        statusAtual === "review" && statusNovo !== "verificacao"
+          ? Boolean(await buscarAprovacaoPendente(osId))
+          : false;
       const erroTransicao = validarTransicaoOS(
         statusAtual,
         statusNovo as StatusOS,
@@ -1131,28 +1161,33 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
           usuariosMonitoramento = monitoramento.map((row) => Number(row.id_usuario));
         }
 
-        await createOSChangeNotifications(connection, {
-          usuariosDestinoExtras: usuariosMonitoramento,
-          titulo:
-            statusNovo === "verificacao"
-              ? "O.S. aguardando verificação"
-              : statusNovo === "review"
-              ? "O.S. aguardando revisão"
-              : statusNovo === "teste" && statusAtual === "bloqueado"
-                ? "O.S. liberada para Teste"
-                : statusEvento
-                  ? buildOSStatusNotificationTitle(statusNovo as "concluida" | "bloqueado")
-                  : "Atualização de status",
-          mensagem,
-          timeId: Number(os.id_time_responsavel),
-          osId: os.os_id,
-          usuarioOrigemId: user.id,
-          usuarioNome: user.name,
-          osTitulo: os.os_titulo as string,
-          changes: ["status"],
-          incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
-          incluirResponsavelDoTimeComoDestino: statusNovo === "review",
-        });
+        try {
+          await createOSChangeNotifications(connection, {
+            usuariosDestinoExtras: usuariosMonitoramento,
+            titulo:
+              statusNovo === "verificacao"
+                ? "O.S. aguardando verificação"
+                : statusNovo === "review"
+                  ? "O.S. aguardando revisão"
+                  : statusNovo === "teste" && statusAtual === "bloqueado"
+                    ? "O.S. liberada para Teste"
+                    : statusEvento
+                      ? buildOSStatusNotificationTitle(statusNovo as "concluida" | "bloqueado")
+                      : "Atualização de status",
+            mensagem,
+            timeId: Number(os.id_time_responsavel),
+            osId: os.os_id,
+            usuarioOrigemId: user.id,
+            usuarioNome: user.name,
+            osTitulo: os.os_titulo as string,
+            changes: ["status"],
+            incluirUsuarioOrigemComoDestino: statusNovo === "concluida",
+            incluirResponsavelDoTimeComoDestino: statusNovo === "review",
+          });
+        } catch (notificationError) {
+          // A falha ao avisar os usuários não deve desfazer uma transição de status válida.
+          console.error("Erro ao notificar alteração de status da O.S.:", notificationError);
+        }
 
         await connection.commit();
         return res.json({
@@ -1167,7 +1202,13 @@ export function createOrdensRouter(requireRole: RequireRole): Router {
       }
     } catch (error) {
       console.error("Erro ao atualizar status da O.S.:", error);
-      return res.status(500).json({ message: "Não foi possível atualizar o status da ordem de serviço." });
+      const detalhe = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({
+        message:
+          process.env.NODE_ENV === "production"
+            ? "Não foi possível atualizar o status da ordem de serviço."
+            : `Falha ao atualizar status da O.S.: ${detalhe}`,
+      });
     }
   });
 

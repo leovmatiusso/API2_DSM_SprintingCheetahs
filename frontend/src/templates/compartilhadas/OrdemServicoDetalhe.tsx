@@ -11,6 +11,7 @@ import {
   enviarRelatorioOS,
   getHistoricoOS,
   getRelatoriosOS,
+  excluirOrdemServico,
   getOrdem,
   getResumoOS,
   registrarResumoOS,
@@ -56,6 +57,8 @@ function ModalConfirmacao({
   confirmar,
   enviando,
   erro,
+  perigo = false,
+  textoEnviando = "Salvando...",
   onConfirmar,
   onCancelar,
 }: {
@@ -63,7 +66,10 @@ function ModalConfirmacao({
   descricao: string;
   confirmar: string;
   enviando: boolean;
+  perigo?: boolean;
+  textoEnviando?: string;
   erro: string | null;
+  
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
@@ -86,8 +92,8 @@ function ModalConfirmacao({
           <Button variant="outline" onClick={onCancelar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button onClick={onConfirmar} disabled={enviando}>
-            {enviando ? "Salvando..." : confirmar}
+          <Button variant={perigo ? "danger" : "primary"} onClick={onConfirmar} disabled={enviando}>
+            {enviando ? textoEnviando : confirmar}
           </Button>
         </div>
       </div>
@@ -218,6 +224,10 @@ export default function OrdemServicoDetalhe() {
   const [erroMotivo, setErroMotivo] = useState<string | null>(null);
   const [erroVerificacao, setErroVerificacao] = useState<string | null>(null);
   const [enviandoVerificacao, setEnviandoVerificacao] = useState(false);
+   // Exclusão da O.S.
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState<string | null>(null);
   const [confirmarConclusao, setConfirmarConclusao] = useState(false);
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [paginaHistorico, setPaginaHistorico] = useState(0);
@@ -257,12 +267,21 @@ export default function OrdemServicoDetalhe() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const responsavelDoTime = Boolean(
-    currentUser?.id && ordem?.time?.responsavel_id === currentUser.id,
+    currentUser?.id && ordem?.time?.responsavel_id != null &&
+      Number(ordem.time.responsavel_id) === Number(currentUser.id),
   );
   
   const podeGerenciarPdfs = currentUser?.role === "monitoramento";
 
   const timeMonitoramento = isTimeMonitoramento(ordem?.departamento);
+  const perfisQueExcluem = ordem?.projeto_id ? ["gestor", "comercial", "superusuario"] : ["gestor", "suporte", "superusuario"];
+  const podeExcluir = Boolean(
+      ordem &&
+      currentUser &&
+      perfisQueExcluem.includes(currentUser.role) &&
+      ordem.status !== "concluida" &&
+      ordem.status !== "verificacao",
+  );
   const podeVerificar = currentUser?.role === "monitoramento" && ordem?.status === "verificacao";
   const emVerificacao = ordem?.status === "verificacao";
   // Aprovada pelo monitoramento: voltou ao time em Review, aguardando o resumo do líder.
@@ -512,6 +531,21 @@ export default function OrdemServicoDetalhe() {
       setAtualizandoStatus(false);
     }
   }
+  async function excluirOS() {
+    if (!ordem || !podeExcluir || excluindo) return;
+
+    setErroExclusao(null);
+    setExcluindo(true);
+    try {
+      const resposta = await excluirOrdemServico(ordem.id);
+      window.dispatchEvent(new Event("notifications:refresh"));
+      mostrarAvisoOS("success", "O.S. excluída", resposta.message);
+      navigate(ROTA_LISTA_OS, { replace: true });
+    } catch (error) {
+      setErroExclusao(error instanceof Error ? error.message : "Não foi possível excluir a ordem de serviço.");
+      setExcluindo(false);
+    }
+  }
 
   async function salvarResumoOS() {
     if (!ordem || !podeEditarResumo || salvandoResumo) return;
@@ -623,6 +657,11 @@ export default function OrdemServicoDetalhe() {
                 {!emVerificacao && (
                   <Button variant="outline" onClick={abrirModalEdicao}>
                     Editar O.S.
+                  </Button>
+                )}
+                {podeExcluir && (
+                  <Button variant="danger" onClick={() => setConfirmarExclusao(true)}>
+                    Excluir O.S.
                   </Button>
                 )}
                 <Button variant="outline" onClick={() => navigate(-1)}>
@@ -1094,6 +1133,22 @@ export default function OrdemServicoDetalhe() {
             </div>
           </div>
         </div>
+      )}
+      {confirmarExclusao && ordem && (
+        <ModalConfirmacao
+          titulo="Excluir ordem de serviço"
+          descricao={`Tem certeza que deseja excluir a O.S. "${ordem.titulo}"? Esta ação não pode ser desfeita. Os anexos, equipamentos e o histórico de verificações dela também serão excluídos.`}
+          confirmar="Excluir"
+          textoEnviando="Excluindo..."
+          perigo
+          enviando={excluindo}
+          erro={erroExclusao}
+          onConfirmar={excluirOS}
+          onCancelar={() => {
+            setConfirmarExclusao(false);
+            setErroExclusao(null);
+          }}
+        />
       )}
 
       {confirmarAprovacao && (

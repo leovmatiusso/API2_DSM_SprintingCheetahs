@@ -58,7 +58,7 @@ export function validarTransicaoOS(
 
   // Aprovada na verificação: a O.S. fica em Review até o líder registrar o resumo (o que a conclui).
   // Nenhuma outra mudança de status é permitida nessa etapa.
-  if (statusAtual === "review" && aprovadaNaVerificacao) {
+  if (statusAtual === "review" && aprovadaNaVerificacao && statusNovo !== "verificacao") {
     return { status: 409, message: MENSAGEM_APROVADA_REGISTRAR_RESUMO };
   }
 
@@ -74,10 +74,10 @@ export function validarTransicaoOS(
     if (statusAtual !== "review") {
       return { status: 409, message: "A O.S. precisa passar por Review antes da verificação." };
     }
-    if (!responsavelDoTime && !superusuario) {
+    if (!responsavelDoTime) {
       return {
         status: 403,
-        message: "Somente o responsável do time ou o superusuário pode enviar a O.S. para verificação.",
+        message: "Somente o líder do time responsável pode enviar a O.S. para verificação.",
       };
     }
     if (timeMonitoramento) {

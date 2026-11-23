@@ -153,42 +153,6 @@ CREATE TRIGGER trg_hist_item_equipamento_os_delete
     BEGIN
         INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_os', CONCAT(OLD.os_id, ':', OLD.equipamento_id), 'deletado', JSON_OBJECT('os_id', OLD.os_id, 'equipamento_id', OLD.equipamento_id, 'quantidade', OLD.quantidade), @app_actor_id, @app_actor_email);
     END //
-CREATE TRIGGER trg_hist_item_equipamento_projeto_insert
-    AFTER INSERT ON item_equipamento_projeto
-    FOR EACH ROW
-    BEGIN
-        INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_projeto', CONCAT(NEW.projeto_id, ':', NEW.equipamento_id), 'criado', JSON_OBJECT('projeto_id', NEW.projeto_id, 'equipamento_id', NEW.equipamento_id, 'quantidade', NEW.quantidade), @app_actor_id, @app_actor_email);
-    END //
-CREATE TRIGGER trg_hist_item_equipamento_projeto_update
-    AFTER UPDATE ON item_equipamento_projeto
-    FOR EACH ROW
-    BEGIN
-        INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_projeto', CONCAT(NEW.projeto_id, ':', NEW.equipamento_id), 'atualizado', JSON_OBJECT('projeto_id', NEW.projeto_id, 'equipamento_id', NEW.equipamento_id, 'quantidade', NEW.quantidade), @app_actor_id, @app_actor_email);
-    END //
-CREATE TRIGGER trg_hist_item_equipamento_projeto_delete
-    AFTER DELETE ON item_equipamento_projeto
-    FOR EACH ROW
-    BEGIN
-        INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_projeto', CONCAT(OLD.projeto_id, ':', OLD.equipamento_id), 'deletado', JSON_OBJECT('projeto_id', OLD.projeto_id, 'equipamento_id', OLD.equipamento_id, 'quantidade', OLD.quantidade), @app_actor_id, @app_actor_email);
-    END //
-CREATE TRIGGER trg_hist_item_equipamento_manutencao_insert
-    AFTER INSERT ON item_equipamento_manutencao
-    FOR EACH ROW
-    BEGIN
-        INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_manutencao', CONCAT(NEW.manutencao_id, ':', NEW.equipamento_id), 'criado', JSON_OBJECT('manutencao_id', NEW.manutencao_id, 'equipamento_id', NEW.equipamento_id, 'quantidade', NEW.quantidade), @app_actor_id, @app_actor_email);
-    END //
-CREATE TRIGGER trg_hist_item_equipamento_manutencao_update
-    AFTER UPDATE ON item_equipamento_manutencao
-    FOR EACH ROW
-    BEGIN
-        INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_manutencao', CONCAT(NEW.manutencao_id, ':', NEW.equipamento_id), 'atualizado', JSON_OBJECT('manutencao_id', NEW.manutencao_id, 'equipamento_id', NEW.equipamento_id, 'quantidade', NEW.quantidade), @app_actor_id, @app_actor_email);
-    END //
-CREATE TRIGGER trg_hist_item_equipamento_manutencao_delete
-    AFTER DELETE ON item_equipamento_manutencao
-    FOR EACH ROW
-    BEGIN
-        INSERT INTO historico_registros (tabela, registro_id, tipo_acao, dados, usuario_id, usuario_email) VALUES ('item_equipamento_manutencao', CONCAT(OLD.manutencao_id, ':', OLD.equipamento_id), 'deletado', JSON_OBJECT('manutencao_id', OLD.manutencao_id, 'equipamento_id', OLD.equipamento_id, 'quantidade', OLD.quantidade), @app_actor_id, @app_actor_email);
-    END //
 CREATE TRIGGER trg_hist_notificacoes_insert
     AFTER INSERT ON notificacoes
     FOR EACH ROW
