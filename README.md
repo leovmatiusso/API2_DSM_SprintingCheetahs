@@ -14,6 +14,7 @@
   <a href="#dor">DoR</a> | 
   <a href="#dod">DoD</a> | 
   <a href="#cronograma">Cronograma</a> |
+  <a href="#manuais">Guias e Manuais</a> |
   <a href="#equipe">Equipe</a>
 </p>
 
@@ -157,11 +158,12 @@ O projeto está dividido em três Sprints, seguindo a metodologia ágil Scrum. O
 | **02** | 05/10 à 25/10 | [📄 Acessar](docs/mvp/mvp-sprint2.md) | ✔️ |
 | **03** | 02/11 à 22/11 | [📄 Acessar](docs/mvp/mvp-sprint3.md) | ✔️ |
 
-## Guias e manuais
+
+## 📖 Guias e manuais <a id="manuais"></a>
 
 - O padrão de commits e a estratégia de branches pode ser visualizada em [GUIA.md](./docs/GUIA.md).
-- Para rodar o projeto clique em [Manual de Instalação.md](./docs/Manual de Instalação.md). 
-- Para saber como usa-se o sistema clique em [Manual do Usuário](./docs/Manual do Usuário.md).
+- Para rodar o projeto clique em <a href="docs/Manual de Instalação.md">Manual de Instalação</a>. 
+- Para saber como usa-se o sistema clique em <a href="docs/Manual do Usuário.md">Manual do Usuário</a>.
 
 ### Histórico geral de alterações
 
