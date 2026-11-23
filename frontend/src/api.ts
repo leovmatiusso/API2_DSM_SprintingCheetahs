@@ -78,47 +78,6 @@ export function getAccount(): Promise<{ user: User }> {
   return request<{ user: User }>("/account");
 }
 
-export interface HistoricoAtividadeItem {
-  historico_id: number;
-  os_id: number;
-  os_titulo: string;
-  tipo_acao: "criado" | "atualizado" | "deletado";
-  os_status: string;
-  id_time_responsavel: number | null;
-  nome_time: string | null;
-  usuario_id: number | null;
-  usuario_email: string | null;
-  data_historico: string;
-  data_limite: string;
-}
-
-export interface RegistroHistorico {
-  historico_id: number;
-  tabela: string;
-  registro_id: string;
-  tipo_acao: "criado" | "atualizado" | "deletado";
-  dados: Record<string, unknown> | string;
-  usuario_id: number | null;
-  usuario_email: string | null;
-  data_historico: string;
-}
-
-export function getRegistrosHistorico(data?: string): Promise<{ registros: RegistroHistorico[] }> {
-  const query = data ? `?data=${encodeURIComponent(data)}` : "";
-  return request<{ registros: RegistroHistorico[] }>(`/historico/registros${query}`);
-}
-
-export function getHistorico(data?: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
-  const path = data
-    ? `/historico-filtro?data=${encodeURIComponent(data)}`
-    : "/historico";
-  return request<{ historico: HistoricoAtividadeItem[] }>(path);
-}
-
-export function getHistoricoOS(osId: string): Promise<{ historico: HistoricoAtividadeItem[] }> {
-  return request<{ historico: HistoricoAtividadeItem[] }>(`/os/${encodeURIComponent(osId)}/historico`);
-}
-
 export function changePassword(
   currentPassword: string,
   newPassword: string,

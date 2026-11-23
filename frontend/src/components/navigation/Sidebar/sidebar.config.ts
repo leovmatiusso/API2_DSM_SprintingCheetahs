@@ -8,7 +8,6 @@ import {
   ListTodo,
   CirclePlus,
   Wrench,
-  Activity,
 } from "lucide-react";
 
 import type { SidebarItemConfig } from "./sidebar.types";
@@ -31,13 +30,6 @@ export const menuItems: SidebarItemConfig[] = [
     label: "Times",
     icon: Users,
     path: "/times",
-    roles: ["superusuario", "gestor"],
-  },
-
-  {
-    label: "Histórico de atividade",
-    icon: Activity,
-    path: "/historico-atividade",
     roles: ["superusuario", "gestor"],
   },
 

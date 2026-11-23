@@ -1,11 +1,10 @@
 import html2pdf from "html2pdf.js"; // tem q dar npm install html2pdf.js   pq eu nn consigo fazer isso no arquivos dos outro
 
-const botaopdf = document.querySelector<HTMLButtonElement>("#gerar-pdf");
+const botaopdf  = document.querySelector("#gerar-pdf") //tem q colocar o id do botão para gerar pdf como gerar pdf, uau
 
-botaopdf?.addEventListener("click",() =>{
+botaopdf.addEventListener("click",() =>{
 
-    const content = document.querySelector<HTMLElement>("#content");
-    if (!content) return;
+    const content = document.querySelector("#content")
 
     const options = {
         margin: [10,10,10,10],

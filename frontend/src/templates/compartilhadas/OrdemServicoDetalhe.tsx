@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, ClipboardList, Download, File, History, Link, X, Upload, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, File, Link, X, Upload, ExternalLink } from "lucide-react";
 
 import {
   ApiError,
@@ -11,14 +11,12 @@ import {
   enviarRelatorioOS,
   getRelatoriosOS,
   getOrdem,
-  getHistoricoOS,
   getResumoOS,
   registrarResumoOS,
   registrarVerificacaoOS,
 } from "@/api";
-import type { HistoricoAtividadeItem, OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo, RelatorioOS } from "@/api";
+import type { OrdemServicoDetalhe as Ordem, OrdemStatus, ProjetoAnexo, RelatorioOS } from "@/api";
 import Button from "@/components/ui/Button";
-import { Card, CardTitle } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
@@ -99,59 +97,6 @@ function CampoCaixa({ rotulo, children }: { rotulo: string; children: React.Reac
   );
 }
 
-const itensPorPaginaHistorico = 2;
-const itensPorPaginaHistoricoModal = 7;
-
-function tituloHistorico(item: HistoricoAtividadeItem): string {
-  if (item.tipo_acao === "criado") return "Ordem de serviço criada";
-  if (item.tipo_acao === "deletado") return "Ordem de serviço removida";
-  return "Ordem de serviço atualizada";
-}
-
-function dataHistorico(valor: string): string {
-  if (!valor) return "Data indisponível";
-  const [data, hora] = valor.split(" ");
-  const [ano, mes, dia] = data.split("-");
-  return `${dia}/${mes}/${ano}${hora ? ` às ${hora}` : ""}`;
-}
-
-function CartaoHistorico({ item }: { item: HistoricoAtividadeItem }) {
-  return (
-    <Card className="w-full overflow-hidden !p-0">
-      <div className="flex items-stretch">
-        <div className={`w-1 shrink-0 ${item.tipo_acao === "criado" ? "bg-success" : item.tipo_acao === "deletado" ? "bg-danger" : "bg-primary"}`} aria-hidden="true" />
-        <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4 px-5 py-3">
-          <div>
-            <CardTitle className="text-base">{tituloHistorico(item)}</CardTitle>
-            <p className="text-text-muted mt-2 mb-0 text-sm">
-              Status: {item.os_status}{item.nome_time ? ` · Equipe: ${item.nome_time}` : ""}{item.data_limite ? ` · Prazo: ${formatarData(item.data_limite)}` : ""}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-text m-0 text-sm font-medium">{item.usuario_email ?? "E-mail não identificado"}</p>
-            <p className="text-text-muted mt-1 mb-0 text-xs">{dataHistorico(item.data_historico)}</p>
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function PaginacaoHistorico({ pagina, totalPaginas, onMudarPagina }: {
-  pagina: number;
-  totalPaginas: number;
-  onMudarPagina: (pagina: number) => void;
-}) {
-  if (totalPaginas <= 1) return null;
-  return (
-    <nav aria-label="Paginação do histórico" className="text-text-muted mt-4 flex items-center justify-center gap-4 text-sm">
-      <button type="button" onClick={() => onMudarPagina(pagina - 1)} disabled={pagina === 0} aria-label="Página anterior" className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:opacity-40">&lt;</button>
-      <span>Página {pagina + 1} de {totalPaginas}</span>
-      <button type="button" onClick={() => onMudarPagina(pagina + 1)} disabled={pagina + 1 >= totalPaginas} aria-label="Próxima página" className="text-primary rounded bg-transparent px-2 py-1 text-base font-semibold disabled:opacity-40">&gt;</button>
-    </nav>
-  );
-}
-
 export default function OrdemServicoDetalhe() {
   const { osId } = useParams<{ osId: string }>();
   const navigate = useNavigate();
@@ -163,11 +108,6 @@ export default function OrdemServicoDetalhe() {
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
   const [erroStatus, setErroStatus] = useState<string | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
-  const [eventosHistorico, setEventosHistorico] = useState<HistoricoAtividadeItem[]>([]);
-  const [erroHistorico, setErroHistorico] = useState("");
-  const [historicoAberto, setHistoricoAberto] = useState(false);
-  const [paginaHistorico, setPaginaHistorico] = useState(0);
-  const [paginaHistoricoModal, setPaginaHistoricoModal] = useState(0);
   const [resumoOS, setResumoOS] = useState("");
   const [salvandoResumo, setSalvandoResumo] = useState(false);
   const [modalFeedbackResumo, setModalFeedbackResumo] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
@@ -296,17 +236,6 @@ export default function OrdemServicoDetalhe() {
       ativo = false;
     };
   }, [osId, navigate]);
-
-  useEffect(() => {
-    let ativo = true;
-    if (!osId) return;
-    getHistoricoOS(osId)
-      .then(({ historico }) => { if (ativo) setEventosHistorico(historico); })
-      .catch((error: unknown) => {
-        if (ativo) setErroHistorico(error instanceof Error ? error.message : "Não foi possível carregar o histórico da OS.");
-      });
-    return () => { ativo = false; };
-  }, [osId]);
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -529,11 +458,6 @@ export default function OrdemServicoDetalhe() {
       setEnviandoVerificacao(false);
     }
   }
-
-  const totalPaginasHistorico = Math.ceil(eventosHistorico.length / itensPorPaginaHistorico);
-  const eventosPrevia = eventosHistorico.slice(paginaHistorico * itensPorPaginaHistorico, (paginaHistorico + 1) * itensPorPaginaHistorico);
-  const totalPaginasHistoricoModal = Math.ceil(eventosHistorico.length / itensPorPaginaHistoricoModal);
-  const eventosModal = eventosHistorico.slice(paginaHistoricoModal * itensPorPaginaHistoricoModal, (paginaHistoricoModal + 1) * itensPorPaginaHistoricoModal);
 
   return (
     <main className="page min-h-full p-5 md:p-8">
@@ -987,32 +911,9 @@ export default function OrdemServicoDetalhe() {
                 )}
               </div>
             </div>
-            <section className="mt-8 w-full">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary-muted text-primary flex h-11 w-11 items-center justify-center rounded-full"><History size={22} /></div>
-                  <h2 className="text-text m-0 text-xl font-bold">Histórico de alterações</h2>
-                </div>
-                <button type="button" onClick={() => setHistoricoAberto(true)} className="text-primary rounded-md bg-transparent px-2 py-1 text-sm font-semibold">Ver todas <span aria-hidden="true">&gt;</span></button>
-              </div>
-              <div className="space-y-3">
-                {erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p> : eventosPrevia.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p> : eventosPrevia.map((item) => <CartaoHistorico key={item.historico_id} item={item} />)}
-              </div>
-              <PaginacaoHistorico pagina={paginaHistorico} totalPaginas={totalPaginasHistorico} onMudarPagina={setPaginaHistorico} />
-            </section>
           </section>
         )}
       </div>
-
-      {historicoAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" onClick={() => setHistoricoAberto(false)}>
-          <section role="dialog" aria-modal="true" aria-labelledby="historico-modal-titulo" className="border-border bg-bg text-text max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border p-6 shadow-2xl md:p-8" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-6 flex items-center justify-between gap-4"><h2 id="historico-modal-titulo" className="text-text m-0 text-xl font-bold">Histórico de alterações</h2><button type="button" aria-label="Fechar histórico" onClick={() => setHistoricoAberto(false)} className="text-text-muted hover:text-text rounded bg-transparent p-1"><X size={20} /></button></div>
-            <div className="space-y-3">{erroHistorico ? <p role="alert" className="text-danger text-sm">{erroHistorico}</p> : eventosModal.length === 0 ? <p className="text-text-muted text-sm">Nenhuma alteração registrada ainda.</p> : eventosModal.map((item) => <CartaoHistorico key={item.historico_id} item={item} />)}</div>
-            <PaginacaoHistorico pagina={paginaHistoricoModal} totalPaginas={totalPaginasHistoricoModal} onMudarPagina={setPaginaHistoricoModal} />
-          </section>
-        </div>
-      )}
 
       {modalFeedbackResumo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">

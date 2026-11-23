@@ -840,7 +840,7 @@ export function createNotificacoesRouter(requireAuth: RequestHandler): Router {
 
   router.patch("/:notificacaoId/ler", requireAuth, async (req, res) => {
     const user = res.locals.user as User;
-    const notId = String(req.params.notificacaoId);
+    const notId = req.params.notificacaoId;
 
     if (!/^\d+$/.test(notId)) {
       return res.status(404).json({ message: "Notificação não encontrada." });

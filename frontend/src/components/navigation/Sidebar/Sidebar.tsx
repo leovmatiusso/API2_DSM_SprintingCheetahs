@@ -106,17 +106,16 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
         </div>
       </div>
 
-      <nav className="grid flex-1 content-start gap-1.5 pr-3" aria-label="Navegação principal">
+      <nav className={`flex w-full flex-col gap-2 px-3`} aria-label="Navegação principal">
         {visibleItems.map((item) => (
           <SidebarItem key={item.path} {...item} collapsed={collapsed} />
         ))}
       </nav>
 
-      <div className="border-border flex items-center gap-1 border-t p-3">
+      <div className="mt-auto w-full border-t border-border p-3">
         <ThemeToggle />
       </div>
 
-      {/* Seta de hide/show sidebar */}
       <button
         type="button"
         className={`bg-bg border-border text-text-muted absolute top-6 inline-flex size-7 cursor-pointer items-center justify-center rounded-2xl border p-0 shadow-sm ${
@@ -124,7 +123,6 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
         }`}
         onClick={handleCollapse}
         aria-label={collapsed ? "Abrir menu" : "Fechar menu"}
-        title={collapsed ? "Abrir menu" : "Fechar menu"}
       >
         {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
@@ -132,3 +130,4 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
     </>
   );
 }
+
